@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Match | Restoration Tennis Ladder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo" />
+      <div class="brand-text">
+        <h1>Restoration Tennis Ladder</h1>
+      </div>
+    </div>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card report-card">
+      <div class="page-intro">
+        <h2>Report a Match</h2>
+        <p class="section-helper">
+          Enter the players, final score, and match details below. This form works for both singles and doubles.
+        </p>
+      </div>
+
+      <form id="report-form" class="report-form">
+        <!-- Match Details -->
+        <div class="form-section">
+          <div class="section-heading">
+            <h3>Match Details</h3>
+          </div>
+
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="match-type">Match Format</label>
+              <select id="match-type" required>
+                <option value="">Select match type</option>
+                <option value="Singles">Singles</option>
+                <option value="Doubles">Doubles</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="date-played">Date Played</label>
+              <input type="date" id="date-played" required />
+            </div>
+          </div>
+        </div>
+
+        <!-- Players -->
+        <div class="form-section">
+          <div class="section-heading">
+            <h3>Players</h3>
+            <p class="section-helper">
+              Select the players for each side. Doubles partners will appear when Doubles is selected.
+            </p>
+          </div>
+
+          <div class="form-grid two-col team-grid">
+            <div class="team-card">
+              <h4>Side A</h4>
+
+              <div class="form-group">
+                <label for="team1-player1">Player 1</label>
+                <select id="team1-player1" required>
+                  <option value="">Select player</option>
+                </select>
+              </div>
+
+              <div id="team1-player2-wrap" class="form-group" style="display:none;">
+                <label for="team1-player2">Partner</label>
+                <select id="team1-player2">
+                  <option value="">Select player</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="team-card">
+              <h4>Side B</h4>
+
+              <div class="form-group">
+                <label for="team2-player1">Player 1</label>
+                <select id="team2-player1" required>
+                  <option value="">Select player</option>
+                </select>
+              </div>
+
+              <div id="team2-player2-wrap" class="form-group" style="display:none;">
+                <label for="team2-player2">Partner</label>
+                <select id="team2-player2">
+                  <option value="">Select player</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Winner -->
+        <div class="form-section">
+          <div class="section-heading">
+            <h3>Match Result</h3>
+          </div>
+
+          <div class="form-grid one-col narrow-row">
+            <div class="form-group">
+              <label for="winner-team">Winning Side</label>
+              <select id="winner-team" required>
+                <option value="">Select winner</option>
+                <option value="1">Side A</option>
+                <option value="2">Side B</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scores -->
+        <div class="form-section">
+          <div class="section-heading">
+            <h3>Score</h3>
+            <p class="section-helper">
+              Enter each set score. The third set is a match tiebreak to 10 if played.
+            </p>
+          </div>
+
+          <div class="score-block">
+            <div class="score-set">
+              <div class="score-set-label">Set 1</div>
+              <div class="score-row polished-score-row">
+                <div class="form-group">
+                  <label for="set1-team1-games">Side A</label>
+                  <select id="set1-team1-games" required>
+                    <option value="">Games</option>
+                    <option>0</option><option>1</option><option>2</option><option>3</option>
+                    <option>4</option><option>5</option><option>6</option><option>7</option>
+                  </select>
+                </div>
+
+                <div class="score-divider">vs</div>
+
+                <div class="form-group">
+                  <label for="set1-team2-games">Side B</label>
+                  <select id="set1-team2-games" required>
+                    <option value="">Games</option>
+                    <option>0</option><option>1</option><option>2</option><option>3</option>
+                    <option>4</option><option>5</option><option>6</option><option>7</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="score-set">
+              <div class="score-set-label">Set 2</div>
+              <div class="score-row polished-score-row">
+                <div class="form-group">
+                  <label for="set2-team1-games">Side A</label>
+                  <select id="set2-team1-games" required>
+                    <option value="">Games</option>
+                    <option>0</option><option>1</option><option>2</option><option>3</option>
+                    <option>4</option><option>5</option><option>6</option><option>7</option>
+                  </select>
+                </div>
+
+                <div class="score-divider">vs</div>
+
+                <div class="form-group">
+                  <label for="set2-team2-games">Side B</label>
+                  <select id="set2-team2-games" required>
+                    <option value="">Games</option>
+                    <option>0</option><option>1</option><option>2</option><option>3</option>
+                    <option>4</option><option>5</option><option>6</option><option>7</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="score-set">
+              <div class="score-set-label">Set 3 Match Tiebreak</div>
+              <div class="score-row polished-score-row">
+                <div class="form-group">
+                  <label for="set3-team1-games">Side A</label>
+                  <select id="set3-team1-games">
+                    <option value="">Points</option>
+                    <option>0</option><option>1</option><option>2</option><option>3</option>
+                    <option>4</option><option>5</option><option>6</option><option>7</option>
+                    <option>8</option><option>9</option><option>10</option>
+                  </select>
+                </div>
+
+                <div class="score-divider">vs</div>
+
+                <div class="form-group">
+                  <label for="set3-team2-games">Side B</label>
+                  <select id="set3-team2-games">
+                    <option value="">Points</option>
+                    <option>0</option><option>1</option><option>2</option><option>3</option>
+                    <option>4</option><option>5</option><option>6</option><option>7</option>
+                    <option>8</option><option>9</option><option>10</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-section">
+          <div class="form-group">
+            <label for="match-notes">Match Notes / Commentary</label>
+            <textarea
+              id="match-notes"
+              name="match-notes"
+              rows="4"
+              maxlength="1000"
+              placeholder="Optional: rematch, big comeback in the second set, someone broke a racquet, etc."
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Submission -->
+        <div class="form-section">
+          <div class="form-grid one-col narrow-row">
+            <div class="form-group">
+              <label for="submitted-by">Submitted By</label>
+              <input
+                type="text"
+                id="submitted-by"
+                placeholder="Your name"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-btn">Submit Match</button>
+        </div>
+      </form>
+
+      <p id="report-message" class="small-text form-message"></p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>

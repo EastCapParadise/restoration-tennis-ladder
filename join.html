@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join | Restoration Tennis Ladder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+  <div class="brand">
+    <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
+    <div class="brand-text">
+      <h1>Restoration Tennis Ladder</h1>
+    </div>
+  </div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Join the Ladder</h2>
+      <form id="join-form">
+  <label for="name">Full Name (First + Last)</label>
+  <input 
+    type="text" 
+    id="name" 
+    name="name" 
+    placeholder="e.g. Dwight Schrute" 
+    required
+    pattern="^[A-Za-z]+ [A-Za-z]+.*$"
+    title="Please enter first and last name"
+>
+
+  <label for="email">Email</label>
+  <input type="email" id="email" name="email" placeholder="Enter your email" required>
+
+  <label for="phone">Cell Phone</label>
+  <input 
+  type="tel" 
+  id="phone" 
+  name="phone" 
+  placeholder="123-456-7890"
+  pattern="^\d{3}-\d{3}-\d{4}$"
+  required
+  >
+
+  <label for="area">Area of the DMV</label>
+  <input type="text" id="area" name="area" placeholder="Arlington, Alexandria, Falls Church, Capitol Hill,etc.">
+
+<label for="rating">Self Rating</label>
+<select id="rating" name="rating" required>
+  <option value="">Select your rating</option>
+  <option value="2.00 – new to tennis, learning basics">2.0</option>
+  <option value="2.25">2.25</option>
+  <option value="2.50  – short rallies, inconsistent control & serve">2.5</option>
+  <option value="2.75">2.75</option>
+  <option value="3.00 – consistent rally, basic serve, limited placement">3.0</option>
+  <option value="3.25">3.25</option>
+  <option value="3.50 – consistent rally, reliable serve, directional control">3.5</option>
+  <option value="3.75">3.75</option>
+  <option value="4.00">4.00</option>
+  <option value="4.25">4.25</option>
+  <option value="4.50">4.50</option>
+  <option value="4.75">4.75</option>
+  <option value="5.00">5.00</option>
+  <option value="5.25">5.25</option>
+  <option value="5.50">5.50</option>
+</select>
+<p class="rating-help">
+  Unsure of your rating?
+  <a href="https://www.usta.com/content/dam/usta/pdfs/10013_experience_player_ntrp_characteristics1%20(2).pdf" 
+     target="_blank">
+     View the official USTA NTRP rating guide
+  </a>
+</p>
+
+<label for="sex">Sex</label>
+<select id="sex" name="sex" required>
+  <option value="">Select sex</option>
+  <option value="Man">Man</option>
+  <option value="Woman">Woman</option>
+</select>
+
+<p class="small-text">
+  By joining the ladder, you agree that your phone number and neighborhood may be visible to other ladder participants.
+</p>
+
+<button type="submit">Submit</button>
+</form>
+
+<p id="join-message" class="small-text"></p>
+    </section>
+  </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Directory | Restoration Tennis Ladder</title>
+  <link rel="stylesheet" href="style.css?v=3" />
+</head>
+<body>
+  <div id="directory-login-overlay" class="directory-login-overlay">
+    <div class="directory-login-card">
+      <div class="directory-login-top">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="directory-login-logo">
+        <h2>Member Directory</h2>
+        <p>Enter the ladder password to view player contact information.</p>
+      </div>
+
+      <form id="directory-login-form" class="directory-login-form">
+        <label for="directory-password" class="sr-only">Password</label>
+        <input
+          type="password"
+          id="directory-password"
+          placeholder="Enter password"
+          autocomplete="current-password"
+          required
+        />
+        <button type="submit">Enter Directory</button>
+        <p id="directory-login-message" class="small-text directory-login-message"></p>
+      </form>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="brand">
+      <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
+      <div class="brand-text">
+        <h1>Restoration Tennis Ladder</h1>
+      </div>
+    </div>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card directory-card hidden" id="directory-page">
+      <h2>Member Directory</h2>
+      <p class="small-text">
+        Contact information for ladder members. Please use this only to coordinate matches.
+      </p>
+
+      <div class="directory-toolbar">
+        <input
+          type="text"
+          id="directory-search"
+          placeholder="Search by name, rating, or area..."
+        />
+        <div id="directory-summary" class="directory-summary-pill">Loading...</div>
+      </div>
+
+<div class="table-wrap">
+  <table class="directory-table" id="directory-table">
+    <thead>
+      <tr>
+        <th class="num" data-sort="season_rank" data-label="Rank">Rank</th>
+        <th data-sort="name" data-label="Name">Name</th>
+        <th data-sort="sex" data-label="M/W">M/W</th>
+        <th class="num" data-sort="ladder_points" data-label="Season Pts">Season Pts</th>
+        <th data-sort="area" data-label="Area">Area</th>
+        <th class="num" data-sort="display_rating" data-label="Rating">Rating</th>
+        <th data-sort="phone" data-label="Phone Number">Phone Number</th>
+        <th data-label="Text">Text</th>
+      </tr>
+    </thead>
+    <tbody id="directory-body">
+      <tr>
+        <td colspan="8">Loading member directory...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+      <div id="directory-cards" class="directory-cards"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js?v=3"></script>
+</body>
+</html>

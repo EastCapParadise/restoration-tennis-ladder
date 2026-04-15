@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rankings | Restoration Tennis Ladder</title>
+  <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
+      <div class="brand-text">
+        <h1>Restoration Tennis Ladder</h1>
+      </div>
+    </div>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Current Rankings</h2>
+      <p class="small-text">Season standings for Restoration Tennis Ladder.</p>
+
+      <div class="button-group ladder-filters" style="margin-bottom: 16px;">
+        <button type="button" class="filter-btn active" data-filter="All">All Players</button>
+        <button type="button" class="filter-btn" data-filter="Man">Men's Ladder</button>
+        <button type="button" class="filter-btn" data-filter="Woman">Women's Ladder</button>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <input
+          type="text"
+          id="ladder-search"
+          placeholder="Search players by name, area, or ladder..."
+          style="width: 100%; max-width: 360px;"
+        >
+      </div>
+
+      <div id="rankings-summary-strip" class="summary-strip"></div>
+
+      <div class="table-wrap">
+        <table class="ladder-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th data-sort="name">Name</th>
+              <th data-sort="area">Area</th>
+              <th data-sort="display_rating">Rating</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="ladder_points">Season Pts</th>
+              <th data-sort="wins">W</th>
+              <th data-sort="losses">L</th>
+              <th data-sort="games_won">Games W</th>
+              <th data-sort="games_lost">Games L</th>
+              <th data-sort="matches_played">Played</th>
+              <th data-sort="sex">Ladder</th>
+            </tr>
+          </thead>
+          <tbody id="ladder-body">
+            <tr>
+              <td colspan="12">Loading rankings...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js?v=2"></script>
+</body>
+</html>

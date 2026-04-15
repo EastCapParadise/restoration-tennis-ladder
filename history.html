@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match History | Restoration Tennis Ladder</title>
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
+      <div class="brand-text">
+        <h1>Restoration Tennis Ladder</h1>
+      </div>
+    </div>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html" class="active">Match History</a>
+      <a href="contacts.html">Directory</a>
+
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2>Match History</h2>
+          <p class="small-text">Most recent results appear first.</p>
+        </div>
+      </div>
+
+      <div class="history-toolbar">
+        <div class="history-filters premium-filters">
+          <button type="button" class="filter-chip active" data-filter="All">All</button>
+          <button type="button" class="filter-chip" data-filter="Singles">Singles</button>
+          <button type="button" class="filter-chip" data-filter="Doubles">Doubles</button>
+        </div>
+
+        <div class="history-search-wrap">
+          <input
+            type="text"
+            id="history-player-filter"
+            placeholder="Search by player name"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+
+      <div id="history-list">
+        <p>Loading match history...</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
