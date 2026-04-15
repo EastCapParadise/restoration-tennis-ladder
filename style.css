@@ -1532,8 +1532,6 @@ th[data-sort]:hover {
 .directory-table td {
   padding: 10px;
   text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1579,8 +1577,6 @@ th[data-sort]:hover {
   padding: 10px 12px;
   text-align: left;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .directory-table th {
@@ -1670,8 +1666,6 @@ th[data-sort]:hover {
   padding: 12px 10px;
   text-align: left;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   vertical-align: middle;
 }
 
