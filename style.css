@@ -1267,8 +1267,8 @@ th[data-sort]:hover {
 .ladder-table td:nth-child(2) {
   position: sticky;
   left: 64px;
-  min-width: 180px;
-  width: 180px;
+  width: auto;
+  min-width: 0;
   z-index: 24;
   background: #fff;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
@@ -1339,13 +1339,13 @@ th[data-sort]:hover {
 
   .ladder-table {
     min-width: 480px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .ladder-table th,
   .ladder-table td {
     padding: 8px 7px;
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 
@@ -1357,25 +1357,25 @@ th[data-sort]:hover {
   }
 
   .ladder-table {
-    min-width: 420px;
-    font-size: 11px;
+    min-width: 400px;
+    font-size: 13px;
   }
 
   .ladder-table th,
   .ladder-table td {
     padding: 5px 4px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .directory-table {
-    min-width: 560px;
-    font-size: 11px;
+    min-width: 520px;
+    font-size: 13px;
   }
 
   .directory-table th,
   .directory-table td {
     padding: 5px 4px;
-    font-size: 11px;
+    font-size: 13px;
   }
 }
 
