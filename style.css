@@ -7,8 +7,8 @@
   --card: #ffffff;
   --text: #18201c;
   --muted: #66736c;
-  --green: #1f4d3a;
-  --green-dark: #16392b;
+  --green: #16a34a;
+  --green-dark: #15803d;
   --green-light: #e9f3ee;
   --navy: #1f3558;
   --border: #dde6e0;
@@ -22,7 +22,7 @@ html {
 
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
   background:
     radial-gradient(circle at top, #f8fbf8 0%, var(--bg) 55%);
   color: var(--text);
@@ -83,6 +83,13 @@ nav a {
   border-radius: 999px;
   font-size: 14px;
   transition: 0.2s ease;
+}
+
+@media (min-width: 700px) {
+  nav a {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
 }
 
 nav a:hover {
@@ -425,7 +432,11 @@ hr {
 
 .rank-1 td {
   font-weight: 700;
-  background: rgba(255, 215, 0, 0.18);
+  background: rgba(255, 215, 0, 0.28);
+}
+
+.rank-1 td:first-child {
+  border-left: 4px solid gold;
 }
 
 .rank-2 td {
@@ -433,9 +444,17 @@ hr {
   background: rgba(192, 192, 192, 0.18);
 }
 
+.rank-2 td:first-child {
+  border-left: 4px solid silver;
+}
+
 .rank-3 td {
   font-weight: 700;
   background: rgba(205, 127, 50, 0.18);
+}
+
+.rank-3 td:first-child {
+  border-left: 4px solid #cd7f32;
 }
 
 .rank-top-10 td {
@@ -2105,6 +2124,7 @@ th[data-sort]:hover {
 .stat-card {
   background: var(--card);
   border: 1px solid var(--border);
+  border-top: 3px solid #16a34a;
   border-radius: var(--radius);
   padding: 24px 16px;
   box-shadow: var(--shadow);
@@ -2112,11 +2132,14 @@ th[data-sort]:hover {
 }
 
 .stat-value {
-  font-size: 2.4rem;
+  font-size: 2.8rem;
   font-weight: 800;
-  color: var(--green);
   line-height: 1;
   margin-bottom: 6px;
+  background: linear-gradient(135deg, #16a34a 0%, #1f4d3a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .stat-label {
