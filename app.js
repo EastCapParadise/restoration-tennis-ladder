@@ -1496,13 +1496,11 @@ function setupDirectoryPage() {
 
 async function loadDirectory() {
   const tbody = document.getElementById("directory-body");
-  const cardsWrap = document.getElementById("directory-cards");
   const summary = document.getElementById("directory-summary");
 
-  if (!tbody || !cardsWrap || !summary) return;
+  if (!tbody || !summary) return;
 
   setTableMessage(tbody, "Loading directory...", 7);
-  cardsWrap.innerHTML = "";
   summary.textContent = "Loading...";
 
   try {
@@ -1530,7 +1528,6 @@ async function loadDirectory() {
   } catch (error) {
     console.error("Load directory error:", error);
     setTableMessage(tbody, "Error loading directory.", 7);
-    cardsWrap.innerHTML = `<div class="directory-empty">Error loading directory.</div>`;
     summary.textContent = "Directory unavailable";
   }
 }

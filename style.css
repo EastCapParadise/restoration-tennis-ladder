@@ -1188,13 +1188,13 @@ th[data-sort]:hover {
 
   .directory-table {
     table-layout: auto;
-    min-width: 680px;
+    min-width: 600px;
     font-size: 12px;
   }
 
   .directory-table th,
   .directory-table td {
-    padding: 8px 7px;
+    padding: 6px 6px;
     font-size: 12px;
   }
 }
@@ -1333,7 +1333,7 @@ th[data-sort]:hover {
   }
 
   .ladder-table {
-    min-width: 560px;
+    min-width: 480px;
     font-size: 12px;
   }
 
@@ -1341,6 +1341,36 @@ th[data-sort]:hover {
   .ladder-table td {
     padding: 8px 7px;
     font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+  }
+
+  .ladder-table {
+    min-width: 420px;
+    font-size: 11px;
+  }
+
+  .ladder-table th,
+  .ladder-table td {
+    padding: 5px 4px;
+    font-size: 11px;
+  }
+
+  .directory-table {
+    min-width: 560px;
+    font-size: 11px;
+  }
+
+  .directory-table th,
+  .directory-table td {
+    padding: 5px 4px;
+    font-size: 11px;
   }
 }
 
