@@ -1290,7 +1290,12 @@ th[data-sort]:hover {
 
 .ladder-table th:nth-child(3),
 .ladder-table td:nth-child(3) {
-  min-width: 110px;  /* Area */
+  min-width: 60px;
+  max-width: 100px;
+  width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ladder-table th:nth-child(5),
