@@ -2030,3 +2030,213 @@ th[data-sort]:hover {
   width: 90px;
   text-align: center;
 }
+
+/* =========================
+   LADDER — SHOW/HIDE COLS
+========================= */
+
+.ladder-table th:nth-child(n+8),
+.ladder-table td:nth-child(n+8) {
+  display: none;
+}
+
+.ladder-table.show-more-stats th:nth-child(n+8),
+.ladder-table.show-more-stats td:nth-child(n+8) {
+  display: table-cell;
+}
+
+.toggle-stats-link {
+  background: none;
+  border: none;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: background 0.15s ease;
+}
+
+.toggle-stats-link:hover {
+  background: var(--green-light);
+  transform: none;
+}
+
+/* =========================
+   SCORE NUMBER INPUTS
+========================= */
+
+.score-input-group {
+  flex: 0 0 auto;
+}
+
+.score-input {
+  width: 74px !important;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  padding: 10px 6px;
+  margin-bottom: 0;
+  -moz-appearance: textfield;
+}
+
+.score-input::-webkit-outer-spin-button,
+.score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.score-optional {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* =========================
+   HOMEPAGE STAT CARDS
+========================= */
+
+.home-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 16px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--green);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* =========================
+   HOMEPAGE CTA BUTTONS
+========================= */
+
+.cta-card {
+  padding: 22px;
+}
+
+.cta-button-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cta-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  text-decoration: none;
+  color: white;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cta-btn:hover {
+  transform: translateY(-2px);
+}
+
+.cta-join {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.25);
+}
+
+.cta-join:hover {
+  box-shadow: 0 12px 28px rgba(22, 163, 74, 0.32);
+}
+
+.cta-rankings {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  box-shadow: 0 8px 20px rgba(29, 78, 216, 0.25);
+}
+
+.cta-rankings:hover {
+  box-shadow: 0 12px 28px rgba(29, 78, 216, 0.32);
+}
+
+.cta-report {
+  background: linear-gradient(135deg, #1f4d3a, #16392b);
+  box-shadow: 0 8px 20px rgba(31, 77, 58, 0.25);
+}
+
+.cta-report:hover {
+  box-shadow: 0 12px 28px rgba(31, 77, 58, 0.32);
+}
+
+.cta-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cta-text strong {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cta-text small {
+  font-size: 0.82rem;
+  opacity: 0.82;
+}
+
+.hero-tagline {
+  font-size: 1rem;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.how-it-works-list {
+  padding-left: 22px;
+  margin: 0 0 14px;
+}
+
+.how-it-works-list li {
+  margin-bottom: 10px;
+  line-height: 1.55;
+}
+
+@media (min-width: 700px) {
+  .cta-button-group {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-value {
+    font-size: 1.8rem;
+  }
+
+  .stat-card {
+    padding: 18px 10px;
+  }
+}

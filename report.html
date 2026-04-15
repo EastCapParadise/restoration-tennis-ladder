@@ -138,24 +138,16 @@
             <div class="score-set">
               <div class="score-set-label">Set 1</div>
               <div class="score-row polished-score-row">
-                <div class="form-group">
+                <div class="form-group score-input-group">
                   <label for="set1-team1-games">Side A</label>
-                  <select id="set1-team1-games" required>
-                    <option value="">Games</option>
-                    <option>0</option><option>1</option><option>2</option><option>3</option>
-                    <option>4</option><option>5</option><option>6</option><option>7</option>
-                  </select>
+                  <input type="number" id="set1-team1-games" class="score-input" min="0" max="7" step="1" placeholder="0" required />
                 </div>
 
-                <div class="score-divider">vs</div>
+                <div class="score-divider">–</div>
 
-                <div class="form-group">
+                <div class="form-group score-input-group">
                   <label for="set1-team2-games">Side B</label>
-                  <select id="set1-team2-games" required>
-                    <option value="">Games</option>
-                    <option>0</option><option>1</option><option>2</option><option>3</option>
-                    <option>4</option><option>5</option><option>6</option><option>7</option>
-                  </select>
+                  <input type="number" id="set1-team2-games" class="score-input" min="0" max="7" step="1" placeholder="0" required />
                 </div>
               </div>
             </div>
@@ -163,51 +155,33 @@
             <div class="score-set">
               <div class="score-set-label">Set 2</div>
               <div class="score-row polished-score-row">
-                <div class="form-group">
+                <div class="form-group score-input-group">
                   <label for="set2-team1-games">Side A</label>
-                  <select id="set2-team1-games" required>
-                    <option value="">Games</option>
-                    <option>0</option><option>1</option><option>2</option><option>3</option>
-                    <option>4</option><option>5</option><option>6</option><option>7</option>
-                  </select>
+                  <input type="number" id="set2-team1-games" class="score-input" min="0" max="7" step="1" placeholder="0" required />
                 </div>
 
-                <div class="score-divider">vs</div>
+                <div class="score-divider">–</div>
 
-                <div class="form-group">
+                <div class="form-group score-input-group">
                   <label for="set2-team2-games">Side B</label>
-                  <select id="set2-team2-games" required>
-                    <option value="">Games</option>
-                    <option>0</option><option>1</option><option>2</option><option>3</option>
-                    <option>4</option><option>5</option><option>6</option><option>7</option>
-                  </select>
+                  <input type="number" id="set2-team2-games" class="score-input" min="0" max="7" step="1" placeholder="0" required />
                 </div>
               </div>
             </div>
 
             <div class="score-set">
-              <div class="score-set-label">Set 3 Match Tiebreak</div>
+              <div class="score-set-label">Set 3 Match Tiebreak <span class="score-optional">(optional)</span></div>
               <div class="score-row polished-score-row">
-                <div class="form-group">
+                <div class="form-group score-input-group">
                   <label for="set3-team1-games">Side A</label>
-                  <select id="set3-team1-games">
-                    <option value="">Points</option>
-                    <option>0</option><option>1</option><option>2</option><option>3</option>
-                    <option>4</option><option>5</option><option>6</option><option>7</option>
-                    <option>8</option><option>9</option><option>10</option>
-                  </select>
+                  <input type="number" id="set3-team1-games" class="score-input" min="0" max="99" step="1" placeholder="0" />
                 </div>
 
-                <div class="score-divider">vs</div>
+                <div class="score-divider">–</div>
 
-                <div class="form-group">
+                <div class="form-group score-input-group">
                   <label for="set3-team2-games">Side B</label>
-                  <select id="set3-team2-games">
-                    <option value="">Points</option>
-                    <option>0</option><option>1</option><option>2</option><option>3</option>
-                    <option>4</option><option>5</option><option>6</option><option>7</option>
-                    <option>8</option><option>9</option><option>10</option>
-                  </select>
+                  <input type="number" id="set3-team2-games" class="score-input" min="0" max="99" step="1" placeholder="0" />
                 </div>
               </div>
             </div>

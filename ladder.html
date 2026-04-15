@@ -55,11 +55,11 @@
               <th>Rank</th>
               <th data-sort="name">Name</th>
               <th data-sort="area">Area</th>
-              <th data-sort="display_rating">Rating</th>
-              <th data-sort="status">Status</th>
-              <th data-sort="ladder_points">Season Pts</th>
+              <th data-sort="ladder_points">Points</th>
               <th data-sort="wins">W</th>
               <th data-sort="losses">L</th>
+              <th data-sort="display_rating">Rating</th>
+              <th data-sort="status">Status</th>
               <th data-sort="games_won">Games W</th>
               <th data-sort="games_lost">Games L</th>
               <th data-sort="matches_played">Played</th>
@@ -68,10 +68,14 @@
           </thead>
           <tbody id="ladder-body">
             <tr>
-              <td colspan="12">Loading rankings...</td>
+              <td colspan="7">Loading rankings...</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div style="text-align:center; margin-top:14px;">
+        <button type="button" id="show-more-stats-btn" class="toggle-stats-link">Show More Stats ▾</button>
       </div>
     </section>
   </main>

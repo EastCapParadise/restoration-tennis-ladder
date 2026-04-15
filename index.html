@@ -8,12 +8,12 @@
 </head>
 <body>
   <header class="site-header">
-  <div class="brand">
-    <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
-    <div class="brand-text">
-      <h1>Restoration Tennis Ladder</h1>
+    <div class="brand">
+      <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
+      <div class="brand-text">
+        <h1>Restoration Tennis Ladder</h1>
+      </div>
     </div>
-  </div>
     <nav>
       <a href="index.html">Home</a>
       <a href="rules.html">About</a>
@@ -26,44 +26,70 @@
   </header>
 
   <main>
+    <!-- Hero -->
     <section class="card hero-card">
-     <div class="hero-logo">
-      <img src="images/logo.png" alt="Restoration Tennis Ladder logo">
+      <div class="hero-logo">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder logo">
       </div>
-      <h2>Welcome</h2>
-      <p>
-        Restoration Tennis Ladder is a collection of local DMV tennis enthusiasts who want a simple, semi-competitive tennis ladder. This ladder was created from members of Restoration Anglican Church (not officially affliliated) and is open to any and all.
-        We welcome anyone to join the ladder, challenge each other, organize a time to play, report scores, and climb the rankings.
-      </p>
-      <p></p>
-        This inaugral season will use one combined ladder that gives points for both singles and doubles results. So get out there and play!
-      </p>
+      <h2>Welcome to the Ladder</h2>
+      <p class="hero-tagline">A DMV tennis community — play more, track results, and climb the rankings.</p>
       <div class="callout">
-        The 2026 season starts April 17th and runs through November 1st. 
-      </div>
-    
-      <div class="button-group">
-        <a class="button" href="join.html">Join the Ladder</a>
-        <a class="button" href="ladder.html">View Rankings</a>
-        <a class="button" href="report.html">Report a Match</a>
+        2026 season: April 17 – November 1
       </div>
     </section>
 
+    <!-- Live stat cards -->
+    <div id="home-stats" class="home-stat-row">
+      <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Players</div></div>
+      <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Matches Played</div></div>
+      <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Days Left</div></div>
+    </div>
+
+    <!-- CTAs -->
+    <section class="card cta-card">
+      <h2>Get Started</h2>
+      <div class="cta-button-group">
+        <a class="cta-btn cta-join" href="join.html">
+          <span class="cta-icon">🎾</span>
+          <span class="cta-text">
+            <strong>Join the Ladder</strong>
+            <small>Sign up and get ranked</small>
+          </span>
+        </a>
+        <a class="cta-btn cta-rankings" href="ladder.html">
+          <span class="cta-icon">📊</span>
+          <span class="cta-text">
+            <strong>View Rankings</strong>
+            <small>See where everyone stands</small>
+          </span>
+        </a>
+        <a class="cta-btn cta-report" href="report.html">
+          <span class="cta-icon">✏️</span>
+          <span class="cta-text">
+            <strong>Report a Match</strong>
+            <small>Submit your results</small>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <!-- How it works -->
     <section class="card">
-      <h2>How it works</h2>
-      <p>
-        Players sign up with their contact info and self-rating. Players then reach out to each otherto find a time and court to play. You can find contact information in the directory. Match results are then reported through the site,
-        and points are added to a combined ladder ranking. Player ratings are dynamic throughout the season. Final rankings for men's, women's, and combined ladders are based on points accumulated throughout the season.
-      </p>
-      <p>
-        We’ll keep the scoring system relatively simple at first. You gain points by playing matches with players gaining more points if you win. 
-      </p>
-      <p>  
-        This is a custom built web app made in my free time without any technical expertise. 
-        If you have any feedback, please text your humble commissioner Michael Strickland at 832-833-1990. 
-        I can't promise to implement every suggestion, but I'll do what I can. 
+      <h2>How It Works</h2>
+      <ol class="how-it-works-list">
+        <li><strong>Sign up</strong> with your name, contact info, and self-rating.</li>
+        <li><strong>Find an opponent</strong> in the Rankings or Directory and schedule a match.</li>
+        <li><strong>Play and report</strong> your result — ratings and points update automatically.</li>
+        <li><strong>Climb the ladder</strong> — most points at season's end wins.</li>
+      </ol>
+      <p class="small-text">Singles and doubles both count. Open to all skill levels.</p>
+      <p class="small-text" style="margin-top:10px;">
+        Questions or feedback? Text commissioner Michael Strickland at 832-833-1990.
       </p>
     </section>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
 </body>
 </html>

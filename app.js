@@ -7,7 +7,8 @@ const state = {
     filterSex: "All",
     search: "",
     sortBy: "ladder_points",
-    sortDir: "desc"
+    sortDir: "desc",
+    showMoreStats: false
   },
   history: {
     filterType: "All"
@@ -28,8 +29,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (getLadderBodyEl()) {
       setupLadderSearch();
       setupLadderFilterButtons();
+      setupLadderSorting();
+      setupShowMoreStats();
       await loadLadder();
     }
+
+    if (document.getElementById("home-stats")) await loadHomeStats();
 
     if (document.getElementById("history-list")) {
       setupHistoryFilterButtons();
@@ -265,7 +270,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
-  return 11;
+  return state.ladder.showMoreStats ? 12 : 7;
 }
 
 function getLadderSearchEl() {
@@ -521,11 +526,11 @@ function renderLadder(players) {
         <td>${badge}</td>
         <td><a class="player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a></td>
         <td>${escapeHtml(player.area || "")}</td>
-        <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
-        <td>${escapeHtml(player.status || "—")}</td>
         <td class="num">${player.ladder_points ?? 0}</td>
         <td class="num">${player.wins ?? 0}</td>
         <td class="num">${player.losses ?? 0}</td>
+        <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
+        <td>${escapeHtml(player.status || "—")}</td>
         <td class="num">${player.games_won ?? 0}</td>
         <td class="num">${player.games_lost ?? 0}</td>
         <td class="num">${player.matches_played ?? 0}</td>
@@ -565,6 +570,54 @@ async function loadLadder() {
   } catch (error) {
     console.error("Load ladder error:", error);
     setTableMessage(ladderBody, "Error loading rankings.", getLadderColspan());
+  }
+}
+
+function setupShowMoreStats() {
+  const btn = document.getElementById("show-more-stats-btn");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    state.ladder.showMoreStats = !state.ladder.showMoreStats;
+    const table = document.querySelector(".ladder-table");
+    if (table) table.classList.toggle("show-more-stats", state.ladder.showMoreStats);
+    btn.textContent = state.ladder.showMoreStats ? "Show Less ▴" : "Show More Stats ▾";
+  });
+}
+
+async function loadHomeStats() {
+  const container = document.getElementById("home-stats");
+  if (!container) return;
+
+  try {
+    const [playersResult, matchesResult] = await Promise.all([
+      supabaseClient.from("players").select("id", { count: "exact", head: true }),
+      supabaseClient.from("matches").select("id", { count: "exact", head: true })
+    ]);
+
+    const playerCount = playersResult.count ?? 0;
+    const matchCount = matchesResult.count ?? 0;
+
+    const seasonEnd = new Date("2026-11-01");
+    const today = new Date();
+    const daysLeft = Math.max(0, Math.ceil((seasonEnd - today) / (1000 * 60 * 60 * 24)));
+
+    container.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-value">${playerCount}</div>
+        <div class="stat-label">Players</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${matchCount}</div>
+        <div class="stat-label">Matches Played</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${daysLeft}</div>
+        <div class="stat-label">Days Left</div>
+      </div>
+    `;
+  } catch (error) {
+    console.error("Home stats error:", error);
   }
 }
 
