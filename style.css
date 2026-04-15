@@ -2217,6 +2217,12 @@ th[data-sort]:hover {
   margin: 0 0 14px;
 }
 
+.hero-tagline a {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .how-it-works-list {
   padding-left: 22px;
   margin: 0 0 14px;
