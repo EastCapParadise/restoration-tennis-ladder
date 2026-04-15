@@ -422,23 +422,6 @@ hr {
   font-size: 0.95rem;
 }
 
-/* Right-align numeric columns */
-table th:nth-child(5),
-table th:nth-child(6),
-table th:nth-child(7),
-table th:nth-child(8),
-table th:nth-child(9),
-table th:nth-child(10),
-table th:nth-child(11),
-table td:nth-child(5),
-table td:nth-child(6),
-table td:nth-child(7),
-table td:nth-child(8),
-table td:nth-child(9),
-table td:nth-child(10),
-table td:nth-child(11) {
-  text-align: right;
-}
 
 .rank-1 td {
   font-weight: 700;
@@ -1195,20 +1178,24 @@ th[data-sort]:hover {
     height: 74px;
   }
 
-  .directory-table-wrap {
-    display: none;
-  }
-
-  .directory-cards {
-    display: block;
-  }
-
   .directory-toolbar {
     align-items: stretch;
   }
 
   .directory-summary-pill {
     text-align: center;
+  }
+
+  .directory-table {
+    table-layout: auto;
+    min-width: 680px;
+    font-size: 12px;
+  }
+
+  .directory-table th,
+  .directory-table td {
+    padding: 8px 7px;
+    font-size: 12px;
   }
 }
 
@@ -1341,30 +1328,19 @@ th[data-sort]:hover {
 @media (max-width: 768px) {
   .table-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border-radius: 12px;
   }
 
   .ladder-table {
-    min-width: 980px;
-    font-size: 0.92rem;
+    min-width: 560px;
+    font-size: 12px;
   }
 
   .ladder-table th,
   .ladder-table td {
-    padding: 10px 12px;
-  }
-
-  .ladder-table th:nth-child(1),
-  .ladder-table td:nth-child(1) {
-    min-width: 58px;
-    width: 58px;
-  }
-
-  .ladder-table th:nth-child(2),
-  .ladder-table td:nth-child(2) {
-    left: 58px;
-    min-width: 150px;
-    width: 150px;
+    padding: 8px 7px;
+    font-size: 12px;
   }
 }
 
@@ -1612,15 +1588,6 @@ th[data-sort]:hover {
   width: 18%;
 }
 
-/* Optional tighter number alignment */
-.directory-table th:nth-child(1),
-.directory-table td:nth-child(1),
-.directory-table th:nth-child(3),
-.directory-table td:nth-child(3),
-.directory-table th:nth-child(5),
-.directory-table td:nth-child(5) {
-  text-align: right;
-}
 
 /* =========================
    DIRECTORY PAGE

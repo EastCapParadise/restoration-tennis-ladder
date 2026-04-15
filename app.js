@@ -1553,14 +1553,12 @@ function filterDirectoryPlayers(searchTerm) {
 
 function renderDirectory(players) {
   const tbody = document.getElementById("directory-body");
-  const cardsWrap = document.getElementById("directory-cards");
   const summary = document.getElementById("directory-summary");
 
-  if (!tbody || !cardsWrap || !summary) return;
+  if (!tbody || !summary) return;
 
   if (!players.length) {
     setTableMessage(tbody, "No matching players found.", 8);
-    cardsWrap.innerHTML = `<div class="directory-empty">No matching players found.</div>`;
     summary.textContent = "0 members shown";
     updateDirectorySortIndicators();
     return;
@@ -1599,55 +1597,6 @@ function renderDirectory(players) {
       </a>
     </td>
   </tr>
-    `;
-  }).join("");
-
-  cardsWrap.innerHTML = sortedPlayers.map((player) => {
-    const safeName = escapeHtml(player.name || "");
-    const safeArea = escapeHtml(player.area || "—");
-    const safeRating = formatDisplayRating(player.display_rating);
-    const safePhone = formatDirectoryPhone(player.phone);
-    const safePoints = Number(player.ladder_points || 0);
-    const safeRank = Number(player.season_rank || 0);
-    const sexBadge = getDirectorySexBadge(player.sex);
-    const phoneDigits = getDirectoryPhoneDigits(player.phone);
-
-    const firstName = String(player.name || "").split(" ")[0] || "";
-
-    const challengeMessage = encodeURIComponent(
-      `Hey ${firstName} — I'd like to schedule a match for the Resto Tennis Ladder. Want to play this week?`
-    );
-
-    return `
-      <article class="directory-card-item fade-in-card">
-        <div class="directory-card-top">
-          <div class="directory-card-name-wrap">
-            <h3>${safeName}</h3>
-            ${sexBadge}
-          </div>
-          <span class="directory-rating-pill">${safeRating}</span>
-        </div>
-
-        <div class="directory-card-row">
-          <strong>Season Rank:</strong> ${safeRank}
-        </div>
-
-        <div class="directory-card-row">
-          <strong>Season Points:</strong> ${safePoints}
-        </div>
-
-        <div class="directory-card-row">
-          <strong>Area:</strong> ${safeArea}
-        </div>
-
-        <div class="directory-card-row">
-          <strong>Phone:</strong> ${safePhone}
-        </div>
-
-        <div class="directory-card-actions">
-          <a class="button" href="sms:${phoneDigits}?body=${challengeMessage}">Text</a>
-        </div>
-      </article>
     `;
   }).join("");
 
