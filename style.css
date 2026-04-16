@@ -7,8 +7,8 @@
   --card: #ffffff;
   --text: #18201c;
   --muted: #66736c;
-  --green: #16a34a;
-  --green-dark: #15803d;
+  --green: #1f4d3a;
+  --green-dark: #16392b;
   --green-light: #e9f3ee;
   --navy: #1f3558;
   --border: #dde6e0;
@@ -1366,6 +1366,18 @@ th[data-sort]:hover {
     padding: 8px 7px;
     font-size: 13px;
   }
+
+  /* Hide Area column (3rd) on mobile by default */
+  .ladder-table th:nth-child(3),
+  .ladder-table td:nth-child(3) {
+    display: none;
+  }
+
+  /* Reveal Area column when expanded stats are shown */
+  .ladder-table.show-more-stats th:nth-child(3),
+  .ladder-table.show-more-stats td:nth-child(3) {
+    display: table-cell;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2136,10 +2148,7 @@ th[data-sort]:hover {
   font-weight: 800;
   line-height: 1;
   margin-bottom: 6px;
-  background: linear-gradient(135deg, #16a34a 0%, #1f4d3a 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1f4d3a;
 }
 
 .stat-label {
