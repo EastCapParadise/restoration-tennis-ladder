@@ -1312,6 +1312,36 @@ th[data-sort]:hover {
   min-width: 620px;
 }
 
+/* Sticky Rank + Name columns */
+.directory-table th:nth-child(1),
+.directory-table td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  width: 56px;
+  min-width: 56px;
+  z-index: 25;
+  background: #fff;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.directory-table th:nth-child(2),
+.directory-table td:nth-child(2) {
+  position: sticky;
+  left: 56px;
+  z-index: 24;
+  background: #fff;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.08);
+  text-align: left;
+}
+
+/* Sticky corner header cells sit above scrolling body cells */
+.directory-table thead th:nth-child(1),
+.directory-table thead th:nth-child(2) {
+  z-index: 35;
+  background: #f1f6f3;
+}
+
 .directory-text-link {
   display: inline-flex;
   align-items: center;
