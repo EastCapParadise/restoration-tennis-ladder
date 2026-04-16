@@ -104,6 +104,105 @@ nav a.active {
 }
 
 /* =========================
+   HAMBURGER + MOBILE MENU
+========================= */
+
+.hamburger-btn {
+  display: none; /* shown only via mobile media query */
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: white;
+  font-size: 22px;
+  line-height: 1;
+  padding: 8px 13px;
+  border-radius: 10px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.mobile-nav-menu {
+  display: none; /* toggled open via .site-header.menu-open */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: linear-gradient(160deg, var(--green-dark) 0%, var(--green) 60%, var(--navy) 100%);
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  z-index: 150;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.site-header.menu-open .mobile-nav-menu {
+  display: flex;
+}
+
+.mobile-nav-menu a {
+  color: white;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.mobile-nav-menu a:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.mobile-nav-menu a.active {
+  background: white;
+  color: var(--green-dark);
+  border-color: white;
+}
+
+@media (max-width: 699px) {
+  /* Make header a flex row so brand and hamburger sit side by side */
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    padding: 12px 16px;
+  }
+
+  .brand {
+    margin-bottom: 0;
+  }
+
+  /* Hide desktop nav; hamburger takes over */
+  nav {
+    display: none;
+  }
+
+  .hamburger-btn {
+    display: flex;
+  }
+}
+
+@media (min-width: 700px) {
+  /* Never show mobile elements on desktop */
+  .hamburger-btn {
+    display: none !important;
+  }
+
+  .mobile-nav-menu {
+    display: none !important;
+  }
+}
+
+/* =========================
    NAV MORE DROPDOWN
 ========================= */
 

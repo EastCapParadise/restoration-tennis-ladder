@@ -19,6 +19,29 @@ const state = {
   }
 };
 
+function setupMobileMenu() {
+  const header = document.querySelector(".site-header");
+  const btn = document.querySelector(".hamburger-btn");
+  if (!header || !btn) return;
+
+  btn.addEventListener("click", () => {
+    const isOpen = header.classList.toggle("menu-open");
+    btn.textContent = isOpen ? "✕" : "☰";
+    btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    header.querySelector(".mobile-nav-menu")?.setAttribute("aria-hidden", isOpen ? "false" : "true");
+  });
+
+  // Close menu when any mobile nav link is tapped
+  header.querySelectorAll(".mobile-nav-menu a").forEach((link) => {
+    link.addEventListener("click", () => {
+      header.classList.remove("menu-open");
+      btn.textContent = "☰";
+      btn.setAttribute("aria-expanded", "false");
+      header.querySelector(".mobile-nav-menu")?.setAttribute("aria-hidden", "true");
+    });
+  });
+}
+
 function setupNavMore() {
   const navMore = document.querySelector(".nav-more");
   const btn = navMore?.querySelector(".nav-more-btn");
@@ -43,6 +66,7 @@ function setupNavMore() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  setupMobileMenu();
   setupNavMore();
   try {
     if (document.getElementById("join-form")) handleJoinForm();
