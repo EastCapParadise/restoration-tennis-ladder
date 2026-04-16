@@ -694,6 +694,10 @@ async function setupReportForm() {
     return opt?.dataset?.name || "";
   }
 
+  function shortName(name) {
+    return name ? name.split(" ")[0] : "";
+  }
+
   function updateSideLabels() {
     const sideALabel = document.getElementById("side-a-label");
     const sideBLabel = document.getElementById("side-b-label");
@@ -709,10 +713,20 @@ async function setupReportForm() {
     const sideAText = t1p1Name ? (t1p2Name ? `${t1p1Name} & ${t1p2Name}` : t1p1Name) : "Side A";
     const sideBText = t2p1Name ? (t2p2Name ? `${t2p1Name} & ${t2p2Name}` : t2p1Name) : "Side B";
 
+    // Compact first-name labels for score inputs
+    const scoreAText = t1p1Name
+      ? (t1p2Name ? `${shortName(t1p1Name)} & ${shortName(t1p2Name)}` : shortName(t1p1Name))
+      : "Side A";
+    const scoreBText = t2p1Name
+      ? (t2p2Name ? `${shortName(t2p1Name)} & ${shortName(t2p2Name)}` : shortName(t2p1Name))
+      : "Side B";
+
     if (sideALabel) sideALabel.textContent = sideAText;
     if (sideBLabel) sideBLabel.textContent = sideBText;
     if (winnerOpt1) winnerOpt1.textContent = sideAText;
     if (winnerOpt2) winnerOpt2.textContent = sideBText;
+    document.querySelectorAll(".score-team1-label").forEach((el) => { el.textContent = scoreAText; });
+    document.querySelectorAll(".score-team2-label").forEach((el) => { el.textContent = scoreBText; });
   }
 
   ["team1-player1", "team1-player2", "team2-player1", "team2-player2"].forEach((id) => {
