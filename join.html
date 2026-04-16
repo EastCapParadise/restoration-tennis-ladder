@@ -72,7 +72,26 @@
   >
 
   <label for="area">Area of the DMV</label>
-  <input type="text" id="area" name="area" placeholder="Arlington, Alexandria, Falls Church, Capitol Hill,etc.">
+  <select id="area" name="area">
+    <option value="">Select your area</option>
+    <option value="Alexandria">Alexandria</option>
+    <option value="Arlington">Arlington</option>
+    <option value="Ashburn">Ashburn</option>
+    <option value="Bethesda">Bethesda</option>
+    <option value="Burke">Burke</option>
+    <option value="Chevy Chase">Chevy Chase</option>
+    <option value="DC">DC</option>
+    <option value="Fairfax">Fairfax</option>
+    <option value="Falls Church">Falls Church</option>
+    <option value="Herndon">Herndon</option>
+    <option value="McLean">McLean</option>
+    <option value="Reston">Reston</option>
+    <option value="Silver Spring">Silver Spring</option>
+    <option value="Springfield">Springfield</option>
+    <option value="Takoma Park">Takoma Park</option>
+    <option value="Tysons">Tysons</option>
+    <option value="Other DMV">Other DMV</option>
+  </select>
 
 <label for="rating">Self Rating</label>
 <select id="rating" name="rating" required>
@@ -116,7 +135,7 @@
 <button type="submit">Submit</button>
 </form>
 
-<p id="join-message" class="small-text"></p>
+<div id="join-message"></div>
     </section>
   </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

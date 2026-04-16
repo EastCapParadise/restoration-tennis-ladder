@@ -227,9 +227,13 @@ function handleJoinForm() {
   const message = document.getElementById("join-message");
   if (!form || !message) return;
 
+  function showError(text) {
+    message.innerHTML = `<p class="form-error">${text}</p>`;
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    message.textContent = "Submitting...";
+    message.innerHTML = ‘<p class="small-text">Submitting…</p>’;
 
     try {
       const name = document.getElementById("name")?.value.trim() || "";
@@ -240,24 +244,24 @@ function handleJoinForm() {
       const sex = document.getElementById("sex")?.value.trim() || "";
 
       if (!name || !name.includes(" ")) {
-        message.textContent = "Please enter both first and last name.";
+        showError("Please enter both first and last name.");
         return;
       }
 
       const phonePattern = /^\d{3}-\d{3}-\d{4}$/;
       if (!phonePattern.test(phone)) {
-        message.textContent = "Please enter phone number as XXX-XXX-XXXX.";
+        showError("Please enter phone number as XXX-XXX-XXXX.");
         return;
       }
 
       const numericRating = parseFloat(rating);
       if (!Number.isFinite(numericRating)) {
-        message.textContent = "Please choose a valid self-rating.";
+        showError("Please choose a valid self-rating.");
         return;
       }
 
       if (!sex) {
-        message.textContent = "Please choose a ladder.";
+        showError("Please choose a ladder.");
         return;
       }
 
@@ -270,7 +274,7 @@ function handleJoinForm() {
       if (checkError) throw checkError;
 
       if (existingPlayer) {
-        message.textContent = "That email is already registered.";
+        showError("That email is already registered.");
         return;
       }
 
@@ -297,14 +301,24 @@ function handleJoinForm() {
 
       if (insertError) throw insertError;
 
-      form.reset();
-      message.textContent = "You’re in. Welcome to the ladder.";
+      form.style.display = "none";
+      message.innerHTML = `
+        <div class="form-confirmation">
+          <div class="confirmation-icon">✓</div>
+          <h3>You’re in!</h3>
+          <p>Welcome to the Restoration Tennis Ladder. You’ll appear in the rankings once the season begins on April 17th.</p>
+          <div class="confirmation-links">
+            <a href="index.html" class="button">Back to Home</a>
+            <a href="ladder.html" class="button-secondary">View Rankings</a>
+          </div>
+        </div>
+      `;
 
       if (getLadderBodyEl()) await loadLadder();
       if (document.getElementById("report-form")) await populatePlayerDropdowns();
     } catch (error) {
       console.error("Join form error:", error);
-      message.textContent = `Error: ${error.message || error}`;
+      showError("Something went wrong — please try again or text Michael at 832-833-1990.");
     }
   });
 }
@@ -759,16 +773,20 @@ async function setupReportForm() {
   matchTypeSelect?.addEventListener("change", updateSideLabels);
   updateSideLabels();
 
+  function showReportError(text) {
+    message.innerHTML = `<p class="form-error">${text}</p>`;
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    message.textContent = "Submitting match...";
+    message.innerHTML = '<p class="small-text">Submitting match…</p>';
 
     try {
       const formData = readMatchForm();
       const validationError = await validateMatchForm(formData);
 
       if (validationError) {
-        message.textContent = validationError;
+        showReportError(validationError);
         return;
       }
 
@@ -776,7 +794,7 @@ async function setupReportForm() {
       const hydrated = hydrateMatchPlayers(formData, playersById);
 
       if (hydrated.error) {
-        message.textContent = hydrated.error;
+        showReportError(hydrated.error);
         return;
       }
 
@@ -786,7 +804,7 @@ async function setupReportForm() {
 
       const duplicate = await isDuplicateMatchSameDay(finalMatchPayload);
       if (duplicate) {
-        message.textContent = "This match appears to already be recorded for that date.";
+        showReportError("This match appears to already be recorded for that date.");
         return;
       }
 
@@ -795,7 +813,7 @@ async function setupReportForm() {
         .insert([finalMatchPayload]);
 
       if (matchError) {
-        message.textContent = `Error saving match: ${matchError.message}`;
+        showReportError(`Error saving match: ${matchError.message}`);
         return;
       }
 
@@ -809,15 +827,22 @@ async function setupReportForm() {
       });
 
       if (updateError) {
-        message.textContent = `Match saved but player updates failed: ${updateError.message || updateError}`;
+        showReportError(`Match saved but player updates failed: ${updateError.message || updateError}`);
         return;
       }
 
-      message.textContent = "Success! Match saved and ratings updated.";
-      form.reset();
-      toggleDoublesFields();
-      await populatePlayerDropdowns();
-      updateSideLabels();
+      form.style.display = "none";
+      message.innerHTML = `
+        <div class="form-confirmation">
+          <div class="confirmation-icon">✓</div>
+          <h3>Match Reported!</h3>
+          <p>Results and ratings have been updated.</p>
+          <div class="confirmation-links">
+            <a href="history.html" class="button">View Match History</a>
+            <a href="report.html" class="button-secondary">Report Another Match</a>
+          </div>
+        </div>
+      `;
 
       if (getLadderBodyEl()) await loadLadder();
       if (document.getElementById("history-list")) await loadMatchHistory();
@@ -825,7 +850,7 @@ async function setupReportForm() {
       if (document.getElementById("player-match-history")) await loadPlayerMatchHistory();
     } catch (error) {
       console.error("Unexpected submit error:", error);
-      message.textContent = `Unexpected error: ${error.message || error}`;
+      showReportError("Something went wrong — please try again or text Michael at 832-833-1990.");
     }
   });
 }

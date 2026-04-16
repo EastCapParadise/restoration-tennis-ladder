@@ -336,6 +336,80 @@ nav a.active {
   text-align: center;
 }
 
+/* =========================
+   FORM CONFIRMATION + ERROR
+========================= */
+
+.form-confirmation {
+  text-align: center;
+  padding: 32px 20px 24px;
+}
+
+.confirmation-icon {
+  width: 58px;
+  height: 58px;
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  color: white;
+  border-radius: 50%;
+  font-size: 26px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 16px rgba(31, 77, 58, 0.22);
+}
+
+.form-confirmation h3 {
+  font-size: 22px;
+  color: var(--green-dark);
+  margin: 0 0 10px;
+}
+
+.form-confirmation p {
+  color: var(--muted);
+  font-size: 15px;
+  max-width: 420px;
+  margin: 0 auto 24px;
+}
+
+.confirmation-links {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button-secondary {
+  display: inline-block;
+  text-align: center;
+  background: white;
+  color: var(--green-dark);
+  border: 2px solid var(--green-dark);
+  text-decoration: none;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.button-secondary:hover {
+  background: var(--green-light);
+  transform: translateY(-1px);
+}
+
+.form-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
 main {
   max-width: 960px;
   margin: 0 auto;
