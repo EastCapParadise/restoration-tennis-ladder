@@ -17,12 +17,17 @@
 
     <nav>
       <a href="index.html">Home</a>
-      <a href="rules.html">About</a>
-      <a href="join.html">Join</a>
       <a href="ladder.html">Rankings</a>
-      <a href="report.html">Report Match</a>
-      <a href="history.html">Match History</a>
-      <a href="contacts.html">Directory</a>
+      <a href="report.html" class="active">Report Match</a>
+      <a href="join.html">Join</a>
+      <div class="nav-more">
+        <button class="nav-more-btn" aria-expanded="false">More ▾</button>
+        <div class="nav-more-dropdown">
+          <a href="rules.html">About</a>
+          <a href="history.html">Match History</a>
+          <a href="contacts.html">Directory</a>
+        </div>
+      </div>
     </nav>
   </header>
 
@@ -30,6 +35,7 @@
     <section class="card report-card">
       <div class="page-intro">
         <h2>Report a Match</h2>
+        <p class="small-text">Only one player per match needs to submit this form.</p>
         <p class="section-helper">
           Enter the players, final score, and match details below. This form works for both singles and doubles.
         </p>
@@ -70,7 +76,7 @@
 
           <div class="form-grid two-col team-grid">
             <div class="team-card">
-              <h4>Side A</h4>
+              <h4 id="side-a-label">Side A</h4>
 
               <div class="form-group">
                 <label for="team1-player1">Player 1</label>
@@ -88,7 +94,7 @@
             </div>
 
             <div class="team-card">
-              <h4>Side B</h4>
+              <h4 id="side-b-label">Side B</h4>
 
               <div class="form-group">
                 <label for="team2-player1">Player 1</label>

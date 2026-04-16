@@ -19,7 +19,31 @@ const state = {
   }
 };
 
+function setupNavMore() {
+  const navMore = document.querySelector(".nav-more");
+  const btn = navMore?.querySelector(".nav-more-btn");
+  if (!navMore || !btn) return;
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = navMore.classList.toggle("open");
+    btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+
+  document.addEventListener("click", () => {
+    if (navMore.classList.contains("open")) {
+      navMore.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  navMore.querySelector(".nav-more-dropdown")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+  setupNavMore();
   try {
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
@@ -589,36 +613,39 @@ async function loadHomeStats() {
   const container = document.getElementById("home-stats");
   if (!container) return;
 
+  // Days Left is pure math — always calculate regardless of Supabase
+  const seasonEnd = new Date("2026-11-01");
+  const today = new Date();
+  const daysLeft = Math.max(0, Math.ceil((seasonEnd - today) / (1000 * 60 * 60 * 24)));
+
+  let playerCount = 0;
+  let matchCount = 0;
+
   try {
     const [playersResult, matchesResult] = await Promise.all([
       supabaseClient.from("players").select("id", { count: "exact", head: true }),
       supabaseClient.from("matches").select("id", { count: "exact", head: true })
     ]);
-
-    const playerCount = playersResult.count ?? 0;
-    const matchCount = matchesResult.count ?? 0;
-
-    const seasonEnd = new Date("2026-11-01");
-    const today = new Date();
-    const daysLeft = Math.max(0, Math.ceil((seasonEnd - today) / (1000 * 60 * 60 * 24)));
-
-    container.innerHTML = `
-      <div class="stat-card">
-        <div class="stat-value">${playerCount}</div>
-        <div class="stat-label">Players</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">${matchCount}</div>
-        <div class="stat-label">Matches Played</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">${daysLeft}</div>
-        <div class="stat-label">Days Left</div>
-      </div>
-    `;
+    playerCount = playersResult.count ?? 0;
+    matchCount = matchesResult.count ?? 0;
   } catch (error) {
     console.error("Home stats error:", error);
   }
+
+  container.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${playerCount}</div>
+      <div class="stat-label">Players</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${matchCount}</div>
+      <div class="stat-label">Matches Played</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${daysLeft}</div>
+      <div class="stat-label">Days Left</div>
+    </div>
+  `;
 }
 
 /* =========================
@@ -638,6 +665,13 @@ async function setupReportForm() {
 
   await populatePlayerDropdowns();
 
+  // Pre-select opponent from URL param (linked from player profile)
+  const opponentId = new URLSearchParams(window.location.search).get("opponentId");
+  if (opponentId) {
+    const team2P1 = document.getElementById("team2-player1");
+    if (team2P1) team2P1.value = opponentId;
+  }
+
   function toggleDoublesFields() {
     const isDoubles = matchTypeSelect?.value === "Doubles";
     if (team1Player2Wrap) team1Player2Wrap.style.display = isDoubles ? "block" : "none";
@@ -653,6 +687,39 @@ async function setupReportForm() {
 
   matchTypeSelect?.addEventListener("change", toggleDoublesFields);
   toggleDoublesFields();
+
+  // Dynamic side labels
+  function getSelectedName(selectEl) {
+    const opt = selectEl?.options[selectEl.selectedIndex];
+    return opt?.dataset?.name || "";
+  }
+
+  function updateSideLabels() {
+    const sideALabel = document.getElementById("side-a-label");
+    const sideBLabel = document.getElementById("side-b-label");
+    const winnerOpt1 = document.querySelector('#winner-team option[value="1"]');
+    const winnerOpt2 = document.querySelector('#winner-team option[value="2"]');
+    const isDoubles = matchTypeSelect?.value === "Doubles";
+
+    const t1p1Name = getSelectedName(document.getElementById("team1-player1"));
+    const t1p2Name = isDoubles ? getSelectedName(document.getElementById("team1-player2")) : "";
+    const t2p1Name = getSelectedName(document.getElementById("team2-player1"));
+    const t2p2Name = isDoubles ? getSelectedName(document.getElementById("team2-player2")) : "";
+
+    const sideAText = t1p1Name ? (t1p2Name ? `${t1p1Name} & ${t1p2Name}` : t1p1Name) : "Side A";
+    const sideBText = t2p1Name ? (t2p2Name ? `${t2p1Name} & ${t2p2Name}` : t2p1Name) : "Side B";
+
+    if (sideALabel) sideALabel.textContent = sideAText;
+    if (sideBLabel) sideBLabel.textContent = sideBText;
+    if (winnerOpt1) winnerOpt1.textContent = sideAText;
+    if (winnerOpt2) winnerOpt2.textContent = sideBText;
+  }
+
+  ["team1-player1", "team1-player2", "team2-player1", "team2-player2"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", updateSideLabels);
+  });
+  matchTypeSelect?.addEventListener("change", updateSideLabels);
+  updateSideLabels();
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -712,6 +779,7 @@ async function setupReportForm() {
       form.reset();
       toggleDoublesFields();
       await populatePlayerDropdowns();
+      updateSideLabels();
 
       if (getLadderBodyEl()) await loadLadder();
       if (document.getElementById("history-list")) await loadMatchHistory();
@@ -751,7 +819,7 @@ async function populatePlayerDropdowns() {
     const firstOption = `<option value="">Select player</option>`;
 
     select.innerHTML = firstOption + players.map((player) => `
-      <option value="${player.id}">
+      <option value="${player.id}" data-name="${escapeHtml(player.name)}">
         ${escapeHtml(player.name)}${player.sex ? ` (${escapeHtml(player.sex)})` : ""}${player.display_rating != null ? ` — ${formatDisplayRating(player.display_rating)}` : ""}
       </option>
     `).join("");
@@ -2043,6 +2111,10 @@ async function loadPlayerProfile() {
           <div class="profile-stat-label">Games Lost</div>
           <div class="profile-stat-value">${player.games_lost ?? 0}</div>
         </div>
+      </div>
+
+      <div class="profile-actions">
+        <a href="report.html?opponentId=${player.id}" class="button">Report a Match Against ${escapeHtml(player.name || "Player")}</a>
       </div>
     `;
 

@@ -17,13 +17,17 @@
   </div>
     <nav>
       <a href="index.html">Home</a>
-      <a href="rules.html">About</a>
-      <a href="join.html">Join</a>
       <a href="ladder.html">Rankings</a>
       <a href="report.html">Report Match</a>
-      <a href="history.html">Match History</a>
-      <a href="contacts.html">Directory</a>
-
+      <a href="join.html" class="active">Join</a>
+      <div class="nav-more">
+        <button class="nav-more-btn" aria-expanded="false">More ▾</button>
+        <div class="nav-more-dropdown">
+          <a href="rules.html">About</a>
+          <a href="history.html">Match History</a>
+          <a href="contacts.html">Directory</a>
+        </div>
+      </div>
     </nav>
   </header>
 
@@ -77,6 +81,7 @@
   <option value="5.25">5.25</option>
   <option value="5.50">5.50</option>
 </select>
+<p class="small-text">When in doubt, rate yourself lower — your dynamic rating will climb quickly if you're underrated.</p>
 <p class="rating-help">
   Unsure of your rating?
   <a href="https://www.usta.com/content/dam/usta/pdfs/10013_experience_player_ntrp_characteristics1%20(2).pdf" 

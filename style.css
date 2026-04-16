@@ -97,6 +97,146 @@ nav a:hover {
   transform: translateY(-1px);
 }
 
+nav a.active {
+  background: white;
+  color: var(--green-dark);
+  border-color: white;
+}
+
+/* =========================
+   NAV MORE DROPDOWN
+========================= */
+
+.nav-more {
+  position: relative;
+}
+
+.nav-more-btn {
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+@media (min-width: 700px) {
+  .nav-more-btn {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+}
+
+.nav-more-btn:hover,
+.nav-more.open .nav-more-btn {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.nav-more-btn.active {
+  background: white;
+  color: var(--green-dark);
+  border-color: white;
+}
+
+.nav-more-btn.active:hover,
+.nav-more.open .nav-more-btn.active {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.nav-more-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: linear-gradient(160deg, var(--green-dark) 0%, var(--green) 60%, var(--navy) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  min-width: 160px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.nav-more.open .nav-more-dropdown {
+  display: flex;
+}
+
+.nav-more-dropdown a {
+  color: white;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  white-space: nowrap;
+  display: block;
+  transition: 0.2s ease;
+}
+
+.nav-more-dropdown a:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: none;
+}
+
+.nav-more-dropdown a.active {
+  background: white;
+  color: var(--green-dark);
+}
+
+/* Mobile: expand More inline instead of floating */
+@media (max-width: 768px) {
+  .nav-more-dropdown {
+    position: static;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .nav-more.open .nav-more-dropdown {
+    display: flex;
+  }
+
+  .nav-more-dropdown a {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    padding: 10px 14px;
+  }
+
+  .nav-more-dropdown a:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .nav-more-dropdown a.active {
+    background: white;
+    color: var(--green-dark);
+    border-color: white;
+  }
+}
+
+/* =========================
+   PROFILE ACTIONS
+========================= */
+
+.profile-actions {
+  margin-top: 20px;
+  text-align: center;
+}
+
 main {
   max-width: 960px;
   margin: 0 auto;
