@@ -65,39 +65,6 @@ function setupNavMore() {
   });
 }
 
-function setupDarkMode() {
-  // Apply saved preference immediately (complements the inline FOUC script)
-  const saved = localStorage.getItem("rtl_dark");
-  if (saved === "1") document.documentElement.classList.add("dark");
-
-  function updateAllBtns(isDark) {
-    document.querySelectorAll(".dark-mode-btn").forEach((b) => {
-      b.textContent = isDark ? "☀" : "☾";
-      b.title = isDark ? "Switch to light mode" : "Switch to dark mode";
-    });
-  }
-
-  function createBtn() {
-    const btn = document.createElement("button");
-    btn.className = "dark-mode-btn";
-    btn.setAttribute("aria-label", "Toggle dark mode");
-    btn.title = document.documentElement.classList.contains("dark") ? "Switch to light mode" : "Switch to dark mode";
-    btn.textContent = document.documentElement.classList.contains("dark") ? "☀" : "☾";
-    btn.addEventListener("click", () => {
-      const isDark = document.documentElement.classList.toggle("dark");
-      localStorage.setItem("rtl_dark", isDark ? "1" : "0");
-      updateAllBtns(isDark);
-    });
-    return btn;
-  }
-
-  const nav = document.querySelector("nav");
-  if (nav) nav.appendChild(createBtn());
-
-  const mobileNav = document.querySelector(".mobile-nav-menu");
-  if (mobileNav) mobileNav.appendChild(createBtn());
-}
-
 /* =========================
    MATCH CARD MODAL (Feature 4)
 ========================= */
@@ -169,7 +136,6 @@ function showMatchCardModal(matchData) {
 document.addEventListener("DOMContentLoaded", async () => {
   setupMobileMenu();
   setupNavMore();
-  setupDarkMode();
   try {
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
@@ -840,7 +806,7 @@ async function loadActivityFeed() {
       const winnerNames = winnerIds.filter(Boolean).map(id => abbreviateName(playerMap[id])).join(" & ");
       const loserNames  = loserIds.filter(Boolean).map(id => abbreviateName(playerMap[id])).join(" & ");
       const timeAgo = relativeTime(match.date_played || match.created_at);
-      const score = match.score_text ? ` · ${escapeHtml(match.score_text)}` : "";
+      const score = match.score_text ? ` · ${escapeHtml(winnerFirstScore(match.score_text, match.winner_team))}` : "";
       const type  = match.match_type || "Match";
 
       return `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
@@ -932,7 +898,7 @@ async function loadMatchOfWeek() {
           <span class="motw-loser">${escapeHtml(loserText)}</span>
         </div>
         <div class="motw-details">
-          <span>${escapeHtml(featured.score_text || "")}</span>
+          <span>${escapeHtml(winnerFirstScore(featured.score_text || "", featured.winner_team))}</span>
           <span>·</span>
           <span>${escapeHtml(featured.match_type || "")}</span>
           <span>·</span>
@@ -1186,7 +1152,7 @@ async function setupReportForm() {
         type: formData.matchType,
         winner: winnerNames,
         loser: loserNames,
-        score: finalMatchPayload.score_text || "",
+        score: winnerFirstScore(finalMatchPayload.score_text || "", formData.winnerTeam),
         date: formData.datePlayed,
         notes: formData.matchNotes || ""
       };
@@ -1355,6 +1321,16 @@ function hydrateMatchPlayers(formData, playersById) {
   }
 
   return { team1Players, team2Players };
+}
+
+// Reorders a stored score string (always team1-first) so the winner's games
+// appear first in each set. E.g. "3-6 0-6" with winner_team=2 → "6-3 6-0".
+function winnerFirstScore(scoreText, winnerTeam) {
+  if (!scoreText || winnerTeam === 1) return scoreText;
+  return scoreText.split(" ").map((set) => {
+    const [a, b] = set.split("-");
+    return `${b}-${a}`;
+  }).join(" ");
 }
 
 function buildScoreText(
@@ -2369,7 +2345,7 @@ async function loadMatchHistory() {
         type: match.match_type || "Match",
         winner: winnerText || "—",
         loser: loserText || "—",
-        score: match.score_text || "",
+        score: winnerFirstScore(match.score_text || "", match.winner_team),
         date: safeDateText(match.date_played),
         notes: match.match_notes || ""
       });
@@ -2393,7 +2369,7 @@ async function loadMatchHistory() {
           </div>
 
           <div class="history-score">
-            <strong>Score:</strong> ${escapeHtml(match.score_text || "")}
+            <strong>Score:</strong> ${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}
           </div>
 
           ${renderMatchPlayerImpact(match, display)}
@@ -2662,7 +2638,7 @@ async function loadPlayerMatchHistory() {
           </div>
 
           <div class="history-score">
-            <strong>Score:</strong> ${escapeHtml(match.score_text || "")}
+            <strong>Score:</strong> ${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}
           </div>
 
           <div class="match-impact-grid">

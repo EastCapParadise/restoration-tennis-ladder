@@ -2794,161 +2794,6 @@ th[data-sort]:hover {
 .rank-move-same { color: #bbb; }
 
 /* =========================
-   DARK MODE TOGGLE BUTTON (Feature 3)
-========================= */
-
-.dark-mode-btn {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: white;
-  font-size: 15px;
-  padding: 9px 13px;
-  border-radius: 999px;
-  cursor: pointer;
-  line-height: 1;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
-}
-
-.dark-mode-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-
-/* =========================
-   DARK MODE OVERRIDES (Feature 3)
-========================= */
-
-html.dark {
-  --bg: #0e1512;
-  --card: #192119;
-  --text: #e6ede7;
-  --muted: #8aa493;
-  --border: #2b3830;
-  --green-light: #1b2e22;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-
-html.dark body {
-  background: radial-gradient(circle at top, #182019 0%, var(--bg) 55%);
-}
-
-html.dark .card {
-  background: var(--card);
-  border-color: var(--border);
-}
-
-html.dark input,
-html.dark select,
-html.dark textarea {
-  background: #1e2b22;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-html.dark .ladder-table th {
-  background: #1b2820;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-html.dark .ladder-table td {
-  border-color: var(--border);
-  color: var(--text);
-}
-
-html.dark .ladder-table tr:nth-child(even) td {
-  background: #1a2520;
-}
-
-html.dark .ladder-table tr:hover td {
-  background: #20312a;
-}
-
-html.dark .rank-1 td { background: #2a3422 !important; }
-html.dark .rank-2 td { background: #262e22 !important; }
-html.dark .rank-3 td { background: #1f2b20 !important; }
-
-html.dark .history-item {
-  background: var(--card);
-  border-color: var(--border);
-  color: var(--text);
-}
-
-html.dark .winner-pill {
-  background: #1e3028;
-  color: #6dba8e;
-  border-color: #2c4a38;
-}
-
-html.dark .directory-table th {
-  background: #1b2820;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-html.dark .directory-table td {
-  border-color: var(--border);
-  color: var(--text);
-}
-
-html.dark .directory-table tr:nth-child(even) td {
-  background: #1a2520;
-}
-
-html.dark .form-confirmation {
-  background: var(--card);
-  border-color: var(--border);
-}
-
-html.dark .profile-stat {
-  background: #1e2b22;
-  border-color: var(--border);
-}
-
-html.dark .team-card {
-  background: #1e2b22;
-  border-color: var(--border);
-}
-
-html.dark .score-set-label {
-  color: var(--muted);
-}
-
-html.dark .score-input {
-  background: #1e2b22;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-html.dark .directory-login-card {
-  background: var(--card);
-  border-color: var(--border);
-  color: var(--text);
-}
-
-html.dark .section-heading h3,
-html.dark .form-group label {
-  color: var(--text);
-}
-
-html.dark .small-text,
-html.dark .section-helper {
-  color: var(--muted);
-}
-
-html.dark .ladder-badge.badge-men {
-  background: #1a3060;
-  color: #7aabee;
-}
-
-html.dark .ladder-badge.badge-women {
-  background: #3a1a40;
-  color: #d48aee;
-}
-
-html.dark .rank-move-same { color: #555; }
-
-/* =========================
    MATCH CARD MODAL (Feature 4)
 ========================= */
 
@@ -2977,11 +2822,6 @@ html.dark .rank-move-same { color: #555; }
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
   overflow: hidden;
   animation: slideUpModal 0.22s ease;
-}
-
-html.dark .match-card-modal {
-  background: #1a2420;
-  color: var(--text);
 }
 
 @keyframes slideUpModal {
@@ -3033,10 +2873,6 @@ html.dark .match-card-modal {
   gap: 10px;
 }
 
-html.dark .mcm-row {
-  border-color: var(--border);
-}
-
 .mcm-row:last-child {
   border-bottom: none;
 }
@@ -3082,11 +2918,6 @@ html.dark .mcm-row {
   color: var(--text);
 }
 
-html.dark .mcm-btn-close {
-  background: #2a3830;
-  color: var(--text);
-}
-
 /* Share buttons on history cards and confirmation */
 .btn-share-match {
   display: inline-flex;
@@ -3109,12 +2940,6 @@ html.dark .mcm-btn-close {
   background: rgba(31, 77, 58, 0.16);
 }
 
-html.dark .btn-share-match {
-  background: rgba(100, 200, 130, 0.08);
-  color: #7dcfa0;
-  border-color: rgba(100, 200, 130, 0.18);
-}
-
 /* Share profile button */
 .btn-share-profile {
   display: inline-flex;
@@ -3134,12 +2959,6 @@ html.dark .btn-share-match {
 
 .btn-share-profile:hover {
   background: var(--green-light);
-}
-
-html.dark .btn-share-profile {
-  background: #2a3830;
-  color: var(--text);
-  border-color: var(--border);
 }
 
 .share-copied-tip {
