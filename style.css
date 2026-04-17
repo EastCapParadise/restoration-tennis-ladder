@@ -1861,6 +1861,30 @@ th[data-sort]:hover {
     text-overflow: clip;
   }
 
+  /* Rankings numeric columns: shrink-wrap on mobile */
+  .ladder-table th:nth-child(4),
+  .ladder-table td:nth-child(4) {
+    width: 60px;
+    max-width: 60px;
+    text-align: right;
+  }
+
+  .ladder-table th:nth-child(5),
+  .ladder-table td:nth-child(5),
+  .ladder-table th:nth-child(6),
+  .ladder-table td:nth-child(6) {
+    width: 40px;
+    max-width: 40px;
+    text-align: right;
+  }
+
+  .ladder-table th:nth-child(7),
+  .ladder-table td:nth-child(7) {
+    width: 55px;
+    max-width: 55px;
+    text-align: right;
+  }
+
   /* Directory Name column: allow wrapping on mobile so long names don't bleed */
   .directory-table th:nth-child(2),
   .directory-table td:nth-child(2) {
