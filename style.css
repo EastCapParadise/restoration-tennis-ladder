@@ -29,7 +29,9 @@ body {
 }
 
 .site-header {
-  background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 60%, var(--navy) 100%);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120'%3E%3Crect x='20' y='8' width='1160' height='104' fill='none' stroke='white' stroke-opacity='0.08' stroke-width='1.5'/%3E%3Cline x1='20' y1='21' x2='1180' y2='21' stroke='white' stroke-opacity='0.06' stroke-width='1'/%3E%3Cline x1='20' y1='99' x2='1180' y2='99' stroke='white' stroke-opacity='0.06' stroke-width='1'/%3E%3Cline x1='600' y1='8' x2='600' y2='112' stroke='white' stroke-opacity='0.09' stroke-width='1.5'/%3E%3Cline x1='288' y1='8' x2='288' y2='112' stroke='white' stroke-opacity='0.06' stroke-width='1'/%3E%3Cline x1='912' y1='8' x2='912' y2='112' stroke='white' stroke-opacity='0.06' stroke-width='1'/%3E%3Cline x1='288' y1='60' x2='912' y2='60' stroke='white' stroke-opacity='0.06' stroke-width='1'/%3E%3C/svg%3E") center / 100% auto no-repeat,
+    linear-gradient(135deg, var(--green-dark) 0%, var(--green) 60%, var(--navy) 100%);
   color: white;
   padding: 18px 18px 14px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
@@ -2751,4 +2753,397 @@ th[data-sort]:hover {
   .stat-card {
     padding: 18px 10px;
   }
+}
+
+/* =========================
+   MEDAL ANIMATION (Feature 2)
+========================= */
+
+@keyframes medalPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.28); }
+}
+
+.rank-medal {
+  display: inline-block;
+  animation: medalPulse 2.6s ease-in-out infinite;
+}
+
+/* =========================
+   RANK MOVEMENT ARROWS (Feature 6)
+========================= */
+
+.rank-move {
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+
+.rank-move-up   { color: #22a05a; }
+.rank-move-down { color: #e05a3a; }
+.rank-move-same { color: #bbb; }
+
+/* =========================
+   DARK MODE TOGGLE BUTTON (Feature 3)
+========================= */
+
+.dark-mode-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: white;
+  font-size: 15px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dark-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* =========================
+   DARK MODE OVERRIDES (Feature 3)
+========================= */
+
+html.dark {
+  --bg: #0e1512;
+  --card: #192119;
+  --text: #e6ede7;
+  --muted: #8aa493;
+  --border: #2b3830;
+  --green-light: #1b2e22;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+html.dark body {
+  background: radial-gradient(circle at top, #182019 0%, var(--bg) 55%);
+}
+
+html.dark .card {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background: #1e2b22;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html.dark .ladder-table th {
+  background: #1b2820;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html.dark .ladder-table td {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+html.dark .ladder-table tr:nth-child(even) td {
+  background: #1a2520;
+}
+
+html.dark .ladder-table tr:hover td {
+  background: #20312a;
+}
+
+html.dark .rank-1 td { background: #2a3422 !important; }
+html.dark .rank-2 td { background: #262e22 !important; }
+html.dark .rank-3 td { background: #1f2b20 !important; }
+
+html.dark .history-item {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+html.dark .winner-pill {
+  background: #1e3028;
+  color: #6dba8e;
+  border-color: #2c4a38;
+}
+
+html.dark .directory-table th {
+  background: #1b2820;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html.dark .directory-table td {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+html.dark .directory-table tr:nth-child(even) td {
+  background: #1a2520;
+}
+
+html.dark .form-confirmation {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+html.dark .profile-stat {
+  background: #1e2b22;
+  border-color: var(--border);
+}
+
+html.dark .team-card {
+  background: #1e2b22;
+  border-color: var(--border);
+}
+
+html.dark .score-set-label {
+  color: var(--muted);
+}
+
+html.dark .score-input {
+  background: #1e2b22;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html.dark .directory-login-card {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+html.dark .section-heading h3,
+html.dark .form-group label {
+  color: var(--text);
+}
+
+html.dark .small-text,
+html.dark .section-helper {
+  color: var(--muted);
+}
+
+html.dark .ladder-badge.badge-men {
+  background: #1a3060;
+  color: #7aabee;
+}
+
+html.dark .ladder-badge.badge-women {
+  background: #3a1a40;
+  color: #d48aee;
+}
+
+html.dark .rank-move-same { color: #555; }
+
+/* =========================
+   MATCH CARD MODAL (Feature 4)
+========================= */
+
+.match-card-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeInOverlay 0.18s ease;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.match-card-modal {
+  background: white;
+  border-radius: 20px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+  animation: slideUpModal 0.22s ease;
+}
+
+html.dark .match-card-modal {
+  background: #1a2420;
+  color: var(--text);
+}
+
+@keyframes slideUpModal {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.mcm-header {
+  background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 60%, var(--navy) 100%);
+  color: white;
+  padding: 20px 22px 18px;
+  text-align: center;
+}
+
+.mcm-header .mcm-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin: 0 0 6px;
+}
+
+.mcm-header .mcm-winner {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 5px;
+  line-height: 1.25;
+}
+
+.mcm-header .mcm-score {
+  font-size: 15px;
+  opacity: 0.9;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.mcm-body {
+  padding: 16px 20px;
+}
+
+.mcm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef2ee;
+  font-size: 14px;
+  gap: 10px;
+}
+
+html.dark .mcm-row {
+  border-color: var(--border);
+}
+
+.mcm-row:last-child {
+  border-bottom: none;
+}
+
+.mcm-label {
+  color: var(--muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.mcm-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.mcm-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 20px;
+}
+
+.mcm-footer button {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: opacity 0.2s;
+}
+
+.mcm-footer button:hover { opacity: 0.82; }
+
+.mcm-btn-copy {
+  background: var(--green);
+  color: white;
+}
+
+.mcm-btn-close {
+  background: #f0f4f1;
+  color: var(--text);
+}
+
+html.dark .mcm-btn-close {
+  background: #2a3830;
+  color: var(--text);
+}
+
+/* Share buttons on history cards and confirmation */
+.btn-share-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 6px 13px;
+  background: rgba(31, 77, 58, 0.08);
+  color: var(--green-dark);
+  border: 1px solid rgba(31, 77, 58, 0.18);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.btn-share-match:hover {
+  background: rgba(31, 77, 58, 0.16);
+}
+
+html.dark .btn-share-match {
+  background: rgba(100, 200, 130, 0.08);
+  color: #7dcfa0;
+  border-color: rgba(100, 200, 130, 0.18);
+}
+
+/* Share profile button */
+.btn-share-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: #f0f4f1;
+  color: var(--green-dark);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.btn-share-profile:hover {
+  background: var(--green-light);
+}
+
+html.dark .btn-share-profile {
+  background: #2a3830;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.share-copied-tip {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 500;
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: inline-block;
+}
+
+.share-copied-tip.visible {
+  opacity: 1;
 }

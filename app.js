@@ -65,9 +65,111 @@ function setupNavMore() {
   });
 }
 
+function setupDarkMode() {
+  // Apply saved preference immediately (complements the inline FOUC script)
+  const saved = localStorage.getItem("rtl_dark");
+  if (saved === "1") document.documentElement.classList.add("dark");
+
+  function updateAllBtns(isDark) {
+    document.querySelectorAll(".dark-mode-btn").forEach((b) => {
+      b.textContent = isDark ? "☀" : "☾";
+      b.title = isDark ? "Switch to light mode" : "Switch to dark mode";
+    });
+  }
+
+  function createBtn() {
+    const btn = document.createElement("button");
+    btn.className = "dark-mode-btn";
+    btn.setAttribute("aria-label", "Toggle dark mode");
+    btn.title = document.documentElement.classList.contains("dark") ? "Switch to light mode" : "Switch to dark mode";
+    btn.textContent = document.documentElement.classList.contains("dark") ? "☀" : "☾";
+    btn.addEventListener("click", () => {
+      const isDark = document.documentElement.classList.toggle("dark");
+      localStorage.setItem("rtl_dark", isDark ? "1" : "0");
+      updateAllBtns(isDark);
+    });
+    return btn;
+  }
+
+  const nav = document.querySelector("nav");
+  if (nav) nav.appendChild(createBtn());
+
+  const mobileNav = document.querySelector(".mobile-nav-menu");
+  if (mobileNav) mobileNav.appendChild(createBtn());
+}
+
+/* =========================
+   MATCH CARD MODAL (Feature 4)
+========================= */
+
+function showMatchCardModal(matchData) {
+  // Remove any existing modal
+  document.getElementById("match-card-overlay")?.remove();
+
+  const { type, winner, loser, score, date, notes } = matchData;
+
+  const overlay = document.createElement("div");
+  overlay.className = "match-card-overlay";
+  overlay.id = "match-card-overlay";
+
+  overlay.innerHTML = `
+    <div class="match-card-modal" role="dialog" aria-modal="true" aria-label="Match result card">
+      <div class="mcm-header">
+        <p class="mcm-badge">${escapeHtml(type || "Match")} Result</p>
+        <p class="mcm-winner">${escapeHtml(winner || "—")}</p>
+        <p class="mcm-score">${escapeHtml(score || "")}</p>
+      </div>
+      <div class="mcm-body">
+        <div class="mcm-row">
+          <span class="mcm-label">Winner</span>
+          <span class="mcm-value">${escapeHtml(winner || "—")}</span>
+        </div>
+        <div class="mcm-row">
+          <span class="mcm-label">Loser</span>
+          <span class="mcm-value">${escapeHtml(loser || "—")}</span>
+        </div>
+        <div class="mcm-row">
+          <span class="mcm-label">Score</span>
+          <span class="mcm-value">${escapeHtml(score || "—")}</span>
+        </div>
+        <div class="mcm-row">
+          <span class="mcm-label">Date</span>
+          <span class="mcm-value">${escapeHtml(date || "—")}</span>
+        </div>
+        ${notes ? `
+        <div class="mcm-row">
+          <span class="mcm-label">Notes</span>
+          <span class="mcm-value">${escapeHtml(notes)}</span>
+        </div>` : ""}
+      </div>
+      <div class="mcm-footer">
+        <button class="mcm-btn-copy" id="mcm-copy-btn">Copy Result</button>
+        <button class="mcm-btn-close" id="mcm-close-btn">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const copyText = `${type} Result\nWinner: ${winner}\nLoser: ${loser}\nScore: ${score}\nDate: ${date}${notes ? "\nNotes: " + notes : ""}\nRestoration Tennis Ladder`;
+
+  overlay.querySelector("#mcm-copy-btn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(copyText);
+      const btn = overlay.querySelector("#mcm-copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy Result"; }, 2000);
+    } catch (_) {}
+  });
+
+  overlay.querySelector("#mcm-close-btn").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   setupMobileMenu();
   setupNavMore();
+  setupDarkMode();
   try {
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
@@ -440,7 +542,8 @@ async function fetchPlayers() {
       losses,
       games_won,
       games_lost,
-      matches_played
+      matches_played,
+      previous_rank
     `);
 
   if (error) throw error;
@@ -556,10 +659,18 @@ function sortPlayers(players) {
 
 
 function getRankBadge(index) {
-  if (index === 0) return "🥇";
-  if (index === 1) return "🥈";
-  if (index === 2) return "🥉";
+  if (index === 0) return '<span class="rank-medal">🥇</span>';
+  if (index === 1) return '<span class="rank-medal">🥈</span>';
+  if (index === 2) return '<span class="rank-medal">🥉</span>';
   return index + 1;
+}
+
+function getRankMovementHtml(currentRank, previousRank) {
+  if (!previousRank) return "";
+  const diff = previousRank - currentRank;
+  if (diff > 0) return `<span class="rank-move rank-move-up" title="Up ${diff}">▲${diff}</span>`;
+  if (diff < 0) return `<span class="rank-move rank-move-down" title="Down ${Math.abs(diff)}">▼${Math.abs(diff)}</span>`;
+  return `<span class="rank-move rank-move-same" title="No change">—</span>`;
 }
 
 function renderLadder(players) {
@@ -581,9 +692,11 @@ function renderLadder(players) {
     else if (rank === 3) rowClass += " rank-3";
     else if (rank <= 10) rowClass += " rank-top-10";
 
+    const moveHtml = getRankMovementHtml(rank, player.previous_rank);
+
     return `
       <tr class="${rowClass}">
-        <td>${badge}</td>
+        <td>${badge}${moveHtml}</td>
         <td><a class="player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a></td>
         <td>${escapeHtml(player.area || "")}</td>
         <td class="num">${player.ladder_points ?? 0}</td>
@@ -1064,6 +1177,20 @@ async function setupReportForm() {
         return;
       }
 
+      const t1Names = hydrated.team1Players.filter(Boolean).map((p) => p.name || "?").join(" & ");
+      const t2Names = hydrated.team2Players.filter(Boolean).map((p) => p.name || "?").join(" & ");
+      const winnerNames = formData.winnerTeam === 1 ? t1Names : t2Names;
+      const loserNames  = formData.winnerTeam === 1 ? t2Names : t1Names;
+
+      const confirmMatchData = {
+        type: formData.matchType,
+        winner: winnerNames,
+        loser: loserNames,
+        score: finalMatchPayload.score_text || "",
+        date: formData.datePlayed,
+        notes: formData.matchNotes || ""
+      };
+
       form.style.display = "none";
       message.innerHTML = `
         <div class="form-confirmation">
@@ -1074,8 +1201,15 @@ async function setupReportForm() {
             <a href="history.html" class="button">View Match History</a>
             <a href="report.html" class="button-secondary">Report Another Match</a>
           </div>
+          <div style="margin-top:12px;">
+            <button class="btn-share-match" id="confirm-share-btn">⬆ Share Result</button>
+          </div>
         </div>
       `;
+
+      document.getElementById("confirm-share-btn")?.addEventListener("click", () => {
+        showMatchCardModal(confirmMatchData);
+      });
 
       if (getLadderBodyEl()) await loadLadder();
       if (document.getElementById("history-list")) await loadMatchHistory();
@@ -1597,6 +1731,17 @@ async function applyPlayerUpdates({
   team1TotalGames,
   team2TotalGames
 }) {
+  // Fetch all players to compute current standings rank (saved as previous_rank after update)
+  let allPlayersForRank = [];
+  try {
+    const { data } = await supabaseClient.from("players").select("id, ladder_points, dynamic_rating, wins, name");
+    allPlayersForRank = data || [];
+  } catch (_) {}
+
+  const sortedForRank = sortPlayersForStandings(allPlayersForRank);
+  const currentRankMap = {};
+  sortedForRank.forEach((p, i) => { currentRankMap[p.id] = i + 1; });
+
   const updates = [];
 
   function pushUpdate(player, ratingChange, ladderPoints, won, gamesWon, gamesLost) {
@@ -1615,7 +1760,8 @@ async function applyPlayerUpdates({
       losses: Number(player.losses || 0) + (won ? 0 : 1),
       games_won: Number(player.games_won || 0) + Number(gamesWon || 0),
       games_lost: Number(player.games_lost || 0) + Number(gamesLost || 0),
-      matches_played: Number(player.matches_played || 0) + 1
+      matches_played: Number(player.matches_played || 0) + 1,
+      previous_rank: currentRankMap[player.id] ?? null
     });
   }
 
@@ -1668,7 +1814,8 @@ async function applyPlayerUpdates({
       losses: update.losses,
       games_won: update.games_won,
       games_lost: update.games_lost,
-      matches_played: update.matches_played
+      matches_played: update.matches_played,
+      previous_rank: update.previous_rank
     };
 
     const { error } = await supabaseClient
@@ -2216,6 +2363,16 @@ async function loadMatchHistory() {
     container.innerHTML = filteredMatches.map((match) => {
       const display = buildMatchDisplay(match, playerMap);
       const winnerText = match.winner_team === 1 ? display.team1Text : display.team2Text;
+      const loserText  = match.winner_team === 1 ? display.team2Text : display.team1Text;
+
+      const cardData = JSON.stringify({
+        type: match.match_type || "Match",
+        winner: winnerText || "—",
+        loser: loserText || "—",
+        score: match.score_text || "",
+        date: safeDateText(match.date_played),
+        notes: match.match_notes || ""
+      });
 
       return `
         <div class="history-item fade-in-card premium-match-card">
@@ -2248,9 +2405,26 @@ async function loadMatchHistory() {
           ` : ""}
 
           ${renderMatchExtras(match, playerMap)}
+
+          <div>
+            <button class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
+          </div>
         </div>
       `;
     }).join("");
+
+    // Set up share-button delegation once (guard prevents duplicate listeners)
+    if (!container.dataset.shareListenerAttached) {
+      container.dataset.shareListenerAttached = "1";
+      container.addEventListener("click", (e) => {
+        const btn = e.target.closest(".history-share-btn");
+        if (!btn) return;
+        try {
+          const matchData = JSON.parse(btn.getAttribute("data-match") || "{}");
+          showMatchCardModal(matchData);
+        } catch (_) {}
+      });
+    }
   } catch (error) {
     console.error("Load match history error:", error);
     container.innerHTML = "<p>Error loading match history.</p>";
@@ -2418,8 +2592,21 @@ async function loadPlayerProfile() {
 
       <div class="profile-actions">
         <a href="report.html?opponentId=${player.id}" class="button">Report a Match Against ${escapeHtml(player.name || "Player")}</a>
+        <button class="btn-share-profile" id="share-profile-btn">⬆ Share Profile</button>
+        <span class="share-copied-tip" id="share-copied-tip">Copied!</span>
       </div>
     `;
+
+    document.getElementById("share-profile-btn")?.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        const tip = document.getElementById("share-copied-tip");
+        if (tip) {
+          tip.classList.add("visible");
+          setTimeout(() => tip.classList.remove("visible"), 2200);
+        }
+      } catch (_) {}
+    });
 
     await renderPlayerRatingTrend(playerId, player.display_rating);
   } catch (error) {
