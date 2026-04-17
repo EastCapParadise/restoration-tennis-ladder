@@ -47,6 +47,11 @@ body {
   margin-bottom: 14px;
 }
 
+.logo-link {
+  display: contents;
+  cursor: pointer;
+}
+
 .logo {
   width: 62px;
   height: 62px;
@@ -55,6 +60,7 @@ body {
   background: white;
   padding: 4px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
 }
 
 .brand-text h1 {
