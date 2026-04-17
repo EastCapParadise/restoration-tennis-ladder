@@ -337,6 +337,137 @@ nav a.active {
 }
 
 /* =========================
+   ACTIVITY FEED
+========================= */
+
+@keyframes slideInFade {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.activity-feed-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.activity-feed-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.activity-feed-item:last-child {
+  border-bottom: none;
+}
+
+.activity-new {
+  animation: slideInFade 0.35s ease;
+}
+
+/* =========================
+   HEAD-TO-HEAD TABLE
+========================= */
+
+.h2h-table {
+  width: 100%;
+}
+
+.h2h-table th,
+.h2h-table td {
+  padding: 8px 10px;
+}
+
+.h2h-table th.num,
+.h2h-table td.num {
+  text-align: right;
+  width: 64px;
+}
+
+/* =========================
+   MATCH OF THE WEEK
+========================= */
+
+.motw-card {
+  background: linear-gradient(135deg, #fef9ec 0%, #fef3c7 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.motw-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.motw-badge {
+  background: #f59e0b;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.motw-descriptor {
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.motw-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.motw-winner {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.motw-defeated {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.motw-loser {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.motw-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.motw-stat {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* =========================
    FORM CONFIRMATION + ERROR
 ========================= */
 

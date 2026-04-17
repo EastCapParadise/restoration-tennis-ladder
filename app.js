@@ -83,7 +83,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (document.getElementById("home-stats")) await loadHomeStats();
+    if (document.getElementById("activity-feed")) await loadActivityFeed();
 
+    if (document.getElementById("match-of-week")) await loadMatchOfWeek();
     if (document.getElementById("history-list")) {
       setupHistoryFilterButtons();
       await loadMatchHistory();
@@ -96,6 +98,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (document.getElementById("player-profile")) {
       await loadPlayerProfile();
     }
+    if (document.getElementById("player-h2h-section")) await loadPlayerH2H();
 
     if (document.getElementById("player-match-history")) {
       await loadPlayerMatchHistory();
@@ -183,6 +186,27 @@ function sortByDateDesc(a, b) {
   const aDate = new Date(a?.date_played || a?.created_at || 0).getTime();
   const bDate = new Date(b?.date_played || b?.created_at || 0).getTime();
   return bDate - aDate;
+}
+
+function relativeTime(dateStr) {
+  if (!dateStr) return "";
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  return `${months} month${months === 1 ? "" : "s"} ago`;
+}
+
+function abbreviateName(fullName) {
+  if (!fullName) return "Unknown";
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
 }
 
 function sortPlayersForStandings(players) {
@@ -684,6 +708,242 @@ async function loadHomeStats() {
       <div class="stat-label">Days Left</div>
     </div>
   `;
+}
+
+/* =========================
+   ACTIVITY FEED
+========================= */
+
+async function loadActivityFeed() {
+  const container = document.getElementById("activity-feed");
+  if (!container) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("matches")
+      .select(`
+        id, match_type, winner_team, score_text, date_played, created_at,
+        team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id
+      `)
+      .order("date_played", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+
+    const matches = data || [];
+
+    if (!matches.length) {
+      container.innerHTML = `
+        <h2>Recent Activity</h2>
+        <p class="small-text">No matches reported yet — be the first!</p>
+      `;
+      return;
+    }
+
+    const playerMap = await fetchPlayerNamesForMatches(matches);
+
+    const items = matches.map((match, i) => {
+      const winnerIds = match.winner_team === 1
+        ? [match.team1_player1_id, match.team1_player2_id]
+        : [match.team2_player1_id, match.team2_player2_id];
+      const loserIds = match.winner_team === 1
+        ? [match.team2_player1_id, match.team2_player2_id]
+        : [match.team1_player1_id, match.team1_player2_id];
+
+      const winnerNames = winnerIds.filter(Boolean).map(id => abbreviateName(playerMap[id])).join(" & ");
+      const loserNames  = loserIds.filter(Boolean).map(id => abbreviateName(playerMap[id])).join(" & ");
+      const timeAgo = relativeTime(match.date_played || match.created_at);
+      const score = match.score_text ? ` · ${escapeHtml(match.score_text)}` : "";
+      const type  = match.match_type || "Match";
+
+      return `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
+        <strong>${escapeHtml(winnerNames)}</strong> defeated <strong>${escapeHtml(loserNames)}</strong>${score} · ${escapeHtml(type)} · ${escapeHtml(timeAgo)}
+      </li>`;
+    });
+
+    container.innerHTML = `
+      <h2>Recent Activity</h2>
+      <ul class="activity-feed-list">${items.join("")}</ul>
+    `;
+  } catch (error) {
+    console.error("Activity feed error:", error);
+  }
+}
+
+/* =========================
+   MATCH OF THE WEEK
+========================= */
+
+async function loadMatchOfWeek() {
+  const container = document.getElementById("match-of-week");
+  if (!container) return;
+
+  try {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    const { data, error } = await supabaseClient
+      .from("matches")
+      .select(`
+        id, match_type, winner_team, score_text, date_played, created_at,
+        team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
+        team1_avg_rating, team2_avg_rating, team1_total_games, team2_total_games
+      `)
+      .gte("date_played", cutoff);
+
+    if (error) throw error;
+
+    const matches = data || [];
+    if (!matches.length) {
+      container.style.display = "none";
+      return;
+    }
+
+    let bestUpset = null;
+    let bestUpsetDelta = 0;
+    let mostGames = null;
+    let mostGamesTotal = 0;
+
+    for (const match of matches) {
+      const t1 = Number(match.team1_avg_rating || 0);
+      const t2 = Number(match.team2_avg_rating || 0);
+      const delta = Math.abs(t1 - t2);
+      const higherTeam = t1 >= t2 ? 1 : 2;
+      const isUpset = higherTeam !== match.winner_team && delta > 0.05;
+      if (isUpset && delta > bestUpsetDelta) { bestUpsetDelta = delta; bestUpset = match; }
+
+      const totalGames = Number(match.team1_total_games || 0) + Number(match.team2_total_games || 0);
+      if (totalGames > mostGamesTotal) { mostGamesTotal = totalGames; mostGames = match; }
+    }
+
+    const featured = bestUpset || mostGames;
+    if (!featured) { container.style.display = "none"; return; }
+
+    const isUpset = bestUpset !== null;
+    const descriptor = isUpset ? "Biggest Upset" : "Marathon Match";
+    const statText = isUpset
+      ? `${bestUpsetDelta.toFixed(2)} rating pts difference`
+      : `${mostGamesTotal} total games played`;
+
+    const playerMap = await fetchPlayerNamesForMatches([featured]);
+    const display = buildMatchDisplay(featured, playerMap);
+    const winnerText = featured.winner_team === 1 ? display.team1Text : display.team2Text;
+    const loserText  = featured.winner_team === 1 ? display.team2Text : display.team1Text;
+    const dateStr = featured.date_played
+      ? new Date(featured.date_played).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "";
+
+    container.style.display = "";
+    container.innerHTML = `
+      <div class="motw-card">
+        <div class="motw-header">
+          <span class="motw-badge">⚡ Match of the Week</span>
+          <span class="motw-descriptor">${escapeHtml(descriptor)}</span>
+        </div>
+        <div class="motw-result">
+          <span class="motw-winner">${escapeHtml(winnerText)}</span>
+          <span class="motw-defeated">defeated</span>
+          <span class="motw-loser">${escapeHtml(loserText)}</span>
+        </div>
+        <div class="motw-details">
+          <span>${escapeHtml(featured.score_text || "")}</span>
+          <span>·</span>
+          <span>${escapeHtml(featured.match_type || "")}</span>
+          <span>·</span>
+          <span>${escapeHtml(dateStr)}</span>
+        </div>
+        <div class="motw-stat">${escapeHtml(statText)}</div>
+      </div>
+    `;
+  } catch (error) {
+    console.error("Match of week error:", error);
+    container.style.display = "none";
+  }
+}
+
+/* =========================
+   HEAD-TO-HEAD RECORDS
+========================= */
+
+async function loadPlayerH2H() {
+  const container = document.getElementById("player-h2h-section");
+  if (!container) return;
+
+  const playerId = getPlayerIdFromUrl();
+  if (!playerId) { container.style.display = "none"; return; }
+
+  try {
+    const matches = await fetchMatchesForPlayer(playerId);
+    if (!matches.length) { container.style.display = "none"; return; }
+
+    const pid = Number(playerId);
+    const h2h = {};
+
+    for (const match of matches) {
+      const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
+      const won = onTeam1 ? match.winner_team === 1 : match.winner_team === 2;
+      const opponentIds = onTeam1
+        ? [match.team2_player1_id, match.team2_player2_id]
+        : [match.team1_player1_id, match.team1_player2_id];
+
+      for (const oppId of opponentIds.filter(Boolean)) {
+        if (!h2h[oppId]) h2h[oppId] = { wins: 0, losses: 0 };
+        won ? h2h[oppId].wins++ : h2h[oppId].losses++;
+      }
+    }
+
+    const opponentIds = Object.keys(h2h).map(Number);
+    if (!opponentIds.length) { container.style.display = "none"; return; }
+
+    const { data: oppData } = await supabaseClient
+      .from("players").select("id, name").in("id", opponentIds);
+
+    const oppMap = {};
+    (oppData || []).forEach(p => { oppMap[p.id] = p; });
+
+    const sorted = opponentIds.sort((a, b) => {
+      const ta = h2h[a].wins + h2h[a].losses;
+      const tb = h2h[b].wins + h2h[b].losses;
+      return tb - ta;
+    });
+
+    container.style.display = "";
+    container.innerHTML = `
+      <h2>Head-to-Head Records</h2>
+      <div class="table-wrap">
+        <table class="h2h-table">
+          <thead>
+            <tr>
+              <th>Opponent</th>
+              <th class="num">W</th>
+              <th class="num">L</th>
+              <th class="num">Win %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(oppId => {
+              const rec = h2h[oppId];
+              const opp = oppMap[oppId];
+              const total = rec.wins + rec.losses;
+              const pct = total > 0 ? Math.round((rec.wins / total) * 100) : 0;
+              const nameHtml = opp
+                ? `<a href="player.html?id=${opp.id}" class="player-link">${escapeHtml(opp.name)}</a>`
+                : "Unknown";
+              return `<tr>
+                <td>${nameHtml}</td>
+                <td class="num">${rec.wins}</td>
+                <td class="num">${rec.losses}</td>
+                <td class="num">${pct}%</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    console.error("H2H load error:", error);
+    container.style.display = "none";
+  }
 }
 
 /* =========================
@@ -2346,9 +2606,12 @@ function setupRealtimeSubscriptions() {
         { event: "*", schema: "public", table: "matches" },
         async () => {
           if (getLadderBodyEl()) await loadLadder();
+          if (document.getElementById("activity-feed")) await loadActivityFeed();
+          if (document.getElementById("match-of-week")) await loadMatchOfWeek();
           if (document.getElementById("history-list")) await loadMatchHistory();
           if (document.getElementById("player-match-history")) await loadPlayerMatchHistory();
           if (document.getElementById("player-profile")) await loadPlayerProfile();
+          if (document.getElementById("player-h2h-section")) await loadPlayerH2H();
         }
       )
       .subscribe();
