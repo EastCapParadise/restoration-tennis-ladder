@@ -1082,8 +1082,8 @@ async function setupReportForm() {
         team2Players: hydrated.team2Players,
         winnerTeam: formData.winnerTeam,
         scoringResult,
-        team1TotalGames: scoringContext.team1TotalGames,
-        team2TotalGames: scoringContext.team2TotalGames
+        team1TotalGames: scoringContext.team1StandardGames,
+        team2TotalGames: scoringContext.team2StandardGames
       });
 
       if (updateError) {
@@ -1456,23 +1456,30 @@ function buildScoringContext(formData, hydrated) {
     set3Team2Games
   } = formData;
 
-  const sets = [
+  // Standard sets (1 and 2) only — used for player Games W/L stats and match storage
+  const standardSets = [
     [set1Team1Games, set1Team2Games],
     [set2Team1Games, set2Team2Games]
   ];
 
+  // All sets including tiebreak — used only for rating margin bonus calculation
+  const allSets = [...standardSets];
   if (set3Team1Games !== null && set3Team2Games !== null) {
-    sets.push([set3Team1Games, set3Team2Games]);
+    allSets.push([set3Team1Games, set3Team2Games]);
   }
 
-  const team1TotalGames = sets.reduce((sum, [a]) => sum + Number(a || 0), 0);
-  const team2TotalGames = sets.reduce((sum, [, b]) => sum + Number(b || 0), 0);
+  const team1StandardGames = standardSets.reduce((sum, [a]) => sum + Number(a || 0), 0);
+  const team2StandardGames = standardSets.reduce((sum, [, b]) => sum + Number(b || 0), 0);
+  const team1TotalGames = allSets.reduce((sum, [a]) => sum + Number(a || 0), 0);
+  const team2TotalGames = allSets.reduce((sum, [, b]) => sum + Number(b || 0), 0);
 
   return {
     matchType: formData.matchType,
     winnerTeam: formData.winnerTeam,
     team1Players: hydrated.team1Players,
     team2Players: hydrated.team2Players,
+    team1StandardGames,
+    team2StandardGames,
     team1TotalGames,
     team2TotalGames
   };
@@ -1560,8 +1567,8 @@ function buildMatchPayload({ formData, hydrated, scoringResult }) {
     set2_team2_games: formData.set2Team2Games,
     set3_team1_games: formData.set3Team1Games,
     set3_team2_games: formData.set3Team2Games,
-    team1_total_games: buildScoringContext(formData, hydrated).team1TotalGames,
-    team2_total_games: buildScoringContext(formData, hydrated).team2TotalGames,
+    team1_total_games: buildScoringContext(formData, hydrated).team1StandardGames,
+    team2_total_games: buildScoringContext(formData, hydrated).team2StandardGames,
     team1_avg_rating: scoringResult.team1AvgRating,
     team2_avg_rating: scoringResult.team2AvgRating,
     rating_change_p1: scoringResult.ratingChanges[0],
