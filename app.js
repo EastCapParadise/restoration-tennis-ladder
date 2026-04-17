@@ -257,7 +257,7 @@ function handleJoinForm() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    message.innerHTML = ‘<p class="small-text">Submitting…</p>’;
+    message.innerHTML = '<p class="small-text">Submitting…</p>';
 
     try {
       const name = document.getElementById("name")?.value.trim() || "";
