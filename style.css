@@ -1872,6 +1872,28 @@ th[data-sort]:hover {
     min-width: 100px;
     word-break: break-word;
   }
+
+  /* Directory Area column: wrap text instead of bleeding into Rating column */
+  .directory-table th:nth-child(5),
+  .directory-table td:nth-child(5) {
+    white-space: normal;
+    min-width: 80px;
+    max-width: 110px;
+    word-break: break-word;
+  }
+
+  /* Phone column: pad right so it doesn't crowd the Text button */
+  .directory-table th:nth-child(7),
+  .directory-table td:nth-child(7) {
+    padding-right: 14px;
+  }
+
+  /* Text button column: extra left padding for tappable breathing room */
+  .directory-table th:last-child,
+  .directory-table td:last-child {
+    padding-left: 12px;
+    padding-right: 10px;
+  }
 }
 
 @media (max-width: 480px) {
