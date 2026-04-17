@@ -554,33 +554,6 @@ function sortPlayers(players) {
   });
 }
 
-function renderRankingsSummary(players, filteredPlayers, currentFilterLabel) {
-  const summaryStrip = document.getElementById("rankings-summary-strip");
-  if (!summaryStrip) return;
-
-  const topRating = filteredPlayers.length
-    ? formatDisplayRating(filteredPlayers[0].dynamic_rating)
-    : "—";
-
-  summaryStrip.innerHTML = `
-    <div class="summary-pill">
-      <strong>${players.length}</strong>
-      <span>Total Players</span>
-    </div>
-    <div class="summary-pill">
-      <strong>${filteredPlayers.length}</strong>
-      <span>Visible</span>
-    </div>
-    <div class="summary-pill">
-      <strong>${escapeHtml(currentFilterLabel)}</strong>
-      <span>Current Filter</span>
-    </div>
-    <div class="summary-pill">
-      <strong>${topRating}</strong>
-      <span>Top Rating</span>
-    </div>
-  `;
-}
 
 function getRankBadge(index) {
   if (index === 0) return "🥇";
@@ -652,7 +625,6 @@ async function loadLadder() {
     const filtered = applyLadderFilters(playersWithStatus);
     const officialStandings = sortPlayersForStandings(filtered);
 
-    renderRankingsSummary(playersWithStatus, officialStandings, state.ladder.filterSex);
     renderLadder(officialStandings);
   } catch (error) {
     console.error("Load ladder error:", error);
