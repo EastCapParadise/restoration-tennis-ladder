@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rules | Restoration Tennis Ladder</title>
+  <title>About | Restoration Tennis Ladder</title>
   <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
@@ -14,17 +15,27 @@
         <h1>Restoration Tennis Ladder</h1>
       </div>
     </div>
+    <button class="hamburger-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+
     <nav>
       <a href="index.html">Home</a>
-      <a href="rules.html">About</a>
+      <a href="rules.html" class="active">About</a>
       <a href="join.html">Join</a>
       <a href="ladder.html">Rankings</a>
       <a href="report.html">Report Match</a>
       <a href="history.html">Match History</a>
       <a href="contacts.html">Directory</a>
-
     </nav>
-  
+
+    <div class="mobile-nav-menu" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="rules.html" class="active">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+    </div>
   </header>
 
   <main>
@@ -55,7 +66,7 @@
     <section class="card">
       <h2>How to Set Up a Match</h2>
       <p>
-        Go to the <strong>Rankings</strong> page and click a player’s name.
+        Go to the <strong>Rankings</strong> page and click a player's name.
       </p>
       <p>
         Their player page shows their phone number and area so you can contact them directly and set up a match. From there, pick a date and a reserve a court to play!
@@ -69,7 +80,7 @@
       </p>
       <p>
         Men and women can all play on the same overall ladder, and the Rankings page also lets you filter by
-        <strong>All Players</strong>, <strong>Men’s Ladder</strong>, and <strong>Women’s Ladder</strong>.
+        <strong>All Players</strong>, <strong>Men's Ladder</strong>, and <strong>Women's Ladder</strong>.
       </p>
         <p>
         Everyone joins with a self-rating in <strong>0.25 increments</strong>. After that, your dynamic rating updates over time based on actual match results.
@@ -126,7 +137,7 @@
         <strong>Be honest.</strong> Enter real scores.<br>
         <strong>Be responsive.</strong> Reply to people trying to set up matches.<br>
         <strong>Be flexible.</strong> Schedules and weather happen.<br>
-        <strong>Be respectful.</strong> Competitive is good; rude is not. Have Fun. 
+        <strong>Be respectful.</strong> Competitive is good; rude is not. Have Fun.
       </p>
     </section>
 
@@ -139,5 +150,8 @@
     </section>
 
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
 </body>
 </html>

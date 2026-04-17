@@ -1517,25 +1517,25 @@ th[data-sort]:hover {
   min-width: 620px;
 }
 
-/* Sticky Rank + Name columns */
+/* Sticky Rank + Name columns — !important overrides any later table-layout:fixed percentage rules */
 .directory-table th:nth-child(1),
 .directory-table td:nth-child(1) {
-  position: sticky;
-  left: 0;
-  width: 56px;
-  min-width: 56px;
+  position: sticky !important;
+  left: 0 !important;
+  width: 44px !important;
+  min-width: 44px !important;
   z-index: 25;
-  background: #fff;
+  background: #fff !important;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
   text-align: center;
 }
 
 .directory-table th:nth-child(2),
 .directory-table td:nth-child(2) {
-  position: sticky;
-  left: 56px;
+  position: sticky !important;
+  left: 44px !important;
   z-index: 24;
-  background: #fff;
+  background: #fff !important;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.08);
   text-align: left;
 }
@@ -1544,7 +1544,7 @@ th[data-sort]:hover {
 .directory-table thead th:nth-child(1),
 .directory-table thead th:nth-child(2) {
   z-index: 35;
-  background: #f1f6f3;
+  background: #f1f6f3 !important;
 }
 
 .directory-text-link {
@@ -1851,6 +1851,10 @@ th[data-sort]:hover {
   .ladder-table.show-more-stats th:nth-child(3),
   .ladder-table.show-more-stats td:nth-child(3) {
     display: table-cell;
+    max-width: none;
+    width: auto;
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 
