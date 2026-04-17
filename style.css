@@ -1858,6 +1858,14 @@ th[data-sort]:hover {
     overflow: visible;
     text-overflow: clip;
   }
+
+  /* Directory Name column: allow wrapping on mobile so long names don't bleed */
+  .directory-table th:nth-child(2),
+  .directory-table td:nth-child(2) {
+    white-space: normal;
+    min-width: 100px;
+    word-break: break-word;
+  }
 }
 
 @media (max-width: 480px) {
