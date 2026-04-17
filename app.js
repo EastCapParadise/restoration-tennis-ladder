@@ -1529,6 +1529,22 @@ function averageRating(players) {
   return total / validPlayers.length;
 }
 
+function isMixedGenderMatch(team1Players, team2Players) {
+  const all = [...team1Players, ...team2Players].filter(Boolean);
+  return all.some((p) => p.sex === "Man") && all.some((p) => p.sex === "Woman");
+}
+
+function averageAdjustedRating(players, applyGenderAdj) {
+  const validPlayers = players.filter(Boolean);
+  if (!validPlayers.length) return 0;
+  const total = validPlayers.reduce((sum, player) => {
+    const base = Number(player.dynamic_rating ?? player.display_rating ?? 0);
+    // Gender adjustment: +0.5 added to male ratings for mixed-gender match calculations per NTRP convention
+    return sum + (applyGenderAdj && player.sex === "Man" ? base + 0.5 : base);
+  }, 0);
+  return total / validPlayers.length;
+}
+
 function buildScoringContext(formData, hydrated) {
   const {
     set1Team1Games,
@@ -1576,8 +1592,10 @@ function calculateMatchScoring({
   team1TotalGames,
   team2TotalGames
 }) {
-  const team1AvgRating = averageRating(team1Players);
-  const team2AvgRating = averageRating(team2Players);
+  const mixedGender = isMixedGenderMatch(team1Players, team2Players);
+  // Gender adjustment: +0.5 added to male ratings for mixed-gender match calculations per NTRP convention
+  const team1AvgRating = averageAdjustedRating(team1Players, mixedGender);
+  const team2AvgRating = averageAdjustedRating(team2Players, mixedGender);
 
   const ratingGap = Math.abs(team1AvgRating - team2AvgRating);
   const expectedTeam1 = 1 / (1 + Math.pow(10, (team2AvgRating - team1AvgRating) / 0.45));
