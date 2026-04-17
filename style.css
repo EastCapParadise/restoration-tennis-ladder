@@ -1792,11 +1792,7 @@ th[data-sort]:hover {
 .ladder-table th:nth-child(3),
 .ladder-table td:nth-child(3) {
   min-width: 60px;
-  max-width: 100px;
-  width: 100px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .ladder-table th:nth-child(5),
@@ -1923,6 +1919,27 @@ th[data-sort]:hover {
   .directory-table td {
     padding: 5px 4px;
     font-size: 13px;
+  }
+}
+
+/* Desktop Rankings column widths */
+@media (min-width: 768px) {
+  /* Name: cap width so it doesn't consume too much horizontal space */
+  .ladder-table th:nth-child(2),
+  .ladder-table td:nth-child(2) {
+    max-width: 160px;
+  }
+
+  /* Points, W, L: short numeric values — keep them narrow */
+  .ladder-table th:nth-child(4),
+  .ladder-table td:nth-child(4),
+  .ladder-table th:nth-child(5),
+  .ladder-table td:nth-child(5),
+  .ladder-table th:nth-child(6),
+  .ladder-table td:nth-child(6) {
+    width: 70px;
+    min-width: 70px;
+    text-align: right;
   }
 }
 
