@@ -388,10 +388,20 @@ nav a.active {
   padding: 8px 10px;
 }
 
+/* Opponent column: size to content, cap at 150px, wrap if needed */
+.h2h-table th:first-child,
+.h2h-table td:first-child {
+  width: auto;
+  max-width: 150px;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .h2h-table th.num,
 .h2h-table td.num {
   text-align: right;
   width: 64px;
+  white-space: nowrap;
 }
 
 /* =========================
@@ -1033,6 +1043,11 @@ hr {
   font-weight: 600;
   background: rgba(22, 163, 74, 0.12);
   color: #166534;
+}
+
+.winner-pill.loss {
+  background: rgba(185, 28, 28, 0.10);
+  color: #b91c1c;
 }
 
 .history-matchup {
