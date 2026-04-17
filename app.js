@@ -308,6 +308,7 @@ function handleJoinForm() {
         phone,
         area,
         sex,
+        initial_rating: numericRating,
         display_rating: numericRating,
         dynamic_rating: numericRating,
         rating: Math.round(numericRating * 100),
