@@ -1864,8 +1864,9 @@ th[data-sort]:hover {
   /* Rankings numeric columns: shrink-wrap on mobile */
   .ladder-table th:nth-child(4),
   .ladder-table td:nth-child(4) {
-    width: 60px;
-    max-width: 60px;
+    width: 52px !important;
+    max-width: 52px !important;
+    padding: 8px 4px !important;
     text-align: right;
   }
 
@@ -1874,10 +1875,9 @@ th[data-sort]:hover {
   .ladder-table td:nth-child(5),
   .ladder-table th:nth-child(6),
   .ladder-table td:nth-child(6) {
-    width: 28px;
-    max-width: 28px;
-    padding-left: 2px;
-    padding-right: 2px;
+    width: 24px !important;
+    max-width: 24px !important;
+    padding: 8px 3px !important;
     text-align: right;
   }
 
@@ -1916,7 +1916,7 @@ th[data-sort]:hover {
   /* Phone column: wider to give breathing room before Text button */
   .directory-table th:nth-child(7),
   .directory-table td:nth-child(7) {
-    min-width: 110px;
+    min-width: 130px !important;
     padding-right: 16px;
   }
 
