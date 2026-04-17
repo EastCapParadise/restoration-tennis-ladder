@@ -1869,12 +1869,15 @@ th[data-sort]:hover {
     text-align: right;
   }
 
+  /* W / L: as narrow as possible — single/double digit only */
   .ladder-table th:nth-child(5),
   .ladder-table td:nth-child(5),
   .ladder-table th:nth-child(6),
   .ladder-table td:nth-child(6) {
-    width: 40px;
-    max-width: 40px;
+    width: 28px;
+    max-width: 28px;
+    padding-left: 2px;
+    padding-right: 2px;
     text-align: right;
   }
 
@@ -1893,19 +1896,28 @@ th[data-sort]:hover {
     word-break: break-word;
   }
 
-  /* Directory Area column: wrap text instead of bleeding into Rating column */
-  .directory-table th:nth-child(5),
-  .directory-table td:nth-child(5) {
+  /* Directory header cells: wrap so full label is always visible */
+  .directory-table th {
     white-space: normal;
-    min-width: 80px;
-    max-width: 110px;
-    word-break: break-word;
   }
 
-  /* Phone column: pad right so it doesn't crowd the Text button */
+  /* Directory Area column: auto width, full text, no overflow clipping */
+  .directory-table th:nth-child(5),
+  .directory-table td:nth-child(5) {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: normal;
+  }
+
+  /* Phone column: wider to give breathing room before Text button */
   .directory-table th:nth-child(7),
   .directory-table td:nth-child(7) {
-    padding-right: 14px;
+    min-width: 110px;
+    padding-right: 16px;
   }
 
   /* Text button column: extra left padding for tappable breathing room */
