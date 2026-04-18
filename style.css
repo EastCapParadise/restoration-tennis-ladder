@@ -388,11 +388,11 @@ nav a.active {
   padding: 8px 10px;
 }
 
-/* Opponent column: size to content, cap at 150px, wrap if needed */
+/* Opponent column: size to content, cap at 130px, wrap if needed */
 .h2h-table th:first-child,
 .h2h-table td:first-child {
   width: auto;
-  max-width: 150px;
+  max-width: 130px;
   white-space: normal;
   word-break: break-word;
 }

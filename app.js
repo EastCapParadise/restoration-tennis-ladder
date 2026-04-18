@@ -8,7 +8,8 @@ const state = {
     search: "",
     sortBy: "ladder_points",
     sortDir: "desc",
-    showMoreStats: false
+    showMoreStats: false,
+    userHasSorted: false
   },
   history: {
     filterType: "All"
@@ -702,9 +703,11 @@ async function loadLadder() {
     }));
 
     const filtered = applyLadderFilters(playersWithStatus);
-    const officialStandings = sortPlayersForStandings(filtered);
+    const sorted = state.ladder.userHasSorted
+      ? sortPlayers(filtered)
+      : sortPlayersForStandings(filtered);
 
-    renderLadder(officialStandings);
+    renderLadder(sorted);
   } catch (error) {
     console.error("Load ladder error:", error);
     setTableMessage(ladderBody, "Error loading rankings.", getLadderColspan());
@@ -2094,7 +2097,7 @@ function renderDirectory(players) {
   return `
   <tr>
     <td class="num">${safeRank}</td>
-    <td>${safeName}</td>
+    <td><a class="player-link" href="player.html?id=${player.id}">${safeName}</a></td>
     <td>${sexBadge}</td>
     <td class="num">${safePoints}</td>
     <td class="directory-area">${safeArea}</td>
