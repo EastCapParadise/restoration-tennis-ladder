@@ -1325,13 +1325,16 @@ function hydrateMatchPlayers(formData, playersById) {
 }
 
 // Reorders a stored score string (always team1-first) so the winner's games
-// appear first in each set. E.g. "3-6 0-6" with winner_team=2 → "6-3 6-0".
+// appear first in each set. E.g. "3-6, 0-6" with winner_team=2 → "6-3, 6-0".
+// Splits on ", " or " " so it handles both old (space) and new (comma-space) records.
 function winnerFirstScore(scoreText, winnerTeam) {
-  if (!scoreText || winnerTeam === 1) return scoreText;
-  return scoreText.split(" ").map((set) => {
+  if (!scoreText) return scoreText;
+  const sets = scoreText.split(/,?\s+/);
+  if (winnerTeam === 1) return sets.join(", ");
+  return sets.map((set) => {
     const [a, b] = set.split("-");
     return `${b}-${a}`;
-  }).join(" ");
+  }).join(", ");
 }
 
 function buildScoreText(
@@ -1351,7 +1354,7 @@ function buildScoreText(
     parts.push(`${set3Team1Games}-${set3Team2Games}`);
   }
 
-  return parts.join(" ");
+  return parts.join(", ");
 }
 
 function determineWinnerFromScore(formData) {
@@ -1408,10 +1411,10 @@ function validateTennisScore(scoreText) {
   }
 
   const cleaned = scoreText.trim();
-  const sets = cleaned.split(/\s+/);
+  const sets = cleaned.split(/,?\s+/);
 
   if (sets.length < 2 || sets.length > 3) {
-    return { valid: false, message: "Score should usually have 2 or 3 sets, like 6-4 3-6 10-8." };
+    return { valid: false, message: "Score should usually have 2 or 3 sets, like 6-4, 3-6, 10-8." };
   }
 
   for (let i = 0; i < sets.length; i++) {
