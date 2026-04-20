@@ -876,9 +876,7 @@ async function loadMatchOfWeek() {
 
     const isUpset = bestUpset !== null;
     const descriptor = isUpset ? "Biggest Upset" : "Marathon Match";
-    const statText = isUpset
-      ? `${bestUpsetDelta.toFixed(2)} rating pts difference`
-      : `${mostGamesTotal} total games played`;
+    const statText = isUpset ? "" : `${mostGamesTotal} total games played`;
 
     const playerMap = await fetchPlayerNamesForMatches([featured]);
     const display = buildMatchDisplay(featured, playerMap);
@@ -907,7 +905,7 @@ async function loadMatchOfWeek() {
           <span>·</span>
           <span>${escapeHtml(dateStr)}</span>
         </div>
-        <div class="motw-stat">${escapeHtml(statText)}</div>
+        ${statText ? `<div class="motw-stat">${escapeHtml(statText)}</div>` : ""}
       </div>
     `;
   } catch (error) {

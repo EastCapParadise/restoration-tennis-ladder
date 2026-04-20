@@ -380,7 +380,9 @@ nav a.active {
 ========================= */
 
 .h2h-table {
-  width: 100%;
+  table-layout: fixed;
+  width: auto;
+  min-width: 0;
 }
 
 .h2h-table th,
@@ -388,19 +390,17 @@ nav a.active {
   padding: 8px 10px;
 }
 
-/* Opponent column: size to content, cap at 130px, wrap if needed */
 .h2h-table th:first-child,
 .h2h-table td:first-child {
-  width: auto;
-  max-width: 130px;
+  width: 130px;
   white-space: normal;
   word-break: break-word;
 }
 
 .h2h-table th.num,
 .h2h-table td.num {
+  width: 56px;
   text-align: right;
-  width: 64px;
   white-space: nowrap;
 }
 
