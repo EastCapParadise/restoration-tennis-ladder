@@ -1593,6 +1593,8 @@ function calculateMatchScoring({
   winnerTeam,
   team1Players,
   team2Players,
+  team1StandardGames,
+  team2StandardGames,
   team1TotalGames,
   team2TotalGames
 }) {
@@ -1601,33 +1603,64 @@ function calculateMatchScoring({
   const team1AvgRating = averageAdjustedRating(team1Players, mixedGender);
   const team2AvgRating = averageAdjustedRating(team2Players, mixedGender);
 
+  // --- Elo-style dynamic rating change ---
   const ratingGap = Math.abs(team1AvgRating - team2AvgRating);
   const expectedTeam1 = 1 / (1 + Math.pow(10, (team2AvgRating - team1AvgRating) / 0.45));
   const expectedTeam2 = 1 - expectedTeam1;
-
   const actualTeam1 = winnerTeam === 1 ? 1 : 0;
   const actualTeam2 = winnerTeam === 2 ? 1 : 0;
-
+  // Use all-set games (including tiebreak) for the Elo K-factor margin ratio
   const totalGames = Math.max(team1TotalGames + team2TotalGames, 1);
   const marginRatio = Math.abs(team1TotalGames - team2TotalGames) / totalGames;
-
   let baseK = matchType === "Doubles" ? 0.1 : 0.12;
   baseK += Math.min(ratingGap * 0.04, 0.05);
   baseK += marginRatio * 0.06;
-
   const rawChangeTeam1 = roundToTwo((actualTeam1 - expectedTeam1) * baseK);
   const rawChangeTeam2 = roundToTwo((actualTeam2 - expectedTeam2) * baseK);
-
   const team1Change = Number.isFinite(rawChangeTeam1) ? rawChangeTeam1 : 0;
   const team2Change = Number.isFinite(rawChangeTeam2) ? rawChangeTeam2 : 0;
 
-  const winnerGames = winnerTeam === 1 ? team1TotalGames : team2TotalGames;
-  const loserGames = winnerTeam === 1 ? team2TotalGames : team1TotalGames;
-  const gameMargin = Math.max(winnerGames - loserGames, 0);
+  // --- Ladder points ---
+  // Standard games = sets 1 and 2 only. Tiebreak (set 3) is always excluded.
+  // Gender-adjusted ratings are already applied above via averageAdjustedRating.
 
-  const winnerBonus = Math.min(Math.floor(gameMargin / 3), 5);
-  const winnerPoints = 10 + winnerBonus;
-  const loserPoints = 4;
+  const winnerAvgRating = winnerTeam === 1 ? team1AvgRating : team2AvgRating;
+  const loserAvgRating  = winnerTeam === 1 ? team2AvgRating : team1AvgRating;
+  const winnerStdGames  = winnerTeam === 1 ? team1StandardGames : team2StandardGames;
+  const loserStdGames   = winnerTeam === 1 ? team2StandardGames : team1StandardGames;
+
+  // Rating gap: loser rating minus winner rating.
+  // Positive = winner pulled an upset; negative = winner was the favorite.
+  const opponentGap = loserAvgRating - winnerAvgRating;
+
+  // Winner base points determined by opponent rating gap at time of match.
+  let isUpset = false;
+  let winnerBase;
+  if (opponentGap >= 0.75) {
+    isUpset = true;   // Upset: opponent was rated 0.75+ above the winner
+    winnerBase = 16;
+  } else if (opponentGap <= -0.75) {
+    winnerBase = 9;   // Favored: opponent was rated 0.75+ below the winner
+  } else {
+    winnerBase = 12;  // Even: opponent within 0.75 rating points either way
+  }
+
+  // Margin bonus: +1 per 3 standard-game margin, capped at +3.
+  const stdMargin = Math.max(winnerStdGames - loserStdGames, 0);
+  const marginBonus = Math.min(Math.floor(stdMargin / 3), 3);
+  let winnerPoints = Math.round(winnerBase + marginBonus);
+
+  // Loser points: own standard games won, floor 4, capped below winner.
+  let loserPoints = Math.max(loserStdGames, 4);
+  if (winnerPoints > 4) {
+    // Upset matches apply a wider gap to reward the winning underdog more distinctly.
+    const loserCap = isUpset ? winnerPoints - 3 : winnerPoints - 2;
+    loserPoints = Math.min(loserPoints, loserCap);
+  }
+  loserPoints = Math.round(loserPoints);
+
+  // Safety: winner always earns at least one more point than loser.
+  winnerPoints = Math.max(winnerPoints, loserPoints + 1);
 
   return {
     team1AvgRating: roundToTwo(team1AvgRating),
@@ -1835,7 +1868,8 @@ function renderScoringRulesBox() {
     <div class="scoring-rules-card">
       <h3>How points work</h3>
       <p><strong>Rating Adjustment:</strong> Ratings move after every match using a slower, NTRP-inspired formula based on player ratings, match result, and score margin.</p>
-      <p><strong>Ladder Points:</strong> Winners earn 10 points plus up to 5 bonus points based on game margin. Losers earn 4 points.</p>
+      <p><strong>Winner Points:</strong> Base points depend on opponent rating — 16 pts for an upset (opponent rated 0.75+ above you), 12 pts for an even match, 9 pts if you were favored. Plus up to +3 bonus points based on game margin (every 3 games in sets 1–2).</p>
+      <p><strong>Loser Points:</strong> Losers earn points equal to their standard games won (sets 1–2 only), with a floor of 4 and a cap that keeps the winner clearly ahead.</p>
       <p><strong>Doubles:</strong> Teammates receive the same rating change and ladder points.</p>
     </div>
   `;
@@ -2168,6 +2202,12 @@ async function fetchMatches() {
       ladder_points_p2,
       ladder_points_p3,
       ladder_points_p4,
+      team1_avg_rating,
+      team2_avg_rating,
+      set1_team1_games,
+      set1_team2_games,
+      set2_team1_games,
+      set2_team2_games,
       match_notes
     `)
     .order("date_played", { ascending: false })
@@ -2236,8 +2276,69 @@ function buildMatchDisplay(match, playerMap) {
   };
 }
 
+// Computes the current ladder points formula from stored match data so that
+// match history cards always reflect the live formula, not stale stored values.
+// Falls back to the stored ladder_points_pN fields if avg ratings are unavailable.
+function computeMatchLadderPoints(match) {
+  const t1avg = Number(match.team1_avg_rating ?? 0);
+  const t2avg = Number(match.team2_avg_rating ?? 0);
+  if (!match.team1_avg_rating && !match.team2_avg_rating) {
+    // Avg ratings not stored — return stale stored values as-is
+    return [
+      match.ladder_points_p1,
+      match.ladder_points_p2,
+      match.ladder_points_p3,
+      match.ladder_points_p4
+    ];
+  }
+
+  const winnerTeam = match.winner_team;
+  const winnerAvgRating = winnerTeam === 1 ? t1avg : t2avg;
+  const loserAvgRating  = winnerTeam === 1 ? t2avg : t1avg;
+
+  // Standard games: sets 1 and 2 only (tiebreak excluded)
+  const team1StdGames = Number(match.set1_team1_games ?? 0) + Number(match.set2_team1_games ?? 0);
+  const team2StdGames = Number(match.set1_team2_games ?? 0) + Number(match.set2_team2_games ?? 0);
+  const winnerStdGames = winnerTeam === 1 ? team1StdGames : team2StdGames;
+  const loserStdGames  = winnerTeam === 1 ? team2StdGames : team1StdGames;
+
+  // Rating gap: loser rating minus winner rating
+  // Positive = upset; negative = winner was favored
+  const opponentGap = loserAvgRating - winnerAvgRating;
+
+  let isUpset = false;
+  let winnerBase;
+  if (opponentGap >= 0.75) {
+    isUpset = true;
+    winnerBase = 16; // Upset: opponent 0.75+ above winner
+  } else if (opponentGap <= -0.75) {
+    winnerBase = 9;  // Favored: opponent 0.75+ below winner
+  } else {
+    winnerBase = 12; // Even: within 0.75 rating points
+  }
+
+  // Margin bonus: +1 per 3 standard-game margin, capped at +3
+  const stdMargin = Math.max(winnerStdGames - loserStdGames, 0);
+  const marginBonus = Math.min(Math.floor(stdMargin / 3), 3);
+  let winnerPoints = Math.round(winnerBase + marginBonus);
+
+  // Loser points: own standard games won, floor 4, capped below winner
+  let loserPoints = Math.max(loserStdGames, 4);
+  if (winnerPoints > 4) {
+    const loserCap = isUpset ? winnerPoints - 3 : winnerPoints - 2;
+    loserPoints = Math.min(loserPoints, loserCap);
+  }
+  loserPoints = Math.round(loserPoints);
+  winnerPoints = Math.max(winnerPoints, loserPoints + 1);
+
+  return winnerTeam === 1
+    ? [winnerPoints, winnerPoints, loserPoints, loserPoints]
+    : [loserPoints, loserPoints, winnerPoints, winnerPoints];
+}
+
 function renderMatchExtras(match, playerMap) {
   const rows = [];
+  const [lp0, lp1, lp2, lp3] = computeMatchLadderPoints(match);
 
   function addRow(playerId, ratingChange, ladderPoints) {
     if (!playerId) return;
@@ -2250,10 +2351,10 @@ function renderMatchExtras(match, playerMap) {
     `);
   }
 
-  addRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1);
-  addRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2);
-  addRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3);
-  addRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4);
+  addRow(match.team1_player1_id, match.rating_change_p1, lp0);
+  addRow(match.team1_player2_id, match.rating_change_p2, lp1);
+  addRow(match.team2_player1_id, match.rating_change_p3, lp2);
+  addRow(match.team2_player2_id, match.rating_change_p4, lp3);
 
   if (!rows.length) return "";
   return `<div class="match-extras">${rows.join("")}</div>`;
@@ -2480,7 +2581,13 @@ async function fetchMatchesForPlayer(playerId) {
       ladder_points_p1,
       ladder_points_p2,
       ladder_points_p3,
-      ladder_points_p4
+      ladder_points_p4,
+      team1_avg_rating,
+      team2_avg_rating,
+      set1_team1_games,
+      set1_team2_games,
+      set2_team1_games,
+      set2_team2_games
     `)
     .order("date_played", { ascending: true })
     .order("created_at", { ascending: true });
@@ -2499,37 +2606,22 @@ async function fetchMatchesForPlayer(playerId) {
 
 function getPlayerMatchPerspective(match, playerId) {
   const pid = Number(playerId);
+  const [lp0, lp1, lp2, lp3] = computeMatchLadderPoints(match);
 
   if (match.team1_player1_id === pid) {
-    return {
-      won: match.winner_team === 1,
-      ratingChange: match.rating_change_p1,
-      ladderPoints: match.ladder_points_p1
-    };
+    return { won: match.winner_team === 1, ratingChange: match.rating_change_p1, ladderPoints: lp0 };
   }
 
   if (match.team1_player2_id === pid) {
-    return {
-      won: match.winner_team === 1,
-      ratingChange: match.rating_change_p2,
-      ladderPoints: match.ladder_points_p2
-    };
+    return { won: match.winner_team === 1, ratingChange: match.rating_change_p2, ladderPoints: lp1 };
   }
 
   if (match.team2_player1_id === pid) {
-    return {
-      won: match.winner_team === 2,
-      ratingChange: match.rating_change_p3,
-      ladderPoints: match.ladder_points_p3
-    };
+    return { won: match.winner_team === 2, ratingChange: match.rating_change_p3, ladderPoints: lp2 };
   }
 
   if (match.team2_player2_id === pid) {
-    return {
-      won: match.winner_team === 2,
-      ratingChange: match.rating_change_p4,
-      ladderPoints: match.ladder_points_p4
-    };
+    return { won: match.winner_team === 2, ratingChange: match.rating_change_p4, ladderPoints: lp3 };
   }
 
   return null;
