@@ -2966,14 +2966,14 @@ async function loadMyLadderCard() {
         ${suggestions.length ? suggestions.map((opp) => `
           <div class="my-opponent-row">
             <a href="player.html?id=${opp.id}" class="my-opponent-name">${escapeHtml(opp.name)}</a>
-            <span class="my-opponent-meta">${formatDisplayRating(opp.dynamic_rating)} · ${escapeHtml(opp.area || "—")}<br>${suggestionWinPct(opp)}% your favor</span>
+            <span class="my-opponent-meta">${formatDisplayRating(opp.dynamic_rating)} · ${escapeHtml(opp.area || "—")}<br>${suggestionWinPct(opp)}% chance to win</span>
           </div>
         `).join("") : `<p class="myl-empty">No same-gender players found yet.</p>`}
         ${stretch ? `
           <p class="my-opponents-label my-stretch-label">Stretch Challenge 💪</p>
           <div class="my-opponent-row">
             <a href="player.html?id=${stretch.id}" class="my-opponent-name">${escapeHtml(stretch.name)}</a>
-            <span class="my-opponent-meta">${formatDisplayRating(stretch.dynamic_rating)} · ${escapeHtml(stretch.area || "—")}<br>${suggestionWinPct(stretch)}% your favor</span>
+            <span class="my-opponent-meta">${formatDisplayRating(stretch.dynamic_rating)} · ${escapeHtml(stretch.area || "—")}<br>${suggestionWinPct(stretch)}% chance to win</span>
           </div>
         ` : ""}
       </div>
