@@ -153,11 +153,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadLadder();
     }
 
-    if (document.getElementById("home-stats")) await loadHomeStats();
-    if (document.getElementById("activity-feed")) {
-      await loadActivityFeed();
-      await loadMyLadderCard(); // personalized card, no-op if no player selected
+    if (document.getElementById("home-stats")) {
+      await loadHomeStats();
+      await loadMyLadderCard(); // injected before stat cards, no-op if no player selected
     }
+    if (document.getElementById("activity-feed")) await loadActivityFeed();
 
     if (document.getElementById("match-of-week")) await loadMatchOfWeek();
     if (document.getElementById("history-list")) {
@@ -2891,8 +2891,8 @@ async function applyMyLadderPersonalization() {
 
 async function loadMyLadderCard() {
   const me = getMyLadderPlayer();
-  const activityFeed = document.getElementById("activity-feed");
-  if (!activityFeed) return;
+  const homeStats = document.getElementById("home-stats");
+  if (!homeStats) return;
 
   document.getElementById("my-ladder-card")?.remove();
   if (!me) return;
@@ -2907,7 +2907,6 @@ async function loadMyLadderCard() {
   ]);
 
   if (meRes.error || !meRes.data) {
-    // Player no longer exists — clear storage and reset nav
     localStorage.removeItem(ML_ID_KEY);
     localStorage.removeItem(ML_NAME_KEY);
     initMyLadderNav();
@@ -2928,19 +2927,24 @@ async function loadMyLadderCard() {
   const genderRank = sortedGender.findIndex((p) => p.id === myPlayer.id) + 1;
   const genderLabel = myPlayer.sex === "Man" ? "Men's" : "Women's";
 
-  // Suggested opponents — closest rating, prefer same gender
-  const others = allPlayers.filter((p) => p.id !== myPlayer.id);
-  const withDiff = others
+  // Same-gender opponents sorted by closeness to my rating
+  const sameGender = allPlayers
+    .filter((p) => p.id !== myPlayer.id && p.sex === myPlayer.sex)
     .map((p) => ({ ...p, diff: Math.abs(Number(p.dynamic_rating ?? 0) - myRating) }))
     .sort((a, b) => a.diff - b.diff);
-  const close = withDiff.filter((p) => p.diff <= 0.3);
-  const suggestions = close.length >= 2 ? close.slice(0, 3) : withDiff.slice(0, 2);
 
+  // Up to 2 near-level opponents (within 0.3, or 2 closest if not enough)
+  const close = sameGender.filter((p) => p.diff <= 0.3);
+  const suggestions = close.length >= 2 ? close.slice(0, 2) : sameGender.slice(0, 2);
+
+  // Stretch opponent: closest same-gender player rated 0.5+ above me
+  const stretch = sameGender
+    .filter((p) => Number(p.dynamic_rating ?? 0) - myRating >= 0.5)
+    .sort((a, b) => Number(a.dynamic_rating ?? 0) - Number(b.dynamic_rating ?? 0))[0] ?? null;
+
+  // Same-gender matches: gender adjustment cancels out, use raw ratings
   function suggestionWinPct(opp) {
-    const isMixed = myPlayer.sex !== opp.sex;
-    const myR  = (isMixed && myPlayer.sex === "Man") ? myRating + 0.5 : myRating;
-    const oppR = (isMixed && opp.sex === "Man") ? Number(opp.dynamic_rating ?? 0) + 0.5 : Number(opp.dynamic_rating ?? 0);
-    return Math.round((1 / (1 + Math.pow(10, (oppR - myR) / 0.45))) * 100);
+    return Math.round((1 / (1 + Math.pow(10, (Number(opp.dynamic_rating ?? 0) - myRating) / 0.45))) * 100);
   }
 
   const card = document.createElement("div");
@@ -2966,12 +2970,19 @@ async function loadMyLadderCard() {
             <a href="player.html?id=${opp.id}" class="my-opponent-name">${escapeHtml(opp.name)}</a>
             <span class="my-opponent-meta">${formatDisplayRating(opp.dynamic_rating)} · ${escapeHtml(opp.area || "—")}<br>${suggestionWinPct(opp)}% your favor</span>
           </div>
-        `).join("") : `<p class="myl-empty">No close players found yet.</p>`}
+        `).join("") : `<p class="myl-empty">No same-gender players found yet.</p>`}
+        ${stretch ? `
+          <p class="my-opponents-label my-stretch-label">Stretch Challenge 💪</p>
+          <div class="my-opponent-row">
+            <a href="player.html?id=${stretch.id}" class="my-opponent-name">${escapeHtml(stretch.name)}</a>
+            <span class="my-opponent-meta">${formatDisplayRating(stretch.dynamic_rating)} · ${escapeHtml(stretch.area || "—")}<br>${suggestionWinPct(stretch)}% your favor</span>
+          </div>
+        ` : ""}
       </div>
     </div>
   `;
 
-  activityFeed.parentNode.insertBefore(card, activityFeed);
+  homeStats.parentNode.insertBefore(card, homeStats);
 }
 
 // ── My Matches filter chip on history page ─────────────────────────────────

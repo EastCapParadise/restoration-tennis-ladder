@@ -3500,3 +3500,9 @@ th[data-sort]:hover {
   color: white;
   border-color: var(--green-dark);
 }
+
+.my-stretch-label {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
