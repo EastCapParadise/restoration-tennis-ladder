@@ -2838,11 +2838,9 @@ async function openMyLadderModal() {
     .from("players")
     .select("id, name, display_rating, area");
 
-  const sorted = (players || []).sort((a, b) => {
-    const aLast = (a.name || "").split(" ").pop();
-    const bLast = (b.name || "").split(" ").pop();
-    return aLast.localeCompare(bLast);
-  });
+  const sorted = (players || []).sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "")
+  );
 
   function renderPlayerList(query = "") {
     const list = document.getElementById("myl-list");
