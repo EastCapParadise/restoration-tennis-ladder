@@ -2271,6 +2271,44 @@ async function fetchPlayerNamesForMatches(matches) {
   return playerMap;
 }
 
+// Returns { id → sex } for all players involved in the given matches.
+// Used to un-apply the gender adjustment (+0.5) when displaying ratings.
+async function fetchPlayerSexMap(matches) {
+  const ids = new Set();
+  matches.forEach((match) => {
+    [match.team1_player1_id, match.team1_player2_id,
+     match.team2_player1_id, match.team2_player2_id]
+      .forEach((id) => { if (id != null) ids.add(id); });
+  });
+  const uniqueIds = [...ids];
+  if (!uniqueIds.length) return {};
+
+  const { data, error } = await supabaseClient
+    .from("players").select("id, sex").in("id", uniqueIds);
+
+  if (error) { console.error("Player sex map error:", error); return {}; }
+  const sexMap = {};
+  (data || []).forEach((p) => { sexMap[p.id] = p.sex; });
+  return sexMap;
+}
+
+// Returns true if the match has at least one Man and one Woman across all players.
+function matchIsMixedGender(match, sexMap) {
+  const ids = [match.team1_player1_id, match.team1_player2_id,
+               match.team2_player1_id, match.team2_player2_id].filter(Boolean);
+  return ids.some((id) => sexMap[id] === "Man") && ids.some((id) => sexMap[id] === "Woman");
+}
+
+// Derives the un-adjusted display rating from the stored gender-adjusted avg.
+// The +0.5 adjustment is applied per male player then averaged, so we reverse it.
+function unadjustedTeamRating(storedAvg, teamIds, sexMap, isMixed) {
+  if (!isMixed || storedAvg == null) return storedAvg;
+  const players = teamIds.filter(Boolean);
+  if (!players.length) return storedAvg;
+  const maleCount = players.filter((id) => sexMap[id] === "Man").length;
+  return roundToTwo(storedAvg - (maleCount * 0.5) / players.length);
+}
+
 function buildMatchDisplay(match, playerMap) {
   const team1Names = [
     playerMap[match.team1_player1_id],
@@ -2290,9 +2328,12 @@ function buildMatchDisplay(match, playerMap) {
 }
 
 
-function renderMatchExtras(match, playerMap) {
+function renderMatchExtras(match, playerMap, sexMap = {}) {
   const rows = [];
   const isDoubles = match.match_type === "Doubles";
+  const isMixed = matchIsMixedGender(match, sexMap);
+  const t1Display = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
+  const t2Display = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
 
   function addRow(playerId, ratingChange, ladderPoints, ratingAtMatch) {
     if (!playerId) return;
@@ -2311,10 +2352,10 @@ function renderMatchExtras(match, playerMap) {
     `);
   }
 
-  addRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, match.team1_avg_rating);
-  addRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, match.team1_avg_rating);
-  addRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, match.team2_avg_rating);
-  addRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, match.team2_avg_rating);
+  addRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Display);
+  addRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Display);
+  addRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Display);
+  addRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Display);
 
   if (!rows.length) return "";
   return `<div class="match-extras">${rows.join("")}</div>`;
@@ -2368,7 +2409,10 @@ async function loadMatchHistory() {
 
   try {
     const matches = await fetchMatches();
-    const playerMap = await fetchPlayerNamesForMatches(matches);
+    const [playerMap, sexMap] = await Promise.all([
+      fetchPlayerNamesForMatches(matches),
+      fetchPlayerSexMap(matches)
+    ]);
 
     const playerFilterValue = (document.getElementById("history-player-filter")?.value || "").trim().toLowerCase();
 
@@ -2436,7 +2480,7 @@ async function loadMatchHistory() {
             </div>
           ` : ""}
 
-          ${renderMatchExtras(match, playerMap)}
+          ${renderMatchExtras(match, playerMap, sexMap)}
 
           <div>
             <button class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
@@ -2537,24 +2581,27 @@ async function fetchMatchesForPlayer(playerId) {
   );
 }
 
-function getPlayerMatchPerspective(match, playerId) {
+function getPlayerMatchPerspective(match, playerId, sexMap = {}) {
   const pid = Number(playerId);
   const isDoubles = match.match_type === "Doubles";
+  const isMixed = matchIsMixedGender(match, sexMap);
+  const t1Display = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
+  const t2Display = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
 
   if (match.team1_player1_id === pid) {
-    return { won: match.winner_team === 1, ratingChange: match.rating_change_p1, ladderPoints: match.ladder_points_p1, ratingAtMatch: match.team1_avg_rating, isDoubles };
+    return { won: match.winner_team === 1, ratingChange: match.rating_change_p1, ladderPoints: match.ladder_points_p1, ratingAtMatch: t1Display, isDoubles };
   }
 
   if (match.team1_player2_id === pid) {
-    return { won: match.winner_team === 1, ratingChange: match.rating_change_p2, ladderPoints: match.ladder_points_p2, ratingAtMatch: match.team1_avg_rating, isDoubles };
+    return { won: match.winner_team === 1, ratingChange: match.rating_change_p2, ladderPoints: match.ladder_points_p2, ratingAtMatch: t1Display, isDoubles };
   }
 
   if (match.team2_player1_id === pid) {
-    return { won: match.winner_team === 2, ratingChange: match.rating_change_p3, ladderPoints: match.ladder_points_p3, ratingAtMatch: match.team2_avg_rating, isDoubles };
+    return { won: match.winner_team === 2, ratingChange: match.rating_change_p3, ladderPoints: match.ladder_points_p3, ratingAtMatch: t2Display, isDoubles };
   }
 
   if (match.team2_player2_id === pid) {
-    return { won: match.winner_team === 2, ratingChange: match.rating_change_p4, ladderPoints: match.ladder_points_p4, ratingAtMatch: match.team2_avg_rating, isDoubles };
+    return { won: match.winner_team === 2, ratingChange: match.rating_change_p4, ladderPoints: match.ladder_points_p4, ratingAtMatch: t2Display, isDoubles };
   }
 
   return null;
@@ -2652,7 +2699,10 @@ async function loadPlayerMatchHistory() {
 
   try {
     const matches = await fetchMatchesForPlayer(playerId);
-    const playerMap = await fetchPlayerNamesForMatches(matches);
+    const [playerMap, sexMap] = await Promise.all([
+      fetchPlayerNamesForMatches(matches),
+      fetchPlayerSexMap(matches)
+    ]);
 
     if (!matches.length) {
       container.innerHTML = "<p>No matches found for this player.</p>";
@@ -2663,7 +2713,7 @@ async function loadPlayerMatchHistory() {
 
     container.innerHTML = reversed.map((match) => {
       const display = buildMatchDisplay(match, playerMap);
-      const perspective = getPlayerMatchPerspective(match, playerId);
+      const perspective = getPlayerMatchPerspective(match, playerId, sexMap);
       const resultClass = perspective?.won ? "win" : "loss";
       const resultText = perspective?.won ? "Win" : "Loss";
 
