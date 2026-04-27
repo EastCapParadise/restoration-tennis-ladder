@@ -2468,6 +2468,7 @@ async function fetchPlayerById(playerId) {
       area,
       display_rating,
       dynamic_rating,
+      initial_rating,
       ladder_points,
       wins,
       losses,
@@ -2623,7 +2624,7 @@ async function loadPlayerProfile() {
       } catch (_) {}
     });
 
-    await renderPlayerRatingTrend(playerId, player.display_rating);
+    await renderPlayerRatingTrend(playerId, player.display_rating, player.initial_rating);
   } catch (error) {
     console.error("Load player profile error:", error);
     container.innerHTML = "<p>Error loading player profile.</p>";
@@ -2710,7 +2711,7 @@ async function loadPlayerMatchHistory() {
   }
 }
 
-async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
+async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRating) {
   const section = document.getElementById("rating-trend-section");
   const canvas  = document.getElementById("rating-trend-canvas");
   if (!canvas || typeof Chart === "undefined") return;
@@ -2725,25 +2726,37 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
       }))
       .filter((item) => item.perspective);
 
-    // Hide section when fewer than 2 data points — a single match produces a dot, not a trend.
-    if (perspectives.length < 2) {
+    // Hide section when no matches at all — the initial point alone is just a dot.
+    if (perspectives.length < 1) {
       if (section) section.style.display = "none";
       return;
     }
 
+    // Build post-match rating series by walking backwards from current rating.
     let running = Number(currentDisplayRating ?? 0);
-    const ratings = [];
+    const matchRatings = [];
 
     for (let i = perspectives.length - 1; i >= 0; i--) {
-      ratings.unshift(roundToTwo(running));
+      matchRatings.unshift(roundToTwo(running));
       running = roundToTwo(running - Number(perspectives[i].perspective.ratingChange || 0));
     }
 
-    const labels = perspectives.map((item) => {
+    const matchLabels = perspectives.map((item) => {
       const d = item.match.date_played;
       if (!d) return "";
       return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     });
+
+    // Prepend the initial rating as point 0.
+    const startRating = roundToTwo(Number(initialRating ?? running));
+    const ratings = [startRating, ...matchRatings];
+    const labels  = ["Start", ...matchLabels];
+
+    // Y-axis: pad ±0.5 around the full data range, then round to nearest 0.25.
+    const minVal = Math.min(...ratings);
+    const maxVal = Math.max(...ratings);
+    const yMin = Math.floor((minVal - 0.5) / 0.25) * 0.25;
+    const yMax = Math.ceil((maxVal + 0.5) / 0.25) * 0.25;
 
     const ctx = canvas.getContext("2d");
     new Chart(ctx, {
@@ -2771,7 +2784,10 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
         },
         scales: {
           y: {
+            min: yMin,
+            max: yMax,
             ticks: {
+              stepSize: 0.25,
               callback: (value) => Number(value).toFixed(2)
             }
           }
