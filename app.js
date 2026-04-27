@@ -2295,6 +2295,25 @@ function renderMatchExtras(match, playerMap) {
   return `<div class="match-extras">${rows.join("")}</div>`;
 }
 
+// Returns a pre-match odds line using stored avg ratings (already gender-adjusted).
+// Favorite (higher probability) always appears on the left.
+function buildOddsLine(match, display) {
+  const t1avg = Number(match.team1_avg_rating);
+  const t2avg = Number(match.team2_avg_rating);
+  if (!match.team1_avg_rating || !match.team2_avg_rating) return "";
+
+  const prob1 = 1 / (1 + Math.pow(10, (t2avg - t1avg) / 0.45));
+  const prob2 = 1 - prob1;
+  const pct1 = Math.round(prob1 * 100);
+  const pct2 = 100 - pct1;
+
+  const [favName, favPct, undName, undPct] = pct1 >= pct2
+    ? [display.team1Text, pct1, display.team2Text, pct2]
+    : [display.team2Text, pct2, display.team1Text, pct1];
+
+  return `<div class="history-meta">Odds: ${escapeHtml(favName)} ${favPct}% · ${escapeHtml(undName)} ${undPct}%</div>`;
+}
+
 function formatRatingChange(value) {
   const num = Number(value || 0);
   return `${num > 0 ? "+" : ""}${num.toFixed(2)}`;
@@ -2369,6 +2388,8 @@ async function loadMatchHistory() {
           <div class="history-matchup">
             <strong>Players:</strong> ${escapeHtml(display.playersText)}
           </div>
+
+          ${buildOddsLine(match, display)}
 
           <div class="history-score">
             <strong>Score:</strong> ${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}
@@ -2626,6 +2647,8 @@ async function loadPlayerMatchHistory() {
           <div class="history-matchup">
             <strong>Players:</strong> ${escapeHtml(display.playersText)}
           </div>
+
+          ${buildOddsLine(match, display)}
 
           <div class="history-score">
             <strong>Score:</strong> ${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}
