@@ -2292,22 +2292,29 @@ function buildMatchDisplay(match, playerMap) {
 
 function renderMatchExtras(match, playerMap) {
   const rows = [];
+  const isDoubles = match.match_type === "Doubles";
 
-  function addRow(playerId, ratingChange, ladderPoints) {
+  function addRow(playerId, ratingChange, ladderPoints, ratingAtMatch) {
     if (!playerId) return;
+    const ratingLine = ratingAtMatch != null
+      ? `<span class="match-extra-rating">${isDoubles
+          ? `Team rating: ${Number(ratingAtMatch).toFixed(2)} (avg)`
+          : `Rating at match: ${Number(ratingAtMatch).toFixed(2)}`
+        }</span>`
+      : "";
     rows.push(`
       <div class="match-extra-row">
-        <span class="match-extra-name">${escapeHtml(playerMap[playerId] || "Player")}</span>
+        <span class="match-extra-name">${escapeHtml(playerMap[playerId] || "Player")}${ratingLine}</span>
         <span class="match-extra-stat">Rating: ${escapeHtml(formatSignedNumber(ratingChange))}</span>
         <span class="match-extra-stat">Points: ${escapeHtml(String(ladderPoints ?? "—"))}</span>
       </div>
     `);
   }
 
-  addRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1);
-  addRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2);
-  addRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3);
-  addRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4);
+  addRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, match.team1_avg_rating);
+  addRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, match.team1_avg_rating);
+  addRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, match.team2_avg_rating);
+  addRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, match.team2_avg_rating);
 
   if (!rows.length) return "";
   return `<div class="match-extras">${rows.join("")}</div>`;
@@ -2532,21 +2539,22 @@ async function fetchMatchesForPlayer(playerId) {
 
 function getPlayerMatchPerspective(match, playerId) {
   const pid = Number(playerId);
+  const isDoubles = match.match_type === "Doubles";
 
   if (match.team1_player1_id === pid) {
-    return { won: match.winner_team === 1, ratingChange: match.rating_change_p1, ladderPoints: match.ladder_points_p1 };
+    return { won: match.winner_team === 1, ratingChange: match.rating_change_p1, ladderPoints: match.ladder_points_p1, ratingAtMatch: match.team1_avg_rating, isDoubles };
   }
 
   if (match.team1_player2_id === pid) {
-    return { won: match.winner_team === 1, ratingChange: match.rating_change_p2, ladderPoints: match.ladder_points_p2 };
+    return { won: match.winner_team === 1, ratingChange: match.rating_change_p2, ladderPoints: match.ladder_points_p2, ratingAtMatch: match.team1_avg_rating, isDoubles };
   }
 
   if (match.team2_player1_id === pid) {
-    return { won: match.winner_team === 2, ratingChange: match.rating_change_p3, ladderPoints: match.ladder_points_p3 };
+    return { won: match.winner_team === 2, ratingChange: match.rating_change_p3, ladderPoints: match.ladder_points_p3, ratingAtMatch: match.team2_avg_rating, isDoubles };
   }
 
   if (match.team2_player2_id === pid) {
-    return { won: match.winner_team === 2, ratingChange: match.rating_change_p4, ladderPoints: match.ladder_points_p4 };
+    return { won: match.winner_team === 2, ratingChange: match.rating_change_p4, ladderPoints: match.ladder_points_p4, ratingAtMatch: match.team2_avg_rating, isDoubles };
   }
 
   return null;
@@ -2691,6 +2699,12 @@ async function loadPlayerMatchHistory() {
               <div class="match-impact-name">Ladder Points</div>
               <div class="match-impact-value">${perspective?.ladderPoints ?? "—"}</div>
             </div>
+            ${perspective?.ratingAtMatch != null ? `
+            <div class="match-impact-card">
+              <div class="match-impact-name">${perspective.isDoubles ? "Team Rating (avg)" : "Rating at Match"}</div>
+              <div class="match-impact-value">${Number(perspective.ratingAtMatch).toFixed(2)}</div>
+            </div>
+            ` : ""}
           </div>
         </div>
       `;

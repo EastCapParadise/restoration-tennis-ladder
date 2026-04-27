@@ -3506,3 +3506,11 @@ th[data-sort]:hover {
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
+
+.match-extra-rating {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
