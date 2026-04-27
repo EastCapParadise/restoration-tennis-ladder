@@ -1686,19 +1686,22 @@ th[data-sort]:hover {
   left: 0;
   min-width: 64px;
   width: 64px;
+  overflow: hidden;
   z-index: 25;
   background: #fff;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
   text-align: center;
 }
 
-/* Name column */
+/* Name column — fixed width so "← You" tag cannot bleed past the sticky boundary */
 .ladder-table th:nth-child(2),
 .ladder-table td:nth-child(2) {
   position: sticky;
   left: 64px;
-  width: auto;
-  min-width: 0;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  overflow: hidden;
   z-index: 24;
   background: #fff;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
@@ -3347,11 +3350,13 @@ th[data-sort]:hover {
 }
 
 .rank-me-tag {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--green-dark);
-  font-weight: 700;
-  margin-left: 6px;
-  opacity: 0.8;
+  font-weight: 600;
+  margin-left: 4px;
+  opacity: 0.75;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 /* =========================
@@ -3388,4 +3393,25 @@ th[data-sort]:hover {
   color: var(--muted);
   font-weight: 400;
   margin-top: 2px;
+}
+
+/* =========================
+   STICKY SCROLL MIRROR
+   Duplicate scrollbar shown below table header
+   for tables that scroll horizontally
+========================= */
+
+.scroll-mirror-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 14px;
+  display: none; /* toggled by JS */
+  cursor: default;
+  /* slightly raised so it visually separates from the table */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.scroll-mirror-inner {
+  height: 1px; /* content taller than 0 so the scrollbar appears */
+  pointer-events: none;
 }

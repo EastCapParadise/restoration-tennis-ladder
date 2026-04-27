@@ -127,6 +127,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       setupLadderSorting();
       setupShowMoreStats();
       await loadLadder();
+      setupStickyScrollbar(document.querySelector(".ladder-table")?.closest(".table-wrap"));
     }
 
     if (document.getElementById("home-stats")) {
@@ -273,6 +274,49 @@ function sortPlayersForStandings(players) {
 
     return compareValues(a.name || "", b.name || "", "asc");
   });
+}
+
+// Adds a thin duplicate scrollbar just below a table-wrap so users can
+// scroll horizontally without travelling to the bottom of a tall table.
+// Call once per table-wrap; safe to call multiple times (guarded).
+function setupStickyScrollbar(tableWrap) {
+  if (!tableWrap) return;
+  if (tableWrap.nextElementSibling?.classList.contains("scroll-mirror-wrap")) return;
+
+  const mirror = document.createElement("div");
+  mirror.className = "scroll-mirror-wrap";
+  const inner = document.createElement("div");
+  inner.className = "scroll-mirror-inner";
+  mirror.appendChild(inner);
+  tableWrap.parentNode.insertBefore(mirror, tableWrap.nextSibling);
+
+  function syncWidth() {
+    inner.style.width = tableWrap.scrollWidth + "px";
+    mirror.style.display = tableWrap.scrollWidth > tableWrap.clientWidth ? "" : "none";
+  }
+  syncWidth();
+  if (window.ResizeObserver) new ResizeObserver(syncWidth).observe(tableWrap);
+
+  let syncing = false;
+  mirror.addEventListener("scroll", () => {
+    if (syncing) return;
+    syncing = true;
+    tableWrap.scrollLeft = mirror.scrollLeft;
+    requestAnimationFrame(() => { syncing = false; });
+  });
+  tableWrap.addEventListener("scroll", () => {
+    if (syncing) return;
+    syncing = true;
+    mirror.scrollLeft = tableWrap.scrollLeft;
+    requestAnimationFrame(() => { syncing = false; });
+  });
+
+  if (window.IntersectionObserver) {
+    new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) syncWidth();
+      else mirror.style.display = "none";
+    }, { threshold: 0.01 }).observe(tableWrap);
+  }
 }
 
 /* =========================
@@ -2035,6 +2079,7 @@ async function loadDirectory() {
 
     setupDirectorySorting();
     renderDirectory(players);
+    setupStickyScrollbar(document.querySelector(".directory-table")?.closest(".table-wrap"));
   } catch (error) {
     console.error("Load directory error:", error);
     setTableMessage(tbody, "Error loading directory.", 8);
