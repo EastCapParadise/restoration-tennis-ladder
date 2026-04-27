@@ -12,7 +12,8 @@ const state = {
     userHasSorted: false
   },
   history: {
-    filterType: "All"
+    filterType: "All",
+    myMatchesOnly: false
   },
   realtime: {
     playersChannel: null,
@@ -137,6 +138,7 @@ function showMatchCardModal(matchData) {
 document.addEventListener("DOMContentLoaded", async () => {
   setupMobileMenu();
   setupNavMore();
+  initMyLadderNav(); // always — injects button and sets label from localStorage
   try {
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
@@ -152,11 +154,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (document.getElementById("home-stats")) await loadHomeStats();
-    if (document.getElementById("activity-feed")) await loadActivityFeed();
+    if (document.getElementById("activity-feed")) {
+      await loadActivityFeed();
+      await loadMyLadderCard(); // personalized card, no-op if no player selected
+    }
 
     if (document.getElementById("match-of-week")) await loadMatchOfWeek();
     if (document.getElementById("history-list")) {
       setupHistoryFilterButtons();
+      addMyMatchesChip(); // added only if a player is identified
       await loadMatchHistory();
     }
 
@@ -649,22 +655,27 @@ function renderLadder(players) {
     return;
   }
 
+  const mePlayer = getMyLadderPlayer();
+
   ladderBody.innerHTML = players.map((player, index) => {
     const rank = index + 1;
     const badge = getRankBadge(index);
+    const isMe = mePlayer && String(player.id) === String(mePlayer.id);
 
     let rowClass = "fade-in-row";
-    if (rank === 1) rowClass += " rank-1";
+    if (isMe) rowClass += " rank-me";
+    else if (rank === 1) rowClass += " rank-1";
     else if (rank === 2) rowClass += " rank-2";
     else if (rank === 3) rowClass += " rank-3";
     else if (rank <= 10) rowClass += " rank-top-10";
 
     const moveHtml = getRankMovementHtml(rank, player.previous_rank);
+    const youTag = isMe ? ' <span class="rank-me-tag">← You</span>' : "";
 
     return `
       <tr class="${rowClass}">
         <td>${badge}${moveHtml}</td>
-        <td><a class="player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a></td>
+        <td><a class="player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>${youTag}</td>
         <td>${escapeHtml(player.area || "")}</td>
         <td class="num">${player.ladder_points ?? 0}</td>
         <td class="num">${player.wins ?? 0}</td>
@@ -682,6 +693,13 @@ function renderLadder(players) {
       </tr>
     `;
   }).join("");
+
+  if (mePlayer) {
+    requestAnimationFrame(() => {
+      const meRow = ladderBody.querySelector(".rank-me");
+      if (meRow) meRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
 }
 
 async function loadLadder() {
@@ -2338,6 +2356,8 @@ async function loadMatchHistory() {
 
   container.innerHTML = "<p>Loading match history...</p>";
   setActiveFilterButton(".history-filters", state.history.filterType);
+  const myChip = document.getElementById("my-matches-chip");
+  if (myChip) myChip.classList.toggle("active", !!state.history.myMatchesOnly);
 
   try {
     const matches = await fetchMatches();
@@ -2345,12 +2365,20 @@ async function loadMatchHistory() {
 
     const playerFilterValue = (document.getElementById("history-player-filter")?.value || "").trim().toLowerCase();
 
+    const myMatchId = state.history.myMatchesOnly ? getMyLadderPlayer()?.id : null;
+    const baseMatches = myMatchId
+      ? matches.filter((m) =>
+          [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
+            .includes(myMatchId)
+        )
+      : matches;
+
     const filteredMatches = playerFilterValue
-      ? matches.filter((match) => {
+      ? baseMatches.filter((match) => {
           const display = buildMatchDisplay(match, playerMap);
           return display.playersText.toLowerCase().includes(playerFilterValue);
         })
-      : matches;
+      : baseMatches;
 
     if (!filteredMatches.length) {
       container.innerHTML = "<p>No matches found.</p>";
@@ -2730,6 +2758,247 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
   } catch (error) {
     console.error("Render rating trend error:", error);
   }
+}
+
+/* =========================
+   MY LADDER — PERSONALIZATION
+========================= */
+
+const ML_ID_KEY   = "rml_player_id";
+const ML_NAME_KEY = "rml_player_name";
+
+function getMyLadderPlayer() {
+  const id   = localStorage.getItem(ML_ID_KEY);
+  const name = localStorage.getItem(ML_NAME_KEY);
+  if (!id) return null;
+  return { id: Number(id), name: name || "" };
+}
+
+// Inject the "My Ladder" button into the desktop nav and mobile menu.
+// Called on every page load — updates the label if a player is already set.
+function initMyLadderNav() {
+  const me    = getMyLadderPlayer();
+  const label = me ? `👤 ${me.name.split(" ")[0]}` : "👤 My Ladder";
+
+  const nav = document.querySelector("nav");
+  if (nav) {
+    let btn = nav.querySelector(".my-ladder-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.className = "my-ladder-btn";
+      btn.addEventListener("click", openMyLadderModal);
+      nav.appendChild(btn);
+    }
+    btn.textContent = label;
+  }
+
+  const mobileMenu = document.querySelector(".mobile-nav-menu");
+  if (mobileMenu) {
+    let btn = mobileMenu.querySelector(".my-ladder-btn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.className = "my-ladder-btn my-ladder-mobile";
+      btn.addEventListener("click", openMyLadderModal);
+      mobileMenu.insertBefore(btn, mobileMenu.firstChild);
+    }
+    btn.textContent = label;
+  }
+}
+
+async function openMyLadderModal() {
+  document.getElementById("my-ladder-overlay")?.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "my-ladder-overlay";
+  overlay.className = "myl-overlay";
+  overlay.innerHTML = `
+    <div class="myl-modal" role="dialog" aria-modal="true" aria-label="Choose your player">
+      <div class="myl-header">
+        <div>
+          <h2 class="myl-title">Who are you?</h2>
+          <p class="myl-subtitle">Select your name to personalize your ladder experience</p>
+        </div>
+        <button class="myl-close" id="myl-close" aria-label="Close">✕</button>
+      </div>
+      <div class="myl-body">
+        <input type="text" class="myl-search" id="myl-search" placeholder="Search by name…" autocomplete="off">
+        <div class="myl-list" id="myl-list"><p class="myl-empty">Loading players…</p></div>
+        <div class="myl-footer">
+          Not on the ladder yet? <a href="join.html">Join here →</a>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector("#myl-close").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+
+  const { data: players } = await supabaseClient
+    .from("players")
+    .select("id, name, display_rating, area");
+
+  const sorted = (players || []).sort((a, b) => {
+    const aLast = (a.name || "").split(" ").pop();
+    const bLast = (b.name || "").split(" ").pop();
+    return aLast.localeCompare(bLast);
+  });
+
+  function renderPlayerList(query = "") {
+    const list = document.getElementById("myl-list");
+    if (!list) return;
+    const q = query.toLowerCase();
+    const visible = q ? sorted.filter((p) => (p.name || "").toLowerCase().includes(q)) : sorted;
+    if (!visible.length) {
+      list.innerHTML = `<p class="myl-empty">No players found.</p>`;
+      return;
+    }
+    list.innerHTML = visible.map((p) => `
+      <button class="myl-player-btn" data-id="${p.id}" data-name="${escapeHtml(p.name || "")}">
+        <span class="myl-player-name">${escapeHtml(p.name || "—")}</span>
+        <span class="myl-player-meta">${formatDisplayRating(p.display_rating)} · ${escapeHtml(p.area || "—")}</span>
+      </button>
+    `).join("");
+
+    list.querySelectorAll(".myl-player-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        localStorage.setItem(ML_ID_KEY, btn.dataset.id);
+        localStorage.setItem(ML_NAME_KEY, btn.dataset.name);
+        overlay.remove();
+        initMyLadderNav();
+        applyMyLadderPersonalization();
+      });
+    });
+  }
+
+  renderPlayerList();
+  const searchEl = document.getElementById("myl-search");
+  searchEl?.addEventListener("input", (e) => renderPlayerList(e.target.value));
+  searchEl?.focus();
+}
+
+// Runs personalization that responds to a player selection mid-session.
+async function applyMyLadderPersonalization() {
+  if (document.getElementById("activity-feed")) await loadMyLadderCard();
+  if (getLadderBodyEl()) await loadLadder();
+  if (document.getElementById("history-list")) {
+    addMyMatchesChip();
+    await loadMatchHistory();
+  }
+}
+
+// ── Homepage personalized card ──────────────────────────────────────────────
+
+async function loadMyLadderCard() {
+  const me = getMyLadderPlayer();
+  const activityFeed = document.getElementById("activity-feed");
+  if (!activityFeed) return;
+
+  document.getElementById("my-ladder-card")?.remove();
+  if (!me) return;
+
+  const [meRes, allRes] = await Promise.all([
+    supabaseClient.from("players")
+      .select("id, name, sex, dynamic_rating, display_rating, ladder_points, wins, losses, matches_played, area")
+      .eq("id", me.id)
+      .maybeSingle(),
+    supabaseClient.from("players")
+      .select("id, name, sex, dynamic_rating, display_rating, ladder_points, wins, losses, area")
+  ]);
+
+  if (meRes.error || !meRes.data) {
+    // Player no longer exists — clear storage and reset nav
+    localStorage.removeItem(ML_ID_KEY);
+    localStorage.removeItem(ML_NAME_KEY);
+    initMyLadderNav();
+    return;
+  }
+
+  const myPlayer = meRes.data;
+  const allPlayers = allRes.data || [];
+  const myRating = Number(myPlayer.dynamic_rating ?? myPlayer.display_rating ?? 0);
+
+  // Overall rank
+  const sortedAll = sortPlayersForStandings(allPlayers);
+  const overallRank = sortedAll.findIndex((p) => p.id === myPlayer.id) + 1;
+
+  // Gender rank
+  const genderPlayers = allPlayers.filter((p) => p.sex === myPlayer.sex);
+  const sortedGender = sortPlayersForStandings(genderPlayers);
+  const genderRank = sortedGender.findIndex((p) => p.id === myPlayer.id) + 1;
+  const genderLabel = myPlayer.sex === "Man" ? "Men's" : "Women's";
+
+  // Suggested opponents — closest rating, prefer same gender
+  const others = allPlayers.filter((p) => p.id !== myPlayer.id);
+  const withDiff = others
+    .map((p) => ({ ...p, diff: Math.abs(Number(p.dynamic_rating ?? 0) - myRating) }))
+    .sort((a, b) => a.diff - b.diff);
+  const close = withDiff.filter((p) => p.diff <= 0.3);
+  const suggestions = close.length >= 2 ? close.slice(0, 3) : withDiff.slice(0, 2);
+
+  function suggestionWinPct(opp) {
+    const isMixed = myPlayer.sex !== opp.sex;
+    const myR  = (isMixed && myPlayer.sex === "Man") ? myRating + 0.5 : myRating;
+    const oppR = (isMixed && opp.sex === "Man") ? Number(opp.dynamic_rating ?? 0) + 0.5 : Number(opp.dynamic_rating ?? 0);
+    return Math.round((1 / (1 + Math.pow(10, (oppR - myR) / 0.45))) * 100);
+  }
+
+  const card = document.createElement("div");
+  card.id = "my-ladder-card";
+  card.className = "my-ladder-card";
+  card.innerHTML = `
+    <div class="my-ladder-card-header">
+      <h3>👤 ${escapeHtml(myPlayer.name)}</h3>
+      <a href="player.html?id=${myPlayer.id}" class="my-profile-link-header">View Profile →</a>
+    </div>
+    <div class="my-ladder-card-body">
+      <div class="my-ladder-stats">
+        <div class="my-stat-row"><span class="my-stat-label">Overall Rank</span><span class="my-stat-value">#${overallRank || "—"}</span></div>
+        <div class="my-stat-row"><span class="my-stat-label">${genderLabel} Rank</span><span class="my-stat-value">#${genderRank || "—"}</span></div>
+        <div class="my-stat-row"><span class="my-stat-label">Record</span><span class="my-stat-value">${myPlayer.wins ?? 0}W – ${myPlayer.losses ?? 0}L</span></div>
+        <div class="my-stat-row"><span class="my-stat-label">Ladder Points</span><span class="my-stat-value">${myPlayer.ladder_points ?? 0}</span></div>
+        <div class="my-stat-row"><span class="my-stat-label">Rating</span><span class="my-stat-value">${formatDisplayRating(myPlayer.dynamic_rating)}</span></div>
+      </div>
+      <div class="my-ladder-opponents">
+        <p class="my-opponents-label">Players Near Your Level</p>
+        ${suggestions.length ? suggestions.map((opp) => `
+          <div class="my-opponent-row">
+            <a href="player.html?id=${opp.id}" class="my-opponent-name">${escapeHtml(opp.name)}</a>
+            <span class="my-opponent-meta">${formatDisplayRating(opp.dynamic_rating)} · ${escapeHtml(opp.area || "—")}<br>${suggestionWinPct(opp)}% your favor</span>
+          </div>
+        `).join("") : `<p class="myl-empty">No close players found yet.</p>`}
+      </div>
+    </div>
+  `;
+
+  activityFeed.parentNode.insertBefore(card, activityFeed);
+}
+
+// ── My Matches filter chip on history page ─────────────────────────────────
+
+function addMyMatchesChip() {
+  const me = getMyLadderPlayer();
+  const filters = document.querySelector(".history-filters");
+  if (!filters) return;
+
+  const existing = document.getElementById("my-matches-chip");
+  if (!me) {
+    existing?.remove();
+    state.history.myMatchesOnly = false;
+    return;
+  }
+  if (existing) return;
+
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "filter-chip my-matches-chip";
+  chip.id = "my-matches-chip";
+  chip.textContent = "My Matches";
+  chip.addEventListener("click", () => {
+    state.history.myMatchesOnly = !state.history.myMatchesOnly;
+    loadMatchHistory();
+  });
+  filters.appendChild(chip);
 }
 
 /* =========================

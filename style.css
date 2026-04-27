@@ -3126,3 +3126,377 @@ th[data-sort]:hover {
 .share-copied-tip.visible {
   opacity: 1;
 }
+/* =========================
+   MY LADDER — NAV BUTTON
+========================= */
+
+.my-ladder-btn {
+  color: white;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+@media (min-width: 700px) {
+  .my-ladder-btn {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+}
+
+.my-ladder-btn:hover {
+  background: rgba(255, 255, 255, 0.38);
+  transform: translateY(-1px);
+}
+
+.my-ladder-mobile {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+/* =========================
+   MY LADDER — PICKER MODAL
+========================= */
+
+.myl-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.myl-modal {
+  background: white;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.myl-header {
+  background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 100%);
+  color: white;
+  padding: 20px 20px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.myl-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  color: white;
+}
+
+.myl-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.4;
+}
+
+.myl-close {
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  color: white;
+  font-size: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  font-family: inherit;
+  margin-top: 2px;
+}
+
+.myl-close:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.myl-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  padding: 14px 14px 0;
+}
+
+.myl-search {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.myl-search:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(31, 77, 58, 0.12);
+}
+
+.myl-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.myl-player-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 10px;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s;
+  gap: 12px;
+}
+
+.myl-player-btn:hover {
+  background: var(--green-light);
+}
+
+.myl-player-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.myl-player-meta {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.myl-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px 0;
+  font-size: 14px;
+  margin: 0;
+}
+
+.myl-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.myl-footer a {
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.myl-footer a:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   MY LADDER — HOMEPAGE CARD
+========================= */
+
+.my-ladder-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.my-ladder-card-header {
+  background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 100%);
+  color: white;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.my-ladder-card-header h3 {
+  margin: 0;
+  font-size: 17px;
+  color: white;
+}
+
+.my-profile-link-header {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.my-profile-link-header:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+.my-ladder-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 580px) {
+  .my-ladder-card-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.my-ladder-stats {
+  padding: 16px 20px;
+  border-right: 1px solid var(--border);
+}
+
+@media (max-width: 580px) {
+  .my-ladder-stats {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.my-ladder-opponents {
+  padding: 16px 20px;
+}
+
+.my-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.my-stat-row:last-child {
+  border-bottom: none;
+}
+
+.my-stat-label {
+  color: var(--muted);
+}
+
+.my-stat-value {
+  font-weight: 700;
+}
+
+.my-opponents-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.my-opponent-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 8px;
+}
+
+.my-opponent-row:last-child {
+  border-bottom: none;
+}
+
+.my-opponent-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.my-opponent-name:hover {
+  color: var(--green);
+}
+
+.my-opponent-meta {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* =========================
+   MY LADDER — RANKINGS HIGHLIGHT
+========================= */
+
+.rank-me td {
+  background: rgba(230, 184, 0, 0.2) !important;
+}
+
+.rank-me td:first-child {
+  border-left: 4px solid #e6b800;
+}
+
+.rank-me-tag {
+  font-size: 12px;
+  color: var(--green-dark);
+  font-weight: 700;
+  margin-left: 6px;
+  opacity: 0.8;
+}
+
+/* =========================
+   MY LADDER — MY MATCHES CHIP
+========================= */
+
+.my-matches-chip {
+  background: var(--green-light);
+  color: var(--green-dark);
+  border: 1px solid var(--green);
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.my-matches-chip:hover {
+  background: #d4eadd;
+}
+
+.my-matches-chip.active {
+  background: var(--green-dark);
+  color: white;
+  border-color: var(--green-dark);
+}
