@@ -1603,46 +1603,49 @@ function calculateMatchScoring({
   const team1AvgRating = averageAdjustedRating(team1Players, mixedGender);
   const team2AvgRating = averageAdjustedRating(team2Players, mixedGender);
 
-  // --- Elo-style dynamic rating change ---
-  const ratingGap = Math.abs(team1AvgRating - team2AvgRating);
-  const expectedTeam1 = 1 / (1 + Math.pow(10, (team2AvgRating - team1AvgRating) / 0.45));
-  const expectedTeam2 = 1 - expectedTeam1;
-  const actualTeam1 = winnerTeam === 1 ? 1 : 0;
-  const actualTeam2 = winnerTeam === 2 ? 1 : 0;
-  // Use all-set games (including tiebreak) for the Elo K-factor margin ratio
-  const totalGames = Math.max(team1TotalGames + team2TotalGames, 1);
-  const marginRatio = Math.abs(team1TotalGames - team2TotalGames) / totalGames;
-  let baseK = matchType === "Doubles" ? 0.1 : 0.12;
-  baseK += Math.min(ratingGap * 0.04, 0.05);
-  baseK += marginRatio * 0.06;
-  const rawChangeTeam1 = roundToTwo((actualTeam1 - expectedTeam1) * baseK);
-  const rawChangeTeam2 = roundToTwo((actualTeam2 - expectedTeam2) * baseK);
-  const team1Change = Number.isFinite(rawChangeTeam1) ? rawChangeTeam1 : 0;
-  const team2Change = Number.isFinite(rawChangeTeam2) ? rawChangeTeam2 : 0;
-
-  // --- Ladder points (3-part system) ---
-  // Standard games = sets 1 and 2 only. Tiebreak (set 3) is always excluded.
-  // Gender-adjusted ratings already applied above via averageAdjustedRating.
-
+  // --- Performance delta (shared by rating change and ladder points) ---
+  // Standard games = sets 1 and 2 only. Tiebreak (set 3) always excluded.
   const winnerAvgRating = winnerTeam === 1 ? team1AvgRating : team2AvgRating;
   const loserAvgRating  = winnerTeam === 1 ? team2AvgRating : team1AvgRating;
   const winnerStdGames  = winnerTeam === 1 ? team1StandardGames : team2StandardGames;
   const loserStdGames   = winnerTeam === 1 ? team2StandardGames : team1StandardGames;
 
-  // Part A: Loser always gets a participation floor of 5 points, no exceptions.
-  // Part B: Winner always gets +6 just for winning, regardless of opponent rating.
-  // Part C: Performance delta adjusts scores based on actual vs statistically expected result.
-
-  // Expected spread anchors to USTA standard: a 0.5 rating gap predicts 6-0, 6-0 (12-game spread).
+  // Expected spread anchors to USTA standard: 0.5 rating gap = 6-0, 6-0 = 12-game spread.
   // Gap capped at 0.5, so expected_spread ranges from -12 (big underdog) to +12 (big favorite).
   const gapMagnitude = Math.min(Math.abs(winnerAvgRating - loserAvgRating), 0.5);
   const expectedSpread = winnerAvgRating >= loserAvgRating
-    ? gapMagnitude * 24   // winner was the favorite: positive expected spread
-    : -(gapMagnitude * 24); // winner was the underdog: negative expected spread
-
+    ? gapMagnitude * 24
+    : -(gapMagnitude * 24);
   const actualSpread = winnerStdGames - loserStdGames;
   const delta = actualSpread - expectedSpread;
   // Positive delta = outperformed expectations; negative = closer match than expected.
+
+  // Continuous performance scores replace binary 0/1 — a loser who outperforms expectations
+  // can gain rating. winner_performance_score = 0.5 + (delta / 48), clamped [0.0, 1.0].
+  const winnerPerfScore = Math.max(0.0, Math.min(1.0, 0.5 + delta / 48));
+  const loserPerfScore  = 1 - winnerPerfScore;
+  const perfScoreTeam1  = winnerTeam === 1 ? winnerPerfScore : loserPerfScore;
+  const perfScoreTeam2  = winnerTeam === 2 ? winnerPerfScore : loserPerfScore;
+
+  // --- Elo-style dynamic rating change ---
+  const ratingGap = Math.abs(team1AvgRating - team2AvgRating);
+  const expectedTeam1 = 1 / (1 + Math.pow(10, (team2AvgRating - team1AvgRating) / 0.45));
+  const expectedTeam2 = 1 - expectedTeam1;
+  // Use all-set games (including tiebreak) for the Elo K-factor margin ratio
+  const totalGames = Math.max(team1TotalGames + team2TotalGames, 1);
+  const marginRatio = Math.abs(team1TotalGames - team2TotalGames) / totalGames;
+  let baseK = matchType === "Doubles" ? 0.1 : 0.06;
+  baseK += Math.min(ratingGap * 0.04, 0.05);
+  baseK += marginRatio * 0.06;
+  const rawChangeTeam1 = roundToTwo((perfScoreTeam1 - expectedTeam1) * baseK);
+  const rawChangeTeam2 = roundToTwo((perfScoreTeam2 - expectedTeam2) * baseK);
+  const team1Change = Number.isFinite(rawChangeTeam1) ? rawChangeTeam1 : 0;
+  const team2Change = Number.isFinite(rawChangeTeam2) ? rawChangeTeam2 : 0;
+
+  // --- Ladder points (3-part system) ---
+  // Part A: Loser always gets a participation floor of 5 points, no exceptions.
+  // Part B: Winner always gets +6 just for winning, regardless of opponent rating.
+  // Part C: Performance delta (computed above) adjusts scores vs statistically expected result.
 
   // Winner: base 13 (6 win bonus + 7 floor), scaled by delta at 0.5x. Clamped [7, 18].
   let winnerPoints = Math.round(6 + 7 + delta * 0.5);
