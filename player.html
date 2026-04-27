@@ -5,7 +5,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Player Profile | Restoration Tennis Ladder</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <header class="site-header">
@@ -45,6 +45,11 @@
       </div>
     </section>
 
+    <section class="card" id="rating-trend-section">
+      <h2>Rating History</h2>
+      <canvas id="rating-trend-canvas" style="max-height: 220px;"></canvas>
+    </section>
+
     <section class="card" id="player-h2h-section">
       <p>Loading…</p>
     </section>
@@ -58,6 +63,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="app.js?v=6"></script>
 </body>
 </html>

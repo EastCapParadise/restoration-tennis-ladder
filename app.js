@@ -44,28 +44,6 @@ function setupMobileMenu() {
   });
 }
 
-function setupNavMore() {
-  const navMore = document.querySelector(".nav-more");
-  const btn = navMore?.querySelector(".nav-more-btn");
-  if (!navMore || !btn) return;
-
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isOpen = navMore.classList.toggle("open");
-    btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-  });
-
-  document.addEventListener("click", () => {
-    if (navMore.classList.contains("open")) {
-      navMore.classList.remove("open");
-      btn.setAttribute("aria-expanded", "false");
-    }
-  });
-
-  navMore.querySelector(".nav-more-dropdown")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-  });
-}
 
 /* =========================
    MATCH CARD MODAL (Feature 4)
@@ -137,13 +115,11 @@ function showMatchCardModal(matchData) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   setupMobileMenu();
-  setupNavMore();
   initMyLadderNav(); // always — injects button and sets label from localStorage
   try {
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
     if (document.getElementById("phone")) setupPhoneFormatting();
-    if (document.getElementById("scoring-rules-box")) renderScoringRulesBox();
 
     if (getLadderBodyEl()) {
       setupLadderSearch();
@@ -353,6 +329,11 @@ function handleJoinForm() {
         return;
       }
 
+      if (!area) {
+        showError("Please select your area of the DMV.");
+        return;
+      }
+
       const numericRating = parseFloat(rating);
       if (!Number.isFinite(numericRating)) {
         showError("Please choose a valid self-rating.");
@@ -360,7 +341,7 @@ function handleJoinForm() {
       }
 
       if (!sex) {
-        showError("Please choose a ladder.");
+        showError("Please select your sex.");
         return;
       }
 
@@ -406,7 +387,7 @@ function handleJoinForm() {
         <div class="form-confirmation">
           <div class="confirmation-icon">✓</div>
           <h3>You’re in!</h3>
-          <p>Welcome to the Restoration Tennis Ladder. You’ll appear in the rankings once the season begins on April 17th.</p>
+          <p>Welcome to the Restoration Tennis Ladder. You’ll appear in the rankings shortly.</p>
           <div class="confirmation-links">
             <a href="index.html" class="button">Back to Home</a>
             <a href="ladder.html" class="button-secondary">View Rankings</a>
@@ -428,7 +409,7 @@ function handleJoinForm() {
 ========================= */
 
 function getLadderBodyEl() {
-  return document.getElementById("ladder-body") || document.getElementById("rankings-body");
+  return document.getElementById("ladder-body");
 }
 
 function getLadderColspan() {
@@ -1539,18 +1520,6 @@ async function validateMatchForm(formData) {
   return null;
 }
 
-function averageRating(players) {
-  const validPlayers = players.filter(Boolean);
-  if (!validPlayers.length) return 0;
-
-  const total = validPlayers.reduce((sum, player) => {
-    const rating = player.dynamic_rating ?? player.display_rating ?? 0;
-    return sum + Number(rating || 0);
-  }, 0);
-
-  return total / validPlayers.length;
-}
-
 function isMixedGenderMatch(team1Players, team2Players) {
   const all = [...team1Players, ...team2Players].filter(Boolean);
   return all.some((p) => p.sex === "Man") && all.some((p) => p.sex === "Woman");
@@ -1872,26 +1841,6 @@ async function applyPlayerUpdates({
   return null;
 }
 
-function renderScoringRulesBox() {
-  const box = document.getElementById("scoring-rules-box");
-  if (!box) return;
-
-  box.innerHTML = `
-    <div class="scoring-rules-card">
-      <h3>How points work</h3>
-      <p><strong>Rating Adjustment:</strong> Ratings move after every match using a slower, NTRP-inspired formula based on player ratings, match result, and score margin.</p>
-      <p><strong>Winner Points:</strong> Every winner earns +6 just for winning, plus a base of 7, adjusted by how the actual score compared to the statistically expected score based on rating gap. Range: 7–18 pts.</p>
-      <p><strong>Loser Points:</strong> Losers always receive a minimum of 5 pts. When a match is closer than expected, losers earn additional points — up to one less than the winner.</p>
-      <p><strong>Score margin:</strong> Only sets 1 and 2 count toward game margin. Third-set tiebreaks are excluded. A 0.5 rating gap predicts a 6-0, 6-0 result.</p>
-      <p><strong>Doubles:</strong> Teammates receive the same rating change and ladder points.</p>
-    </div>
-  `;
-}
-
-/* =========================
-   DIRECTORY PAGE
-========================= */
-
 /* =========================
    DIRECTORY PAGE
 ========================= */
@@ -2063,25 +2012,23 @@ async function loadDirectory() {
 
   if (!tbody || !summary) return;
 
-  setTableMessage(tbody, "Loading directory...", 7);
+  setTableMessage(tbody, "Loading directory...", 8);
   summary.textContent = "Loading...";
 
   try {
     const { data, error } = await supabaseClient
       .from("players")
-      .select("id, name, area, phone, display_rating, ladder_points, sex")
-      .order("ladder_points", { ascending: false })
-      .order("display_rating", { ascending: false })
-      .order("name", { ascending: true });
+      .select("id, name, area, phone, display_rating, dynamic_rating, ladder_points, wins, sex");
 
     if (error) throw error;
 
-    const players = (data || [])
-      .filter((player) => player.name && player.phone)
-      .map((player, index) => ({
-        ...player,
-        season_rank: index + 1
-      }));
+    // Rank using the same sort as the Rankings page so numbers match.
+    const players = sortPlayersForStandings(
+      (data || []).filter((player) => player.name && player.phone)
+    ).map((player, index) => ({
+      ...player,
+      season_rank: index + 1
+    }));
 
     directoryState.players = players;
     directoryState.filteredPlayers = players;
@@ -2090,7 +2037,7 @@ async function loadDirectory() {
     renderDirectory(players);
   } catch (error) {
     console.error("Load directory error:", error);
-    setTableMessage(tbody, "Error loading directory.", 7);
+    setTableMessage(tbody, "Error loading directory.", 8);
     summary.textContent = "Directory unavailable";
   }
 }
@@ -2628,9 +2575,7 @@ async function loadPlayerProfile() {
     container.innerHTML = `
       <div class="profile-header">
         <h2>${escapeHtml(player.name || "Player")}</h2>
-        <p class="small-text">
-          ${escapeHtml(player.sex || "—")} • ${escapeHtml(player.area || "—")}
-        </p>
+        <p class="small-text">${escapeHtml(player.area || "—")}</p>
       </div>
 
       <div class="profile-stats">
@@ -2766,12 +2711,12 @@ async function loadPlayerMatchHistory() {
 }
 
 async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
-  const canvas = document.getElementById("rating-trend-canvas");
+  const section = document.getElementById("rating-trend-section");
+  const canvas  = document.getElementById("rating-trend-canvas");
   if (!canvas || typeof Chart === "undefined") return;
 
   try {
     const matches = await fetchMatchesForPlayer(playerId);
-    if (!matches.length) return;
 
     const perspectives = matches
       .map((match) => ({
@@ -2779,6 +2724,12 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
         perspective: getPlayerMatchPerspective(match, playerId)
       }))
       .filter((item) => item.perspective);
+
+    // Hide section when fewer than 2 data points — a single match produces a dot, not a trend.
+    if (perspectives.length < 2) {
+      if (section) section.style.display = "none";
+      return;
+    }
 
     let running = Number(currentDisplayRating ?? 0);
     const ratings = [];
@@ -2788,7 +2739,11 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
       running = roundToTwo(running - Number(perspectives[i].perspective.ratingChange || 0));
     }
 
-    const labels = perspectives.map((item) => item.match.date_played || "");
+    const labels = perspectives.map((item) => {
+      const d = item.match.date_played;
+      if (!d) return "";
+      return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    });
 
     const ctx = canvas.getContext("2d");
     new Chart(ctx, {
@@ -2799,9 +2754,13 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating) {
           {
             label: "Rating",
             data: ratings,
-            tension: 0.25,
-            borderWidth: 2,
-            pointRadius: 3
+            tension: 0.3,
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: "#1f4d3a",
+            borderColor: "#1f4d3a",
+            backgroundColor: "rgba(31, 77, 58, 0.08)",
+            fill: true
           }
         ]
       },
