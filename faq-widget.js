@@ -4,7 +4,7 @@
    ============================================================ */
 
 // Replace with your Anthropic API key from console.anthropic.com
-const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE';
+const ANTHROPIC_API_KEY = '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';
 
 (function () {
   'use strict';
