@@ -793,18 +793,18 @@ async function loadHomeStats() {
   }
 
   container.innerHTML = `
-    <div class="stat-card">
+    <a href="ladder.html" class="stat-card">
       <div class="stat-value">${playerCount}</div>
       <div class="stat-label">Players</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="ladder.html" class="stat-card">
       <div class="stat-value">${matchCount}</div>
       <div class="stat-label">Matches Played</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="ladder.html" class="stat-card">
       <div class="stat-value">${daysLeft}</div>
       <div class="stat-label">Days Left</div>
-    </div>
+    </a>
   `;
 }
 
