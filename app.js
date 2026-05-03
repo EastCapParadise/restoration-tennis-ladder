@@ -797,7 +797,7 @@ async function loadHomeStats() {
       <div class="stat-value">${playerCount}</div>
       <div class="stat-label">Players</div>
     </a>
-    <a href="ladder.html" class="stat-card">
+    <a href="history.html" class="stat-card">
       <div class="stat-value">${matchCount}</div>
       <div class="stat-label">Matches Played</div>
     </a>
