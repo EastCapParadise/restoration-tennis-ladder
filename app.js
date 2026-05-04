@@ -2952,7 +2952,7 @@ function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPt
         <div class="gauntlet-step-top">
           <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>
           <span class="gauntlet-opp-pts">${player.ladder_points ?? 0} pts</span>
-          <span class="gauntlet-prob ${probClass}">${winProbPct}% to win</span>
+          <span class="gauntlet-prob ${probClass}" title="Your chance of winning this match">You win ${winProbPct}%</span>
         </div>
         <div class="gauntlet-step-bottom">
           <span class="gauntlet-pts-range">${ptsLabel}</span>
@@ -3028,7 +3028,7 @@ async function loadGauntlet() {
 
       chasers.forEach((opp, i) => {
         const oppObj  = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
-        const probRaw = eloWinProb(Number(opp.dynamic_rating ?? 0), Number(viewed.dynamic_rating ?? 0));
+        const probRaw = eloWinProb(Number(viewed.dynamic_rating ?? 0), Number(opp.dynamic_rating ?? 0));
         const probPct = Math.round(probRaw * 100);
         const lowPts  = estimatePts(oppObj, viewedObj, 13, 11);
         const highPts = estimatePts(oppObj, viewedObj, 12, 1);
