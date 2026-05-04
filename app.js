@@ -756,7 +756,7 @@ function renderLadder(players) {
     else if (rank <= 10) rowClass += " rank-top-10";
 
     const moveHtml = getRankMovementHtml(rank, player.previous_rank);
-    const youTag = isMe ? ' <span class="rank-me-tag">← You</span>' : "";
+    const youTag = isMe ? '<br><span class="rank-me-tag">← You</span>' : "";
 
     return `
       <tr class="${rowClass}">

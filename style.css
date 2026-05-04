@@ -3398,13 +3398,20 @@ th[data-sort]:hover {
 }
 
 .rank-me-tag {
-  font-size: 10px;
+  display: block;
+  font-size: 11px;
   color: var(--green-dark);
   font-weight: 600;
-  margin-left: 4px;
   opacity: 0.75;
   white-space: nowrap;
-  vertical-align: middle;
+}
+
+/* The sticky Name cell on the "You" row must have a solid background
+   so scrolling columns don't bleed through. rgba(230,184,0,0.2) over
+   white (#fff) equals approximately #faf1cc. */
+.rank-me td:nth-child(2) {
+  background: #faf1cc !important;
+  overflow: hidden;
 }
 
 /* =========================
