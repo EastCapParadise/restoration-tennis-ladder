@@ -2938,9 +2938,12 @@ function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPt
     ? "gauntlet-prob-yellow"
     : "gauntlet-prob-red";
 
+  const ptsStr = Math.round(lowPts) === Math.round(highPts)
+    ? `~${Math.round(lowPts)} pts`
+    : `~${lowPts}–${highPts} pts`;
   const ptsLabel = isChaser
-    ? `Their win would earn: ~${lowPts}–${highPts} pts`
-    : `Win this match: ~${lowPts}–${highPts} pts`;
+    ? `Their win would earn: ${ptsStr}`
+    : `Win this match: ${ptsStr}`;
 
   return `
     <div class="gauntlet-step">
