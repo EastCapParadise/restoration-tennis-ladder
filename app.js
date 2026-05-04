@@ -650,13 +650,13 @@ function getPlayerStatus(playerId, matches) {
 
   if (!playerMatches.length) return "New";
 
-  const lastTwo = playerMatches.slice(0, 2).map((match) => {
+  const lastThree = playerMatches.slice(0, 3).map((match) => {
     const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
     return (onTeam1 && match.winner_team === 1) || (!onTeam1 && match.winner_team === 2);
   });
 
-  if (lastTwo.length === 2 && lastTwo.every(Boolean)) return "Hot";
-  if (lastTwo.length === 2 && lastTwo.every((result) => !result)) return "On a Slide";
+  if (lastThree.length === 3 && lastThree.every(Boolean)) return "Hot";
+  if (lastThree.length === 3 && lastThree.every((result) => !result)) return "On a Slide";
 
   const lastMatchDate = new Date(playerMatches[0].date_played || playerMatches[0].created_at);
   const daysAgo = (Date.now() - lastMatchDate.getTime()) / (1000 * 60 * 60 * 24);
