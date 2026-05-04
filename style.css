@@ -725,7 +725,11 @@ hr {
   }
 
   .profile-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profile-stat {
+    padding: 12px;
   }
 
   .score-row {
@@ -3500,4 +3504,97 @@ th[data-sort]:hover {
     font-size: 11px !important;
     padding: 5px 8px !important;
   }
+}
+
+/* =========================
+   SEASON STORY SO FAR
+========================= */
+
+.season-story-text {
+  font-style: italic;
+  color: var(--text);
+  line-height: 1.75;
+  font-size: 15px;
+  opacity: 0.88;
+  margin-top: 8px;
+}
+
+/* =========================
+   THE GAUNTLET
+========================= */
+
+.gauntlet-subtitle {
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+.gauntlet-top-msg {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green);
+  margin: 8px 0 12px;
+}
+
+.gauntlet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 4px;
+}
+
+.gauntlet-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.gauntlet-arrow {
+  text-align: center;
+  color: var(--muted);
+  font-size: 15px;
+  padding: 4px 14px;
+}
+
+.gauntlet-rank {
+  font-weight: 700;
+  min-width: 34px;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.gauntlet-name {
+  flex: 1;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--green-dark);
+}
+
+.gauntlet-name:hover { text-decoration: underline; }
+
+.gauntlet-pts {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.gauntlet-prob {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.gauntlet-prob-green  { background: #dcfce7; color: #16a34a; }
+.gauntlet-prob-yellow { background: #fef9c3; color: #854d0e; }
+.gauntlet-prob-red    { background: #fee2e2; color: #dc2626; }
+
+@media (max-width: 480px) {
+  .gauntlet-step { gap: 6px; padding: 10px; }
+  .gauntlet-pts  { display: none; }
 }

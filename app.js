@@ -135,6 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadMyLadderCard(); // injected before stat cards, no-op if no player selected
     }
     if (document.getElementById("activity-feed")) await loadActivityFeed();
+    if (document.getElementById("season-story")) await loadSeasonStory();
 
     if (document.getElementById("match-of-week")) await loadMatchOfWeek();
     if (document.getElementById("history-list")) {
@@ -150,6 +151,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (document.getElementById("player-profile")) {
       await loadPlayerProfile();
     }
+    if (document.getElementById("gauntlet-section")) await loadGauntlet();
     if (document.getElementById("player-h2h-section")) await loadPlayerH2H();
 
     if (document.getElementById("player-match-history")) {
@@ -946,6 +948,163 @@ async function loadActivityFeed() {
     `;
   } catch (error) {
     console.error("Activity feed error:", error);
+  }
+}
+
+/* =========================
+   SEASON STORY SO FAR
+========================= */
+
+async function loadSeasonStory() {
+  const container = document.getElementById("season-story");
+  if (!container) return;
+
+  try {
+    const [playersRes, matchesRes] = await Promise.all([
+      supabaseClient.from("players").select(
+        "id, name, sex, dynamic_rating, initial_rating, ladder_points, wins, losses, matches_played"
+      ),
+      supabaseClient.from("matches").select(
+        "id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, team1_avg_rating, team2_avg_rating, winner_team, date_played"
+      )
+    ]);
+
+    const players = playersRes.data || [];
+    const matches = matchesRes.data || [];
+
+    if (!players.length || !matches.length) {
+      container.innerHTML = "<h2>📖 Season Story So Far</h2><p class=\"season-story-text\">The 2026 season is just getting started — no results yet. Check back once matches are in.</p>";
+      return;
+    }
+
+    const sexMap = {};
+    players.forEach(p => { sexMap[p.id] = p.sex || ""; });
+
+    const standings    = sortPlayersForStandings(players);
+    const menPlayers   = sortPlayersForStandings(players.filter(p => p.sex === "Man"));
+    const womenPlayers = sortPlayersForStandings(players.filter(p => p.sex === "Woman"));
+
+    const totalMatches   = matches.length;
+    const activePlayers  = players.filter(p => (p.matches_played ?? 0) > 0);
+    const inactivePlayers = players.length - activePlayers.length;
+    const totalPlayers   = players.length;
+
+    const overallLeader = standings[0];
+    const overallSecond = standings[1];
+    const mensLeader    = menPlayers[0];
+    const womensLeader  = womenPlayers[0];
+
+    const pointsGap = (overallLeader && overallSecond)
+      ? (overallLeader.ladder_points ?? 0) - (overallSecond.ladder_points ?? 0)
+      : 0;
+
+    // Most improved: biggest dynamic_rating gain from initial_rating
+    const playerMap = {};
+    players.forEach(p => { playerMap[p.id] = p.name; });
+
+    const mostImproved = activePlayers.length
+      ? [...activePlayers].sort((a, b) =>
+          ((b.dynamic_rating ?? 0) - (b.initial_rating ?? 0)) -
+          ((a.dynamic_rating ?? 0) - (a.initial_rating ?? 0))
+        )[0]
+      : null;
+    const mostImprovedGain = mostImproved
+      ? roundToTwo((mostImproved.dynamic_rating ?? 0) - (mostImproved.initial_rating ?? 0))
+      : 0;
+
+    // Biggest upset: match where winner had lowest pre-match win probability
+    let biggestUpsetMatch   = null;
+    let biggestUpsetWinner  = "";
+    let biggestUpsetLoser   = "";
+    let biggestUpsetProb    = 1;
+
+    for (const match of matches) {
+      const t1avg = Number(match.team1_avg_rating);
+      const t2avg = Number(match.team2_avg_rating);
+      if (!t1avg || !t2avg) continue;
+
+      const winnerAvg = match.winner_team === 1 ? t1avg : t2avg;
+      const loserAvg  = match.winner_team === 1 ? t2avg : t1avg;
+      const prob = 1 / (1 + Math.pow(10, (loserAvg - winnerAvg) / 0.45));
+
+      if (prob < biggestUpsetProb) {
+        biggestUpsetProb  = prob;
+        biggestUpsetMatch = match;
+        const wIds = (match.winner_team === 1
+          ? [match.team1_player1_id, match.team1_player2_id]
+          : [match.team2_player1_id, match.team2_player2_id]).filter(Boolean);
+        const lIds = (match.winner_team === 1
+          ? [match.team2_player1_id, match.team2_player2_id]
+          : [match.team1_player1_id, match.team1_player2_id]).filter(Boolean);
+        biggestUpsetWinner = wIds.map(id => playerMap[id] || "").filter(Boolean).join(" / ");
+        biggestUpsetLoser  = lIds.map(id => playerMap[id] || "").filter(Boolean).join(" / ");
+      }
+    }
+
+    // Highest SOS among active players
+    let topSOSPlayer = null;
+    let topSOSValue  = -1;
+    for (const p of activePlayers) {
+      const sos = calculatePlayerSOS(p.id, matches, sexMap);
+      if (sos != null && sos > topSOSValue) { topSOSValue = sos; topSOSPlayer = p; }
+    }
+
+    // Build narrative
+    const matchWord = totalMatches === 1 ? "match" : "matches";
+    const upsetPct  = Math.round(biggestUpsetProb * 100);
+
+    let parts = [];
+
+    // Opener + overall leader
+    const gapPhrase = (overallSecond && pointsGap > 0)
+      ? `, just ${pointsGap} point${pointsGap === 1 ? "" : "s"} ahead of ${escapeHtml(overallSecond.name)}`
+      : "";
+    if (overallLeader) {
+      parts.push(`${totalMatches} ${matchWord} into the 2026 season and ${escapeHtml(overallLeader.name)} leads the overall standings with ${overallLeader.ladder_points ?? 0} points${gapPhrase}.`);
+    } else {
+      parts.push(`${totalMatches} ${matchWord} into the 2026 season and the race is wide open.`);
+    }
+
+    // Men's and Women's leaders
+    if (mensLeader && womensLeader && mensLeader.id !== womensLeader.id) {
+      parts.push(`${escapeHtml(mensLeader.name)} sits atop the Men's ladder while ${escapeHtml(womensLeader.name)} leads the Women's side.`);
+    } else if (mensLeader) {
+      parts.push(`${escapeHtml(mensLeader.name)} holds down the top spot on the Men's ladder.`);
+    } else if (womensLeader) {
+      parts.push(`${escapeHtml(womensLeader.name)} leads the Women's ladder.`);
+    }
+
+    // Biggest upset
+    if (biggestUpsetMatch && biggestUpsetWinner) {
+      if (upsetPct <= 35) {
+        parts.push(`The biggest shock so far: ${escapeHtml(biggestUpsetWinner)} came in with just a ${upsetPct}% chance of winning and pulled it off against ${escapeHtml(biggestUpsetLoser)} — the kind of result that keeps everyone on their toes.`);
+      } else {
+        parts.push(`${escapeHtml(biggestUpsetWinner)}'s win over ${escapeHtml(biggestUpsetLoser)} stands as the most surprising result of the season.`);
+      }
+    }
+
+    // Most improved
+    if (mostImproved && mostImprovedGain > 0) {
+      parts.push(`${escapeHtml(mostImproved.name)} has been the most improved player, up ${mostImprovedGain} rating points from their starting mark.`);
+    }
+
+    // Highest SOS
+    if (topSOSPlayer && topSOSValue > 0) {
+      parts.push(`${escapeHtml(topSOSPlayer.name)} has drawn the toughest competition this season, facing opponents rated ${topSOSValue} on average — a sign they're playing up.`);
+    }
+
+    // Inactive players
+    if (inactivePlayers > 0) {
+      parts.push(`${inactivePlayers} of our ${totalPlayers} player${totalPlayers === 1 ? "" : "s"} ${inactivePlayers === 1 ? "is" : "are"} still looking for their first match — every week someone new steps on court, the ladder gets a little more interesting.`);
+    }
+
+    container.innerHTML = `
+      <h2>📖 Season Story So Far</h2>
+      <p class="season-story-text">${parts.join(" ")}</p>
+    `;
+  } catch (err) {
+    console.error("Season story error:", err);
+    container.innerHTML = "<h2>📖 Season Story So Far</h2><p class=\"small-text\">Unable to load season story.</p>";
   }
 }
 
@@ -2765,6 +2924,92 @@ async function loadPlayerProfile() {
   } catch (error) {
     console.error("Load player profile error:", error);
     container.innerHTML = "<p>Error loading player profile.</p>";
+  }
+}
+
+/* =========================
+   THE GAUNTLET
+========================= */
+
+function renderGauntletStep(rank, player, winProbPct) {
+  const probClass = winProbPct >= 40
+    ? "gauntlet-prob-green"
+    : winProbPct >= 20
+    ? "gauntlet-prob-yellow"
+    : "gauntlet-prob-red";
+  return `
+    <div class="gauntlet-step">
+      <span class="gauntlet-rank">#${rank}</span>
+      <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>
+      <span class="gauntlet-pts">${player.ladder_points ?? 0} pts</span>
+      <span class="gauntlet-prob ${probClass}">${winProbPct}% to win</span>
+    </div>
+  `;
+}
+
+async function loadGauntlet() {
+  const section = document.getElementById("gauntlet-section");
+  if (!section) return;
+
+  const playerId = getPlayerIdFromUrl();
+  if (!playerId) { section.style.display = "none"; return; }
+
+  try {
+    const { data: players, error } = await supabaseClient
+      .from("players")
+      .select("id, name, sex, dynamic_rating, ladder_points, wins, losses, matches_played");
+
+    if (error || !players?.length) { section.style.display = "none"; return; }
+
+    const viewed = players.find(p => String(p.id) === String(playerId));
+    if (!viewed) { section.style.display = "none"; return; }
+
+    const gender      = viewed.sex;
+    const genderLabel = gender === "Man" ? "Men's" : "Women's";
+
+    const genderPlayers = sortPlayersForStandings(players.filter(p => p.sex === gender));
+    const viewedRank    = genderPlayers.findIndex(p => String(p.id) === String(playerId)) + 1;
+    if (viewedRank === 0) { section.style.display = "none"; return; }
+
+    const viewedRating = Number(viewed.dynamic_rating ?? 0);
+
+    // Same-gender matches — no gender adjustment needed
+    function winProb(myRating, oppRating) {
+      return Math.round((1 / (1 + Math.pow(10, (oppRating - myRating) / 0.45))) * 100);
+    }
+
+    let html = `<h2>The Gauntlet 🗡️</h2>
+      <p class="small-text gauntlet-subtitle">Your path to #1 on the ${genderLabel} ladder</p>`;
+
+    if (viewedRank === 1) {
+      const chasers = genderPlayers.slice(1, 3);
+      html += `<p class="gauntlet-top-msg">You're at the top — defend your position!</p>`;
+      if (chasers.length) {
+        html += `<p class="small-text" style="margin:8px 0 12px;">Players gunning for your spot:</p>
+          <div class="gauntlet-list">`;
+        chasers.forEach((opp, i) => {
+          const prob = winProb(Number(opp.dynamic_rating ?? 0), viewedRating);
+          html += renderGauntletStep(i + 2, opp, prob);
+        });
+        html += `</div>`;
+      }
+    } else {
+      // Closest opponents first, max 5, working toward #1
+      const above = genderPlayers.slice(0, viewedRank - 1).reverse().slice(0, 5);
+      html += `<p class="small-text" style="margin:8px 0 12px;">Beat these ${above.length === 1 ? "player" : "players"} to climb to #1:</p>
+        <div class="gauntlet-list">`;
+      above.forEach(opp => {
+        const rank = genderPlayers.findIndex(p => String(p.id) === String(opp.id)) + 1;
+        const prob = winProb(viewedRating, Number(opp.dynamic_rating ?? 0));
+        html += `<div class="gauntlet-arrow">↑</div>` + renderGauntletStep(rank, opp, prob);
+      });
+      html += `</div>`;
+    }
+
+    section.innerHTML = html;
+  } catch (err) {
+    console.error("Gauntlet error:", err);
+    section.style.display = "none";
   }
 }
 
