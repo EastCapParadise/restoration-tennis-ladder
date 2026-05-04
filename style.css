@@ -3524,62 +3524,102 @@ th[data-sort]:hover {
 ========================= */
 
 .gauntlet-subtitle {
-  margin-bottom: 4px;
   color: var(--muted);
+  margin-bottom: 4px;
 }
 
-.gauntlet-top-msg {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--green);
-  margin: 8px 0 12px;
+.gauntlet-upset-warning {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+  margin: 8px 0 0;
 }
 
 .gauntlet-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .gauntlet-step {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 14px;
   padding: 12px 14px;
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: 10px;
-  font-size: 14px;
 }
 
-.gauntlet-arrow {
+.gauntlet-step-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
   text-align: center;
-  color: var(--muted);
-  font-size: 15px;
-  padding: 4px 14px;
+  flex-shrink: 0;
 }
 
-.gauntlet-rank {
-  font-weight: 700;
-  min-width: 34px;
+.gauntlet-step-num {
+  font-size: 22px;
+  font-weight: 800;
   color: var(--navy);
-  font-size: 13px;
+  line-height: 1;
+}
+
+.gauntlet-step-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.gauntlet-step-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.gauntlet-step-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.gauntlet-step-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .gauntlet-name {
-  flex: 1;
   font-weight: 600;
   text-decoration: none;
   color: var(--green-dark);
+  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gauntlet-name:hover { text-decoration: underline; }
 
-.gauntlet-pts {
+.gauntlet-opp-pts {
   color: var(--muted);
   font-size: 13px;
   white-space: nowrap;
+}
+
+.gauntlet-pts-range {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .gauntlet-prob {
@@ -3588,13 +3628,24 @@ th[data-sort]:hover {
   padding: 3px 10px;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .gauntlet-prob-green  { background: #dcfce7; color: #16a34a; }
 .gauntlet-prob-yellow { background: #fef9c3; color: #854d0e; }
 .gauntlet-prob-red    { background: #fee2e2; color: #dc2626; }
 
+.gauntlet-summary {
+  margin-top: 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
 @media (max-width: 480px) {
-  .gauntlet-step { gap: 6px; padding: 10px; }
-  .gauntlet-pts  { display: none; }
+  .gauntlet-step { gap: 10px; padding: 10px 12px; }
+  .gauntlet-step-num { font-size: 18px; }
+  .gauntlet-opp-pts { display: none; }
 }

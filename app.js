@@ -2931,18 +2931,33 @@ async function loadPlayerProfile() {
    THE GAUNTLET
 ========================= */
 
-function renderGauntletStep(rank, player, winProbPct) {
+function renderGauntletStep({ stepNum, label, player, winProbPct, compPts, domPts, isChaser }) {
   const probClass = winProbPct >= 40
     ? "gauntlet-prob-green"
     : winProbPct >= 20
     ? "gauntlet-prob-yellow"
     : "gauntlet-prob-red";
+
+  const ptsLabel = isChaser
+    ? `Their win would earn: ~${compPts}–${domPts} pts`
+    : `Win this match: ~${compPts}–${domPts} pts`;
+
   return `
     <div class="gauntlet-step">
-      <span class="gauntlet-rank">#${rank}</span>
-      <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>
-      <span class="gauntlet-pts">${player.ladder_points ?? 0} pts</span>
-      <span class="gauntlet-prob ${probClass}">${winProbPct}% to win</span>
+      <div class="gauntlet-step-meta">
+        <span class="gauntlet-step-num">${stepNum}</span>
+        <span class="gauntlet-step-label">${escapeHtml(label)}</span>
+      </div>
+      <div class="gauntlet-step-body">
+        <div class="gauntlet-step-top">
+          <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>
+          <span class="gauntlet-opp-pts">${player.ladder_points ?? 0} pts</span>
+          <span class="gauntlet-prob ${probClass}">${winProbPct}% to win</span>
+        </div>
+        <div class="gauntlet-step-bottom">
+          <span class="gauntlet-pts-range">${ptsLabel}</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -2971,42 +2986,132 @@ async function loadGauntlet() {
     const viewedRank    = genderPlayers.findIndex(p => String(p.id) === String(playerId)) + 1;
     if (viewedRank === 0) { section.style.display = "none"; return; }
 
-    const viewedRating = Number(viewed.dynamic_rating ?? 0);
+    const leader    = genderPlayers[0];
+    const viewedPts = Number(viewed.ladder_points ?? 0);
+    const leaderPts = Number(leader.ladder_points ?? 0);
+    const pointsGap = leaderPts - viewedPts;
 
-    // Same-gender matches — no gender adjustment needed
-    function winProb(myRating, oppRating) {
-      return Math.round((1 / (1 + Math.pow(10, (oppRating - myRating) / 0.45))) * 100);
+    // Elo win probability (same-gender — no rating adjustment needed)
+    function eloWinProb(myRating, oppRating) {
+      return 1 / (1 + Math.pow(10, (oppRating - myRating) / 0.45));
     }
+
+    // Estimate winner's ladder points for a singles match given hypothetical game counts
+    function estimatePts(winnerObj, loserObj, winnerGames, loserGames) {
+      const result = calculateMatchScoring({
+        matchType: "Singles",
+        winnerTeam: 1,
+        team1Players: [winnerObj, null],
+        team2Players: [loserObj, null],
+        team1StandardGames: winnerGames,
+        team2StandardGames: loserGames,
+        team1TotalGames: winnerGames,
+        team2TotalGames: loserGames
+      });
+      return result.ladderPoints[0]; // winnerPoints for team1
+    }
+
+    const viewedObj = {
+      sex: viewed.sex,
+      dynamic_rating: viewed.dynamic_rating,
+      matches_played: viewed.matches_played ?? 0
+    };
+
+    // ── Already #1: show the top 3 chasers ────────────────────────────────
+    if (viewedRank === 1) {
+      const chaserLabels = ["Closest threat", "Next in line", "Keep an eye on"];
+      const chasers = genderPlayers.slice(1, 4);
+
+      let html = `<h2>The Gauntlet 🗡️</h2>
+        <p class="small-text gauntlet-subtitle">You're at the top. Here's who's coming for you.</p>
+        <div class="gauntlet-list">`;
+
+      chasers.forEach((opp, i) => {
+        const oppObj  = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
+        const probRaw = eloWinProb(Number(opp.dynamic_rating ?? 0), Number(viewed.dynamic_rating ?? 0));
+        const probPct = Math.round(probRaw * 100);
+        const compPts = estimatePts(oppObj, viewedObj, 12, 7);
+        const domPts  = estimatePts(oppObj, viewedObj, 12, 3);
+        html += renderGauntletStep({
+          stepNum: i + 1,
+          label:   chaserLabels[i] || "Challenger",
+          player:  opp,
+          winProbPct: probPct,
+          compPts, domPts,
+          isChaser: true
+        });
+      });
+
+      html += `</div>`;
+      section.innerHTML = html;
+      return;
+    }
+
+    // ── Not #1: build smart opponent selection by expected points value ────
+    const candidates = genderPlayers
+      .filter(p => String(p.id) !== String(playerId))
+      .map(opp => {
+        const oppObj  = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
+        const probRaw = eloWinProb(Number(viewed.dynamic_rating ?? 0), Number(opp.dynamic_rating ?? 0));
+        const probPct = Math.round(probRaw * 100);
+        const compPts = estimatePts(viewedObj, oppObj, 12, 7);
+        const domPts  = estimatePts(viewedObj, oppObj, 12, 3);
+        // Score = expected points value weighted by win probability
+        const score   = compPts * probRaw;
+        return { opp, probPct, probRaw, compPts, domPts, score };
+      });
+
+    const eligible       = candidates.filter(c => c.probPct >= 20);
+    const pool           = eligible.length >= 3 ? eligible : candidates;
+    const showUpsetNote  = eligible.length < 3;
+
+    // Top 4 by score, then re-sorted easiest first (most actionable at top)
+    const topPicks = [...pool]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .sort((a, b) => b.probPct - a.probPct);
+
+    const stepLabels = ["Best next match", "High value target", "The test", "The stretch"];
+
+    const totalCompPts   = topPicks.reduce((s, c) => s + c.compPts, 0);
+    const totalDomPts    = topPicks.reduce((s, c) => s + c.domPts, 0);
+    const projectedComp  = viewedPts + totalCompPts;
+    const projectedDom   = viewedPts + totalDomPts;
 
     let html = `<h2>The Gauntlet 🗡️</h2>
-      <p class="small-text gauntlet-subtitle">Your path to #1 on the ${genderLabel} ladder</p>`;
+      <p class="small-text gauntlet-subtitle">You're ${pointsGap} point${pointsGap === 1 ? "" : "s"} behind ${escapeHtml(leader.name)}. Here's your path.</p>
+      ${showUpsetNote ? `<p class="gauntlet-upset-warning">These won't be easy — but every upset starts somewhere.</p>` : ""}
+      <div class="gauntlet-list">`;
 
-    if (viewedRank === 1) {
-      const chasers = genderPlayers.slice(1, 3);
-      html += `<p class="gauntlet-top-msg">You're at the top — defend your position!</p>`;
-      if (chasers.length) {
-        html += `<p class="small-text" style="margin:8px 0 12px;">Players gunning for your spot:</p>
-          <div class="gauntlet-list">`;
-        chasers.forEach((opp, i) => {
-          const prob = winProb(Number(opp.dynamic_rating ?? 0), viewedRating);
-          html += renderGauntletStep(i + 2, opp, prob);
-        });
-        html += `</div>`;
-      }
-    } else {
-      // Closest opponents first, max 5, working toward #1
-      const above = genderPlayers.slice(0, viewedRank - 1).reverse().slice(0, 5);
-      html += `<p class="small-text" style="margin:8px 0 12px;">Beat these ${above.length === 1 ? "player" : "players"} to climb to #1:</p>
-        <div class="gauntlet-list">`;
-      above.forEach(opp => {
-        const rank = genderPlayers.findIndex(p => String(p.id) === String(opp.id)) + 1;
-        const prob = winProb(viewedRating, Number(opp.dynamic_rating ?? 0));
-        html += `<div class="gauntlet-arrow">↑</div>` + renderGauntletStep(rank, opp, prob);
+    topPicks.forEach((c, i) => {
+      html += renderGauntletStep({
+        stepNum:    i + 1,
+        label:      stepLabels[i] || "The stretch",
+        player:     c.opp,
+        winProbPct: c.probPct,
+        compPts:    c.compPts,
+        domPts:     c.domPts,
+        isChaser:   false
       });
-      html += `</div>`;
+    });
+
+    html += `</div>`;
+
+    // Summary projection
+    let summaryText;
+    if (projectedComp >= leaderPts) {
+      summaryText = `Win all ${topPicks.length} of these and you'd earn ~${totalCompPts}–${totalDomPts} pts — <strong>enough to take the lead.</strong>`;
+    } else if (projectedDom >= leaderPts) {
+      summaryText = `Win all ${topPicks.length} in dominant fashion (~${totalDomPts} pts) and you could overtake #1.`;
+    } else {
+      const gapComp = leaderPts - projectedComp;
+      const gapDom  = leaderPts - projectedDom;
+      summaryText = `Win all ${topPicks.length} of these and you'd earn ~${totalCompPts}–${totalDomPts} pts, putting you within <strong>${gapDom}–${gapComp} pts of #1.</strong>`;
     }
 
+    html += `<p class="gauntlet-summary">${summaryText}</p>`;
     section.innerHTML = html;
+
   } catch (err) {
     console.error("Gauntlet error:", err);
     section.style.display = "none";
