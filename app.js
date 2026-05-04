@@ -2931,7 +2931,7 @@ async function loadPlayerProfile() {
    THE GAUNTLET
 ========================= */
 
-function renderGauntletStep({ stepNum, label, player, winProbPct, compPts, domPts, isChaser }) {
+function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPts, isChaser }) {
   const probClass = winProbPct >= 40
     ? "gauntlet-prob-green"
     : winProbPct >= 20
@@ -2939,8 +2939,8 @@ function renderGauntletStep({ stepNum, label, player, winProbPct, compPts, domPt
     : "gauntlet-prob-red";
 
   const ptsLabel = isChaser
-    ? `Their win would earn: ~${compPts}–${domPts} pts`
-    : `Win this match: ~${compPts}–${domPts} pts`;
+    ? `Their win would earn: ~${lowPts}–${highPts} pts`
+    : `Win this match: ~${lowPts}–${highPts} pts`;
 
   return `
     <div class="gauntlet-step">
@@ -3030,14 +3030,14 @@ async function loadGauntlet() {
         const oppObj  = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
         const probRaw = eloWinProb(Number(opp.dynamic_rating ?? 0), Number(viewed.dynamic_rating ?? 0));
         const probPct = Math.round(probRaw * 100);
-        const compPts = estimatePts(oppObj, viewedObj, 12, 7);
-        const domPts  = estimatePts(oppObj, viewedObj, 12, 3);
+        const lowPts  = estimatePts(oppObj, viewedObj, 13, 11);
+        const highPts = estimatePts(oppObj, viewedObj, 12, 1);
         html += renderGauntletStep({
           stepNum: i + 1,
           label:   chaserLabels[i] || "Challenger",
           player:  opp,
           winProbPct: probPct,
-          compPts, domPts,
+          lowPts, highPts,
           isChaser: true
         });
       });
@@ -3054,11 +3054,12 @@ async function loadGauntlet() {
         const oppObj  = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
         const probRaw = eloWinProb(Number(viewed.dynamic_rating ?? 0), Number(opp.dynamic_rating ?? 0));
         const probPct = Math.round(probRaw * 100);
-        const compPts = estimatePts(viewedObj, oppObj, 12, 7);
-        const domPts  = estimatePts(viewedObj, oppObj, 12, 3);
+        const lowPts  = estimatePts(viewedObj, oppObj, 13, 11);
+        const highPts = estimatePts(viewedObj, oppObj, 12, 1);
+        const midPts  = Math.round((lowPts + highPts) / 2);
         // Score = expected points value weighted by win probability
-        const score   = compPts * probRaw;
-        return { opp, probPct, probRaw, compPts, domPts, score };
+        const score   = midPts * probRaw;
+        return { opp, probPct, probRaw, lowPts, highPts, midPts, score };
       });
 
     const eligible       = candidates.filter(c => c.probPct >= 20);
@@ -3073,10 +3074,18 @@ async function loadGauntlet() {
 
     const stepLabels = ["Best next match", "High value target", "The test", "The stretch"];
 
-    const totalCompPts   = topPicks.reduce((s, c) => s + c.compPts, 0);
-    const totalDomPts    = topPicks.reduce((s, c) => s + c.domPts, 0);
-    const projectedComp  = viewedPts + totalCompPts;
-    const projectedDom   = viewedPts + totalDomPts;
+    // Minimum wins needed: accumulate midPts from highest-yielding picks until gap closes
+    const picksByMid  = [...topPicks].sort((a, b) => b.midPts - a.midPts);
+    let accumulated   = 0;
+    let minWins       = topPicks.length;
+    for (let i = 0; i < picksByMid.length; i++) {
+      accumulated += picksByMid[i].midPts;
+      if (viewedPts + accumulated >= leaderPts) { minWins = i + 1; break; }
+    }
+    const minAccumulated = picksByMid.slice(0, minWins).reduce((s, c) => s + c.midPts, 0);
+    const totalMidPts    = topPicks.reduce((s, c) => s + c.midPts, 0);
+    const canClose       = viewedPts + minAccumulated >= leaderPts;
+    const total          = topPicks.length;
 
     let html = `<h2>The Gauntlet 🗡️</h2>
       <p class="small-text gauntlet-subtitle">You're ${pointsGap} point${pointsGap === 1 ? "" : "s"} behind ${escapeHtml(leader.name)}. Here's your path.</p>
@@ -3089,24 +3098,23 @@ async function loadGauntlet() {
         label:      stepLabels[i] || "The stretch",
         player:     c.opp,
         winProbPct: c.probPct,
-        compPts:    c.compPts,
-        domPts:     c.domPts,
+        lowPts:     c.lowPts,
+        highPts:    c.highPts,
         isChaser:   false
       });
     });
 
     html += `</div>`;
 
-    // Summary projection
+    // Summary: minimum wins needed phrasing
     let summaryText;
-    if (projectedComp >= leaderPts) {
-      summaryText = `Win all ${topPicks.length} of these and you'd earn ~${totalCompPts}–${totalDomPts} pts — <strong>enough to take the lead.</strong>`;
-    } else if (projectedDom >= leaderPts) {
-      summaryText = `Win all ${topPicks.length} in dominant fashion (~${totalDomPts} pts) and you could overtake #1.`;
+    if (canClose && minWins < total) {
+      summaryText = `Win any ${minWins} of these ${total} matches and you'd earn roughly ${minAccumulated} pts — <strong>enough to take the lead.</strong>`;
+    } else if (canClose) {
+      summaryText = `You'll need to win all ${total} of these to close the gap — roughly ${totalMidPts} pts total.`;
     } else {
-      const gapComp = leaderPts - projectedComp;
-      const gapDom  = leaderPts - projectedDom;
-      summaryText = `Win all ${topPicks.length} of these and you'd earn ~${totalCompPts}–${totalDomPts} pts, putting you within <strong>${gapDom}–${gapComp} pts of #1.</strong>`;
+      const remaining = leaderPts - (viewedPts + totalMidPts);
+      summaryText = `Win all ${total} of these and you'd earn roughly ${totalMidPts} pts, putting you within <strong>${remaining} pts of #1.</strong>`;
     }
 
     html += `<p class="gauntlet-summary">${summaryText}</p>`;
