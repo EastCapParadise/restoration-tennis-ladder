@@ -703,6 +703,15 @@ function sortPlayers(players) {
   const { sortBy, sortDir } = state.ladder;
 
   return [...players].sort((a, b) => {
+    // For SOS, null/undefined always sorts to the bottom regardless of direction
+    if (sortBy === "sos") {
+      const aNull = a.sos == null;
+      const bNull = b.sos == null;
+      if (aNull && bNull) return compareValues(a.name || "", b.name || "", "asc");
+      if (aNull) return 1;
+      if (bNull) return -1;
+    }
+
     const primary = compareValues(a[sortBy], b[sortBy], sortDir);
     if (primary !== 0) return primary;
 
@@ -756,7 +765,7 @@ function renderLadder(players) {
     else if (rank <= 10) rowClass += " rank-top-10";
 
     const moveHtml = getRankMovementHtml(rank, player.previous_rank);
-    const youTag = isMe ? '<br><span class="rank-me-tag">← You</span>' : "";
+    const youTag = isMe ? '<span class="rank-me-tag">← You</span>' : "";
 
     return `
       <tr class="${rowClass}">
