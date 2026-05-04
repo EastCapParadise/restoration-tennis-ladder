@@ -2955,7 +2955,7 @@ function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPt
         <div class="gauntlet-step-top">
           <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>
           <span class="gauntlet-opp-pts">${player.ladder_points ?? 0} pts</span>
-          <span class="gauntlet-prob ${probClass}" title="Your chance of winning this match">You win ${winProbPct}%</span>
+          <span class="gauntlet-prob ${probClass}" title="Your chance of winning this match">${winProbPct}% chance</span>
         </div>
         <div class="gauntlet-step-bottom">
           <span class="gauntlet-pts-range">${ptsLabel}</span>
