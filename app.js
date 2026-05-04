@@ -478,7 +478,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
-  return state.ladder.showMoreStats ? 13 : 8;
+  return state.ladder.showMoreStats ? 13 : 9;
 }
 
 function getLadderSearchEl() {
@@ -766,9 +766,9 @@ function renderLadder(players) {
         <td class="num">${player.ladder_points ?? 0}</td>
         <td class="num">${player.wins ?? 0}</td>
         <td class="num">${player.losses ?? 0}</td>
-        <td class="num">${player.sos != null ? player.sos : "—"}</td>
         <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
         <td>${escapeHtml(player.status || "—")}</td>
+        <td class="num">${player.sos != null ? player.sos : "—"}</td>
         <td class="num">${player.games_won ?? 0}</td>
         <td class="num">${player.games_lost ?? 0}</td>
         <td class="num">${player.matches_played ?? 0}</td>

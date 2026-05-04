@@ -1723,28 +1723,23 @@ th[data-sort]:hover {
 
 .ladder-table th:nth-child(3),
 .ladder-table td:nth-child(3) {
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: auto;       /* Area: shrinks to fit content */
 }
 
 .ladder-table th:nth-child(7),
 .ladder-table td:nth-child(7) {
-  width: 52px;
-  min-width: 52px;   /* SOS */
-  text-align: right;
-}
-
-.ladder-table th:nth-child(8),
-.ladder-table td:nth-child(8) {
   width: 65px;
   min-width: 65px;   /* Rating */
   text-align: right;
 }
 
 .ladder-table th:nth-child(9),
-.ladder-table td:nth-child(9),
+.ladder-table td:nth-child(9) {
+  width: 52px;
+  min-width: 52px;   /* SOS */
+  text-align: right;
+}
+
 .ladder-table th:nth-child(10),
 .ladder-table td:nth-child(10),
 .ladder-table th:nth-child(11),
@@ -1816,16 +1811,6 @@ th[data-sort]:hover {
   .ladder-table td:nth-child(5),
   .ladder-table th:nth-child(6),
   .ladder-table td:nth-child(6) {
-    width: 28px !important;
-    min-width: 0 !important;
-    max-width: 28px !important;
-    padding: 4px !important;
-    text-align: right;
-  }
-
-  /* SOS column on mobile */
-  .ladder-table th:nth-child(7),
-  .ladder-table td:nth-child(7) {
     width: 36px !important;
     min-width: 0 !important;
     max-width: 36px !important;
@@ -1833,13 +1818,35 @@ th[data-sort]:hover {
     text-align: right;
   }
 
-  /* Rating column on mobile (shifted from 7 to 8) */
+  /* Rating column on mobile */
+  .ladder-table th:nth-child(7),
+  .ladder-table td:nth-child(7) {
+    width: 52px !important;
+    min-width: 0 !important;
+    max-width: 52px !important;
+    padding: 5px 3px !important;
+    text-align: right;
+  }
+
+  /* Status column on mobile (now visible at col 8) */
   .ladder-table th:nth-child(8),
   .ladder-table td:nth-child(8) {
     width: 52px !important;
     min-width: 0 !important;
     max-width: 52px !important;
-    padding: 5px 3px !important;
+    padding: 4px 3px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* SOS column on mobile (moved to col 9) */
+  .ladder-table th:nth-child(9),
+  .ladder-table td:nth-child(9) {
+    width: 36px !important;
+    min-width: 0 !important;
+    max-width: 36px !important;
+    padding: 4px !important;
     text-align: right;
   }
 
@@ -2610,13 +2617,13 @@ th[data-sort]:hover {
    LADDER — SHOW/HIDE COLS
 ========================= */
 
-.ladder-table th:nth-child(n+9),
-.ladder-table td:nth-child(n+9) {
+.ladder-table th:nth-child(n+10),
+.ladder-table td:nth-child(n+10) {
   display: none;
 }
 
-.ladder-table.show-more-stats th:nth-child(n+9),
-.ladder-table.show-more-stats td:nth-child(n+9) {
+.ladder-table.show-more-stats th:nth-child(n+10),
+.ladder-table.show-more-stats td:nth-child(n+10) {
   display: table-cell;
 }
 
@@ -3464,4 +3471,18 @@ th[data-sort]:hover {
 .scroll-mirror-inner {
   height: 1px; /* content taller than 0 so the scrollbar appears */
   pointer-events: none;
+}
+
+/* =========================
+   MOBILE LANDSCAPE — compact header
+   Hides the brand/logo row and tightens header padding so the table
+   gets maximum vertical space in landscape orientation on phones.
+========================= */
+@media (orientation: landscape) and (max-width: 900px) {
+  .site-header {
+    padding: 8px 18px;
+  }
+  .brand {
+    display: none;
+  }
 }
