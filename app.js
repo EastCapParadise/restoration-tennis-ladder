@@ -849,14 +849,18 @@ async function loadActivityFeed() {
         ? [match.team2_player1_id, match.team2_player2_id]
         : [match.team1_player1_id, match.team1_player2_id];
 
-      const winnerNames = winnerIds.filter(Boolean).map(id => abbreviateName(playerMap[id])).join(" & ");
-      const loserNames  = loserIds.filter(Boolean).map(id => abbreviateName(playerMap[id])).join(" & ");
+      const winnerLinks = winnerIds.filter(Boolean)
+        .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(abbreviateName(playerMap[id]))}</a>`)
+        .join(" &amp; ");
+      const loserLinks = loserIds.filter(Boolean)
+        .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(abbreviateName(playerMap[id]))}</a>`)
+        .join(" &amp; ");
       const timeAgo = relativeTime(match.date_played || match.created_at);
       const score = match.score_text ? ` · ${escapeHtml(winnerFirstScore(match.score_text, match.winner_team))}` : "";
       const type  = match.match_type || "Match";
 
       return `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
-        <strong>${escapeHtml(winnerNames)}</strong> defeated <strong>${escapeHtml(loserNames)}</strong>${score} · ${escapeHtml(type)} · ${escapeHtml(timeAgo)}
+        <strong>${winnerLinks}</strong> defeated <strong>${loserLinks}</strong>${score} · ${escapeHtml(type)} · ${escapeHtml(timeAgo)}
       </li>`;
     });
 
@@ -922,12 +926,22 @@ async function loadMatchOfWeek() {
     const statText = isUpset ? "" : `${mostGamesTotal} total games played`;
 
     const playerMap = await fetchPlayerNamesForMatches([featured]);
-    const display = buildMatchDisplay(featured, playerMap);
-    const winnerText = featured.winner_team === 1 ? display.team1Text : display.team2Text;
-    const loserText  = featured.winner_team === 1 ? display.team2Text : display.team1Text;
     const dateStr = featured.date_played
       ? new Date(featured.date_played).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : "";
+
+    // Build linked team names for winner and loser
+    const linkedTeam = (ids) => ids.filter(Boolean)
+      .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(playerMap[id] || "?")}</a>`)
+      .join(" / ");
+    const winnerIds = featured.winner_team === 1
+      ? [featured.team1_player1_id, featured.team1_player2_id]
+      : [featured.team2_player1_id, featured.team2_player2_id];
+    const loserIds = featured.winner_team === 1
+      ? [featured.team2_player1_id, featured.team2_player2_id]
+      : [featured.team1_player1_id, featured.team1_player2_id];
+    const winnerLinked = linkedTeam(winnerIds);
+    const loserLinked  = linkedTeam(loserIds);
 
     container.style.display = "";
     container.innerHTML = `
@@ -937,9 +951,9 @@ async function loadMatchOfWeek() {
           <span class="motw-descriptor">${escapeHtml(descriptor)}</span>
         </div>
         <div class="motw-result">
-          <span class="motw-winner">${escapeHtml(winnerText)}</span>
+          <span class="motw-winner">${winnerLinked}</span>
           <span class="motw-defeated">defeated</span>
-          <span class="motw-loser">${escapeHtml(loserText)}</span>
+          <span class="motw-loser">${loserLinked}</span>
         </div>
         <div class="motw-details">
           <span>${escapeHtml(winnerFirstScore(featured.score_text || "", featured.winner_team))}</span>
@@ -2330,7 +2344,8 @@ function buildMatchDisplay(match, playerMap) {
 }
 
 
-function renderMatchExtras(match, playerMap, sexMap = {}) {
+// selfId: when viewing a player profile, pass their ID so their own name renders as plain text.
+function renderMatchExtras(match, playerMap, sexMap = {}, selfId = null) {
   const rows = [];
   const isDoubles = match.match_type === "Doubles";
   const isMixed = matchIsMixedGender(match, sexMap);
@@ -2345,9 +2360,14 @@ function renderMatchExtras(match, playerMap, sexMap = {}) {
           : `Rating at match: ${Number(ratingAtMatch).toFixed(2)}`
         }</span>`
       : "";
+    const escapedName = escapeHtml(playerMap[playerId] || "Player");
+    const isSelf = selfId && Number(playerId) === Number(selfId);
+    const nameHtml = isSelf
+      ? escapedName
+      : `<a href="player.html?id=${playerId}" class="player-link">${escapedName}</a>`;
     rows.push(`
       <div class="match-extra-row">
-        <span class="match-extra-name">${escapeHtml(playerMap[playerId] || "Player")}${ratingLine}</span>
+        <span class="match-extra-name">${nameHtml}${ratingLine}</span>
         <span class="match-extra-stat">Rating: ${escapeHtml(formatSignedNumber(ratingChange))}</span>
         <span class="match-extra-stat">Points: ${escapeHtml(String(ladderPoints ?? "—"))}</span>
       </div>
@@ -2748,7 +2768,7 @@ async function loadPlayerMatchHistory() {
             </div>
           ` : ""}
 
-          ${renderMatchExtras(match, playerMap, sexMap)}
+          ${renderMatchExtras(match, playerMap, sexMap, playerId)}
         </div>
       `;
     }).join("");
