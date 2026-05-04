@@ -1665,13 +1665,28 @@ function calculateMatchScoring({
   // Use all-set games (including tiebreak) for the Elo K-factor margin ratio
   const totalGames = Math.max(team1TotalGames + team2TotalGames, 1);
   const marginRatio = Math.abs(team1TotalGames - team2TotalGames) / totalGames;
-  let baseK = matchType === "Doubles" ? 0.1 : 0.06;
-  baseK += Math.min(ratingGap * 0.04, 0.05);
-  baseK += marginRatio * 0.06;
-  const rawChangeTeam1 = roundToTwo((perfScoreTeam1 - expectedTeam1) * baseK);
-  const rawChangeTeam2 = roundToTwo((perfScoreTeam2 - expectedTeam2) * baseK);
-  const team1Change = Number.isFinite(rawChangeTeam1) ? rawChangeTeam1 : 0;
-  const team2Change = Number.isFinite(rawChangeTeam2) ? rawChangeTeam2 : 0;
+
+  // Provisional K-factor: players in their first 5 matches use baseK 0.12 for faster
+  // calibration; experienced players use 0.06. matches_played is read BEFORE this match
+  // is applied, so a player's first 5 appearances all receive the higher K.
+  // For doubles, each player's K is computed individually in case teammates differ.
+  const gapBonus    = Math.min(ratingGap * 0.04, 0.05);
+  const marginBonus = marginRatio * 0.06;
+
+  function playerK(player) {
+    const base = (player && (player.matches_played ?? 0) < 5) ? 0.12 : 0.06;
+    return base + gapBonus + marginBonus;
+  }
+
+  function safeRc(perfScore, expectedScore, player) {
+    const raw = roundToTwo((perfScore - expectedScore) * playerK(player));
+    return Number.isFinite(raw) ? raw : 0;
+  }
+
+  const rc1 = safeRc(perfScoreTeam1, expectedTeam1, team1Players[0]);
+  const rc2 = safeRc(perfScoreTeam1, expectedTeam1, team1Players[1]);
+  const rc3 = safeRc(perfScoreTeam2, expectedTeam2, team2Players[0]);
+  const rc4 = safeRc(perfScoreTeam2, expectedTeam2, team2Players[1]);
 
   // --- Ladder points (3-part system) ---
   // Part A: Loser always gets a participation floor of 5 points, no exceptions.
@@ -1690,12 +1705,7 @@ function calculateMatchScoring({
   return {
     team1AvgRating: roundToTwo(team1AvgRating),
     team2AvgRating: roundToTwo(team2AvgRating),
-    ratingChanges: [
-      team1Change,
-      team1Change,
-      team2Change,
-      team2Change
-    ],
+    ratingChanges: [rc1, rc2, rc3, rc4],
     ladderPoints: winnerTeam === 1
       ? [winnerPoints, winnerPoints, loserPoints, loserPoints]
       : [loserPoints, loserPoints, winnerPoints, winnerPoints]
