@@ -272,6 +272,9 @@ function sortPlayersForStandings(players) {
     const byWins = compareValues(a.wins ?? 0, b.wins ?? 0, "desc");
     if (byWins !== 0) return byWins;
 
+    const bySOS = compareValues(a.sos ?? 0, b.sos ?? 0, "desc");
+    if (bySOS !== 0) return bySOS;
+
     return compareValues(a.name || "", b.name || "", "asc");
   });
 }
@@ -457,7 +460,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
-  return state.ladder.showMoreStats ? 12 : 7;
+  return state.ladder.showMoreStats ? 13 : 8;
 }
 
 function getLadderSearchEl() {
@@ -573,6 +576,46 @@ async function fetchRecentMatchesForStatus() {
   return data || [];
 }
 
+async function fetchAllMatchesForSOS() {
+  const { data, error } = await supabaseClient
+    .from("matches")
+    .select(`
+      id,
+      team1_player1_id, team1_player2_id,
+      team2_player1_id, team2_player2_id,
+      team1_avg_rating, team2_avg_rating
+    `);
+  if (error) {
+    console.error("SOS match fetch error:", error);
+    return [];
+  }
+  return data || [];
+}
+
+function calculatePlayerSOS(playerId, allMatches, sexMap) {
+  const pid = Number(playerId);
+  const oppRatings = [];
+
+  for (const match of allMatches) {
+    const t1ids = [match.team1_player1_id, match.team1_player2_id].filter(Boolean);
+    const t2ids = [match.team2_player1_id, match.team2_player2_id].filter(Boolean);
+    const onTeam1 = t1ids.includes(pid);
+    const onTeam2 = t2ids.includes(pid);
+    if (!onTeam1 && !onTeam2) continue;
+
+    const oppIds    = onTeam1 ? t2ids : t1ids;
+    const storedAvg = onTeam1 ? match.team2_avg_rating : match.team1_avg_rating;
+    if (storedAvg == null) continue;
+
+    const isMixed = matchIsMixedGender(match, sexMap);
+    const unadj   = unadjustedTeamRating(storedAvg, oppIds, sexMap, isMixed);
+    if (unadj != null) oppRatings.push(unadj);
+  }
+
+  if (!oppRatings.length) return null;
+  return roundToTwo(oppRatings.reduce((a, b) => a + b, 0) / oppRatings.length);
+}
+
 function getPlayerStatus(playerId, matches) {
   const pid = Number(playerId);
 
@@ -682,6 +725,9 @@ function renderLadder(players) {
 
   const mePlayer = getMyLadderPlayer();
 
+  const sosValues = players.filter(p => p.sos != null).map(p => p.sos);
+  const avgSOS = sosValues.length ? sosValues.reduce((a, b) => a + b, 0) / sosValues.length : null;
+
   ladderBody.innerHTML = players.map((player, index) => {
     const rank = index + 1;
     const badge = getRankBadge(index);
@@ -705,6 +751,7 @@ function renderLadder(players) {
         <td class="num">${player.ladder_points ?? 0}</td>
         <td class="num">${player.wins ?? 0}</td>
         <td class="num">${player.losses ?? 0}</td>
+        <td class="${player.sos != null && avgSOS != null && player.sos > avgSOS + 0.005 ? "num sos-above" : player.sos != null && avgSOS != null && player.sos < avgSOS - 0.005 ? "num sos-below" : "num"}">${player.sos != null ? player.sos : "—"}</td>
         <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
         <td>${escapeHtml(player.status || "—")}</td>
         <td class="num">${player.games_won ?? 0}</td>
@@ -735,14 +782,19 @@ async function loadLadder() {
   setTableMessage(ladderBody, "Loading rankings...", getLadderColspan());
 
   try {
-    const [players, recentMatches] = await Promise.all([
+    const [players, recentMatches, sosMatches] = await Promise.all([
       fetchPlayers(),
-      fetchRecentMatchesForStatus()
+      fetchRecentMatchesForStatus(),
+      fetchAllMatchesForSOS()
     ]);
+
+    const sexMap = {};
+    players.forEach(p => { sexMap[p.id] = p.sex || ""; });
 
     const playersWithStatus = players.map((player) => ({
       ...player,
-      status: getPlayerStatus(player.id, recentMatches)
+      status: getPlayerStatus(player.id, recentMatches),
+      sos: calculatePlayerSOS(player.id, sosMatches, sexMap)
     }));
 
     const filtered = applyLadderFilters(playersWithStatus);
