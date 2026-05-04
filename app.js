@@ -2567,7 +2567,8 @@ async function fetchMatchesForPlayer(playerId) {
       set1_team1_games,
       set1_team2_games,
       set2_team1_games,
-      set2_team2_games
+      set2_team2_games,
+      match_notes
     `)
     .order("date_played", { ascending: true })
     .order("created_at", { ascending: true });
@@ -2741,22 +2742,13 @@ async function loadPlayerMatchHistory() {
             <strong>Score:</strong> ${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}
           </div>
 
-          <div class="match-impact-grid">
-            <div class="match-impact-card">
-              <div class="match-impact-name">Rating Change</div>
-              <div class="match-impact-value">${formatSignedNumber(perspective?.ratingChange)}</div>
+          ${match.match_notes ? `
+            <div class="history-meta">
+              <strong>Notes:</strong> ${escapeHtml(match.match_notes)}
             </div>
-            <div class="match-impact-card">
-              <div class="match-impact-name">Ladder Points</div>
-              <div class="match-impact-value">${perspective?.ladderPoints ?? "—"}</div>
-            </div>
-            ${perspective?.ratingAtMatch != null ? `
-            <div class="match-impact-card">
-              <div class="match-impact-name">${perspective.isDoubles ? "Team Rating (avg)" : "Rating at Match"}</div>
-              <div class="match-impact-value">${Number(perspective.ratingAtMatch).toFixed(2)}</div>
-            </div>
-            ` : ""}
-          </div>
+          ` : ""}
+
+          ${renderMatchExtras(match, playerMap, sexMap)}
         </div>
       `;
     }).join("");
