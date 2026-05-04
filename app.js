@@ -1665,42 +1665,27 @@ function calculateMatchScoring({
   const delta = actualSpread - expectedSpread;
   // Positive delta = outperformed expectations; negative = closer match than expected.
 
-  // Continuous performance scores replace binary 0/1 — a loser who outperforms expectations
-  // can gain rating. winner_performance_score = 0.5 + (delta / 48), clamped [0.0, 1.0].
-  const winnerPerfScore = Math.max(0.0, Math.min(1.0, 0.5 + delta / 48));
-  const loserPerfScore  = 1 - winnerPerfScore;
-  const perfScoreTeam1  = winnerTeam === 1 ? winnerPerfScore : loserPerfScore;
-  const perfScoreTeam2  = winnerTeam === 2 ? winnerPerfScore : loserPerfScore;
-
-  // --- Elo-style dynamic rating change ---
-  const ratingGap = Math.abs(team1AvgRating - team2AvgRating);
-  const expectedTeam1 = 1 / (1 + Math.pow(10, (team2AvgRating - team1AvgRating) / 0.45));
-  const expectedTeam2 = 1 - expectedTeam1;
-  // Use all-set games (including tiebreak) for the Elo K-factor margin ratio
-  const totalGames = Math.max(team1TotalGames + team2TotalGames, 1);
-  const marginRatio = Math.abs(team1TotalGames - team2TotalGames) / totalGames;
-
-  // Provisional K-factor: players in their first 5 matches use baseK 0.12 for faster
-  // calibration; experienced players use 0.06. matches_played is read BEFORE this match
-  // is applied, so a player's first 5 appearances all receive the higher K.
-  // For doubles, each player's K is computed individually in case teammates differ.
-  const gapBonus    = Math.min(ratingGap * 0.04, 0.05);
-  const marginBonus = marginRatio * 0.06;
-
-  function playerK(player) {
-    const base = (player && (player.matches_played ?? 0) < 5) ? 0.12 : 0.06;
-    return base + gapBonus + marginBonus;
+  // --- Dynamic rating change (pure game-spread based) ---
+  // ratingChange = (delta / 24) × K × 0.5
+  // Winner and loser are always symmetric: winner gains, loser loses the same amount.
+  // The Elo win probability is NOT used for rating changes — only in buildOddsLine
+  // for the "Odds: X% · Y%" display on match cards.
+  // Provisional K: 0.12 for a player's first 5 matches, 0.06 after. Applied per player
+  // so doubles teammates at different experience levels get different K values.
+  function playerBaseK(player) {
+    return (player && (player.matches_played ?? 0) < 5) ? 0.12 : 0.06;
   }
 
-  function safeRc(perfScore, expectedScore, player) {
-    const raw = roundToTwo((perfScore - expectedScore) * playerK(player));
-    return Number.isFinite(raw) ? raw : 0;
+  function playerRc(player, isWinnerTeam) {
+    const raw = roundToTwo((delta / 24) * playerBaseK(player) * 0.5);
+    const rc = Number.isFinite(raw) ? raw : 0;
+    return isWinnerTeam ? rc : -rc;
   }
 
-  const rc1 = safeRc(perfScoreTeam1, expectedTeam1, team1Players[0]);
-  const rc2 = safeRc(perfScoreTeam1, expectedTeam1, team1Players[1]);
-  const rc3 = safeRc(perfScoreTeam2, expectedTeam2, team2Players[0]);
-  const rc4 = safeRc(perfScoreTeam2, expectedTeam2, team2Players[1]);
+  const rc1 = playerRc(team1Players[0], winnerTeam === 1);
+  const rc2 = playerRc(team1Players[1], winnerTeam === 1);
+  const rc3 = playerRc(team2Players[0], winnerTeam === 2);
+  const rc4 = playerRc(team2Players[1], winnerTeam === 2);
 
   // --- Ladder points (3-part system) ---
   // Part A: Loser always gets a participation floor of 5 points, no exceptions.
