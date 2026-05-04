@@ -1666,7 +1666,7 @@ function calculateMatchScoring({
   // Positive delta = outperformed expectations; negative = closer match than expected.
 
   // --- Dynamic rating change (pure game-spread based) ---
-  // ratingChange = (delta / 24) × K × 0.5
+  // ratingChange = (delta / 24) × K × 0.85
   // Winner and loser are always symmetric: winner gains, loser loses the same amount.
   // The Elo win probability is NOT used for rating changes — only in buildOddsLine
   // for the "Odds: X% · Y%" display on match cards.
@@ -1677,7 +1677,7 @@ function calculateMatchScoring({
   }
 
   function playerRc(player, isWinnerTeam) {
-    const raw = roundToTwo((delta / 24) * playerBaseK(player) * 0.5);
+    const raw = roundToTwo((delta / 24) * playerBaseK(player) * 0.85);
     const rc = Number.isFinite(raw) ? raw : 0;
     return isWinnerTeam ? rc : -rc;
   }
