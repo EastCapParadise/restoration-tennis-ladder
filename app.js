@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       setupLadderSorting();
       setupShowMoreStats();
       await loadLadder();
-      setupStickyScrollbar(document.querySelector(".ladder-table")?.closest(".table-wrap"));
+      setupStickyScrollbar(document.querySelector(".ladder-table")?.closest(".table-wrap"), "top");
     }
 
     if (document.getElementById("home-stats")) {
@@ -282,16 +282,34 @@ function sortPlayersForStandings(players) {
 // Adds a thin duplicate scrollbar just below a table-wrap so users can
 // scroll horizontally without travelling to the bottom of a tall table.
 // Call once per table-wrap; safe to call multiple times (guarded).
-function setupStickyScrollbar(tableWrap) {
+// position = "top"    → inserts mirror ABOVE table-wrap, sticky below the site header
+// position = "bottom" → inserts mirror BELOW table-wrap (default, used for Directory)
+function setupStickyScrollbar(tableWrap, position = "bottom") {
   if (!tableWrap) return;
-  if (tableWrap.nextElementSibling?.classList.contains("scroll-mirror-wrap")) return;
+
+  // Guard: prevent double-initialisation
+  if (position === "top") {
+    if (tableWrap.previousElementSibling?.classList.contains("scroll-mirror-top")) return;
+  } else {
+    if (tableWrap.nextElementSibling?.classList.contains("scroll-mirror-wrap")) return;
+  }
 
   const mirror = document.createElement("div");
-  mirror.className = "scroll-mirror-wrap";
+  mirror.className = position === "top"
+    ? "scroll-mirror-wrap scroll-mirror-top"
+    : "scroll-mirror-wrap";
   const inner = document.createElement("div");
   inner.className = "scroll-mirror-inner";
   mirror.appendChild(inner);
-  tableWrap.parentNode.insertBefore(mirror, tableWrap.nextSibling);
+
+  if (position === "top") {
+    // Offset sticky top by the actual header height so the mirror sits flush below it
+    const header = document.querySelector(".site-header");
+    mirror.style.top = (header ? header.offsetHeight : 0) + "px";
+    tableWrap.parentNode.insertBefore(mirror, tableWrap);
+  } else {
+    tableWrap.parentNode.insertBefore(mirror, tableWrap.nextSibling);
+  }
 
   function syncWidth() {
     inner.style.width = tableWrap.scrollWidth + "px";
@@ -725,9 +743,6 @@ function renderLadder(players) {
 
   const mePlayer = getMyLadderPlayer();
 
-  const sosValues = players.filter(p => p.sos != null).map(p => p.sos);
-  const avgSOS = sosValues.length ? sosValues.reduce((a, b) => a + b, 0) / sosValues.length : null;
-
   ladderBody.innerHTML = players.map((player, index) => {
     const rank = index + 1;
     const badge = getRankBadge(index);
@@ -751,7 +766,7 @@ function renderLadder(players) {
         <td class="num">${player.ladder_points ?? 0}</td>
         <td class="num">${player.wins ?? 0}</td>
         <td class="num">${player.losses ?? 0}</td>
-        <td class="${player.sos != null && avgSOS != null && player.sos > avgSOS + 0.005 ? "num sos-above" : player.sos != null && avgSOS != null && player.sos < avgSOS - 0.005 ? "num sos-below" : "num"}">${player.sos != null ? player.sos : "—"}</td>
+        <td class="num">${player.sos != null ? player.sos : "—"}</td>
         <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
         <td>${escapeHtml(player.status || "—")}</td>
         <td class="num">${player.games_won ?? 0}</td>
