@@ -1,0 +1,353 @@
+/* ============================================================
+   Restoration Tennis Ladder — Admin Dashboard Styles
+   ============================================================ */
+
+/* ── Section header (h2 + action button in a row) ─────── */
+
+.adm-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.adm-section-header h2 {
+  margin: 0;
+}
+
+/* ── Admin buttons ─────────────────────────────────────── */
+
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.adm-btn:hover  { opacity: 0.88; transform: translateY(-1px); }
+.adm-btn:active { transform: translateY(0); }
+.adm-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.adm-btn-primary   { background: #1f4d3a; color: white; }
+.adm-btn-danger    { background: #dc2626; color: white; }
+.adm-btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.adm-btn-warning   { background: #d97706; color: white; }
+
+.adm-btn-sm  { padding: 7px 12px; font-size: 13px; }
+.adm-btn-lg  { padding: 12px 24px; font-size: 15px; }
+
+/* ── Inline action buttons inside table cells ────────── */
+
+.adm-action-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Admin tables ──────────────────────────────────────── */
+
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+  font-size: 14px;
+}
+
+.adm-table th {
+  background: #f8fafc;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.adm-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.adm-table tr:last-child td { border-bottom: none; }
+.adm-table tr:hover td { background: #f9fafb; }
+
+/* ── Status / feedback text ───────────────────────────── */
+
+.adm-status-text {
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 18px;
+  margin: 6px 0;
+}
+
+.adm-status-text.success { color: #16a34a; font-weight: 600; }
+.adm-status-text.error   { color: #dc2626; font-weight: 600; }
+
+.adm-meta {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+/* ── Modals ───────────────────────────────────────────── */
+
+.adm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.52);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.adm-overlay.hidden {
+  display: none;
+}
+
+.adm-modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  animation: adm-modal-in 0.2s ease;
+}
+
+.adm-modal-sm { max-width: 360px; }
+
+@keyframes adm-modal-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.adm-modal-header {
+  background: linear-gradient(135deg, #16392b 0%, #1f4d3a 60%, #1f3558 100%);
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.adm-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.adm-modal-close {
+  background: rgba(255,255,255,0.18);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adm-modal-close:hover { background: rgba(255,255,255,0.3); }
+
+.adm-modal-body {
+  padding: 20px;
+}
+
+.adm-modal-footer {
+  padding: 14px 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Score inputs inside modal ────────────────────────── */
+
+.adm-score-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.adm-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adm-score-label {
+  min-width: 100px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.adm-score-input {
+  width: 64px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+}
+
+.adm-score-input:focus {
+  border-color: #1f4d3a;
+  box-shadow: 0 0 0 2px rgba(31,77,58,0.12);
+}
+
+.adm-score-dash {
+  font-size: 18px;
+  color: var(--muted);
+  font-weight: 300;
+}
+
+.adm-optional {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ── Generic text input inside modal ──────────────────── */
+
+.adm-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  margin-top: 4px;
+}
+
+.adm-input:focus {
+  border-color: #1f4d3a;
+  box-shadow: 0 0 0 2px rgba(31,77,58,0.12);
+}
+
+/* ── Recalculation progress log ───────────────────────── */
+
+.adm-recalc-progress {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.adm-recalc-progress.hidden { display: none; }
+
+.adm-recalc-log {
+  background: #0f172a;
+  color: #a3e635;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.adm-recalc-log div { margin: 0; }
+.adm-recalc-log .log-match  { color: #7dd3fc; }
+.adm-recalc-log .log-ok     { color: #a3e635; }
+.adm-recalc-log .log-error  { color: #f87171; }
+.adm-recalc-log .log-header { color: #fde68a; font-weight: bold; }
+
+/* ── Recalculation summary table ──────────────────────── */
+
+#recalc-summary {
+  margin-top: 16px;
+}
+
+#recalc-summary.hidden { display: none; }
+
+.adm-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.adm-summary-table th {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-summary-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.adm-summary-table tr:last-child td { border-bottom: none; }
+
+.adm-delta-up   { color: #16a34a; font-weight: 600; }
+.adm-delta-down { color: #dc2626; font-weight: 600; }
+.adm-delta-same { color: var(--muted); }
+
+/* ── Recent signups grid ──────────────────────────────── */
+
+.adm-signups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.adm-signup-card {
+  background: var(--green-light);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.adm-signup-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--green-dark);
+  margin-bottom: 4px;
+}
+
+.adm-signup-meta {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── Mobile ───────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .adm-modal { border-radius: 14px; }
+  .adm-score-label { min-width: 80px; font-size: 13px; }
+  .adm-score-input { width: 52px; }
+  .adm-btn-lg { padding: 11px 18px; font-size: 14px; }
+  .adm-signups-grid { grid-template-columns: 1fr 1fr; }
+}

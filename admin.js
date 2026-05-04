@@ -1,0 +1,813 @@
+/* ============================================================
+   Restoration Tennis Ladder — Admin Dashboard
+   Self-contained: does NOT depend on app.js
+   ============================================================ */
+
+'use strict';
+
+const SUPABASE_URL     = 'https://jntspohwzkugcuisoofm.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_CgGyn2sReCxWz6Li9QnWnw_kC-8CgVO';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const ADMIN_PASSWORD   = 'RestAdmin2026';
+const ADMIN_SESSION    = 'rtl_admin_access';
+
+// ─── Tiny helpers ────────────────────────────────────────────────────────────
+
+function esc(v) {
+  return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function roundToTwo(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function fmt(n) {
+  const x = Number(n ?? 0);
+  return (x >= 0 ? '+' : '') + x.toFixed(2);
+}
+
+function setStatus(elId, msg, type = '') {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'adm-status-text' + (type ? ` ${type}` : '');
+}
+
+// ─── Mobile hamburger (mirrors app.js) ───────────────────────────────────────
+
+function setupMobileMenu() {
+  const header = document.querySelector('.site-header');
+  const btn    = document.querySelector('.hamburger-btn');
+  if (!header || !btn) return;
+  btn.addEventListener('click', () => {
+    const open = header.classList.toggle('menu-open');
+    btn.textContent = open ? '✕' : '☰';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    header.querySelector('.mobile-nav-menu')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+  });
+  header.querySelectorAll('.mobile-nav-menu a').forEach(a => {
+    a.addEventListener('click', () => {
+      header.classList.remove('menu-open');
+      btn.textContent = '☰';
+      btn.setAttribute('aria-expanded', 'false');
+      header.querySelector('.mobile-nav-menu')?.setAttribute('aria-hidden', 'true');
+    });
+  });
+}
+
+// ─── Password gate ────────────────────────────────────────────────────────────
+
+function setupAdminLogin() {
+  const form    = document.getElementById('admin-login-form');
+  const input   = document.getElementById('admin-password');
+  const msgEl   = document.getElementById('admin-login-message');
+  const overlay = document.getElementById('admin-login-overlay');
+  const page    = document.getElementById('admin-page');
+
+  function grantAccess() {
+    sessionStorage.setItem(ADMIN_SESSION, 'granted');
+    overlay.classList.add('hidden');
+    page.classList.remove('hidden');
+    loadAll();
+  }
+
+  if (sessionStorage.getItem(ADMIN_SESSION) === 'granted') {
+    grantAccess();
+    return;
+  }
+
+  input?.focus();
+
+  form?.addEventListener('submit', e => {
+    e.preventDefault();
+    if (input.value.trim() !== ADMIN_PASSWORD) {
+      msgEl.textContent = 'Incorrect password.';
+      input.value = '';
+      input.focus();
+      return;
+    }
+    msgEl.textContent = '';
+    grantAccess();
+  });
+}
+
+// ─── Scoring engine (mirrors app.js calculateMatchScoring exactly) ────────────
+
+function isMixedGender(team1, team2) {
+  const all = [...team1, ...team2].filter(Boolean);
+  return all.some(p => p.sex === 'Man') && all.some(p => p.sex === 'Woman');
+}
+
+function avgAdjRating(players, adj) {
+  const v = players.filter(Boolean);
+  if (!v.length) return 0;
+  return v.reduce((s, p) => {
+    const base = Number(p.dynamic_rating ?? p.display_rating ?? 0);
+    return s + (adj && p.sex === 'Man' ? base + 0.5 : base);
+  }, 0) / v.length;
+}
+
+function provisionalBaseK(player) {
+  return (player && (player.matches_played ?? 0) < 5) ? 0.12 : 0.06;
+}
+
+function scoreMatch({ matchType, winnerTeam, team1Players, team2Players,
+  team1StandardGames, team2StandardGames, team1TotalGames, team2TotalGames }) {
+
+  const mixed = isMixedGender(team1Players, team2Players);
+  const t1avg = avgAdjRating(team1Players, mixed);
+  const t2avg = avgAdjRating(team2Players, mixed);
+
+  const wAvg = winnerTeam === 1 ? t1avg : t2avg;
+  const lAvg = winnerTeam === 1 ? t2avg : t1avg;
+  const wStd = winnerTeam === 1 ? team1StandardGames : team2StandardGames;
+  const lStd = winnerTeam === 1 ? team2StandardGames : team1StandardGames;
+
+  const gap = Math.min(Math.abs(wAvg - lAvg), 0.5);
+  const expSpread = wAvg >= lAvg ? gap * 24 : -(gap * 24);
+  const delta = (wStd - lStd) - expSpread;
+
+  const wPerf = clamp(0.5 + delta / 48, 0, 1);
+  const lPerf = 1 - wPerf;
+  const pT1 = winnerTeam === 1 ? wPerf : lPerf;
+  const pT2 = winnerTeam === 2 ? wPerf : lPerf;
+
+  const rGap   = Math.abs(t1avg - t2avg);
+  const eT1    = 1 / (1 + Math.pow(10, (t2avg - t1avg) / 0.45));
+  const eT2    = 1 - eT1;
+  const tot    = Math.max(team1TotalGames + team2TotalGames, 1);
+  const mRatio = Math.abs(team1TotalGames - team2TotalGames) / tot;
+  const gapB   = Math.min(rGap * 0.04, 0.05);
+  const marB   = mRatio * 0.06;
+
+  const pK = p => provisionalBaseK(p) + gapB + marB;
+  const sRC = (perf, exp, p) => {
+    const raw = roundToTwo((perf - exp) * pK(p));
+    return Number.isFinite(raw) ? raw : 0;
+  };
+
+  const rc1 = sRC(pT1, eT1, team1Players[0]);
+  const rc2 = sRC(pT1, eT1, team1Players[1]);
+  const rc3 = sRC(pT2, eT2, team2Players[0]);
+  const rc4 = sRC(pT2, eT2, team2Players[1]);
+
+  let wPts = Math.max(7, Math.min(18, Math.round(13 + delta * 0.5)));
+  let lPts = delta >= 0 ? 5 : Math.round(5 + (-delta * 0.6));
+  lPts = Math.max(5, Math.min(wPts - 1, lPts));
+
+  const lp = winnerTeam === 1
+    ? [wPts, wPts, lPts, lPts]
+    : [lPts, lPts, wPts, wPts];
+
+  return {
+    team1AvgRating: roundToTwo(t1avg),
+    team2AvgRating: roundToTwo(t2avg),
+    ratingChanges: [rc1, rc2, rc3, rc4],
+    ladderPoints: lp,
+  };
+}
+
+// ─── Full retroactive recalculation ──────────────────────────────────────────
+
+async function runRecalculation(log) {
+  log('header', '=== Starting Full Recalculation ===');
+
+  // Load players
+  const { data: players, error: pErr } = await db
+    .from('players')
+    .select('id, name, sex, initial_rating, display_rating, dynamic_rating, ladder_points, wins, losses, games_won, games_lost, matches_played, rating');
+  if (pErr) return { success: false, error: pErr.message };
+
+  const oldStats = {};
+  const state = {};
+
+  for (const p of players) {
+    oldStats[p.id] = {
+      ladder_points: Number(p.ladder_points ?? 0),
+      dynamic_rating: Number(p.dynamic_rating ?? p.initial_rating ?? 0),
+      wins: Number(p.wins ?? 0),
+      losses: Number(p.losses ?? 0),
+    };
+    const ir = Number(p.initial_rating ?? p.display_rating ?? 0);
+    state[p.id] = {
+      id: p.id, name: p.name, sex: p.sex,
+      dynamic_rating: ir, display_rating: ir, rating: Math.round(ir * 100),
+      ladder_points: 0, wins: 0, losses: 0,
+      games_won: 0, games_lost: 0, matches_played: 0,
+    };
+  }
+
+  log('ok', `Loaded ${players.length} players — stats reset to initial rating.`);
+
+  // Load matches
+  const { data: matches, error: mErr } = await db
+    .from('matches')
+    .select(`id, match_type, winner_team, date_played, created_at,
+      team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
+      set1_team1_games, set1_team2_games, set2_team1_games, set2_team2_games,
+      set3_team1_games, set3_team2_games`)
+    .order('date_played', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (mErr) return { success: false, error: mErr.message };
+
+  log('ok', `Loaded ${matches.length} matches to replay.`);
+
+  // Replay each match
+  for (const m of matches) {
+    const gP = id => id ? state[id] ?? null : null;
+    const t1 = [gP(m.team1_player1_id), gP(m.team1_player2_id)];
+    const t2 = [gP(m.team2_player1_id), gP(m.team2_player2_id)];
+
+    const t1Std = Number(m.set1_team1_games ?? 0) + Number(m.set2_team1_games ?? 0);
+    const t2Std = Number(m.set1_team2_games ?? 0) + Number(m.set2_team2_games ?? 0);
+    const t1Tot = t1Std + Number(m.set3_team1_games ?? 0);
+    const t2Tot = t2Std + Number(m.set3_team2_games ?? 0);
+
+    const s = scoreMatch({
+      matchType: m.match_type, winnerTeam: m.winner_team,
+      team1Players: t1, team2Players: t2,
+      team1StandardGames: t1Std, team2StandardGames: t2Std,
+      team1TotalGames: t1Tot, team2TotalGames: t2Tot,
+    });
+
+    const payload = {
+      team1_avg_rating: s.team1AvgRating,
+      team2_avg_rating: s.team2AvgRating,
+      rating_change_p1: s.ratingChanges[0],
+      rating_change_p2: m.team1_player2_id ? s.ratingChanges[1] : null,
+      rating_change_p3: s.ratingChanges[2],
+      rating_change_p4: m.team2_player2_id ? s.ratingChanges[3] : null,
+      ladder_points_p1: s.ladderPoints[0],
+      ladder_points_p2: m.team1_player2_id ? s.ladderPoints[1] : null,
+      ladder_points_p3: s.ladderPoints[2],
+      ladder_points_p4: m.team2_player2_id ? s.ladderPoints[3] : null,
+    };
+
+    const { error: wErr } = await db.from('matches').update(payload).eq('id', m.id);
+    if (wErr) return { success: false, error: `Match ${m.id}: ${wErr.message}` };
+
+    // Verify write
+    const { data: v } = await db.from('matches')
+      .select('ladder_points_p1').eq('id', m.id).single();
+    if (v?.ladder_points_p1 !== payload.ladder_points_p1) {
+      return { success: false, error: `Verify failed for match ${m.id} — RLS may be blocking writes.` };
+    }
+
+    const n1 = state[m.team1_player1_id]?.name ?? '?';
+    const n3 = state[m.team2_player1_id]?.name ?? '?';
+    log('match', `  [${m.date_played}] ${n1} vs ${n3} ✓`);
+
+    // Update in-memory state (matches_played read BEFORE increment for K-factor)
+    const t1Won = m.winner_team === 1, t2Won = m.winner_team === 2;
+    function applyUpd(player, rc, lp, won, ownStd, oppStd) {
+      if (!player) return;
+      const next = roundToTwo(player.dynamic_rating + rc);
+      player.dynamic_rating = next;
+      player.display_rating = next;
+      player.rating = Math.round(next * 100);
+      player.ladder_points += lp;
+      player.wins  += won ? 1 : 0;
+      player.losses += won ? 0 : 1;
+      player.games_won  += ownStd;
+      player.games_lost += oppStd;
+      player.matches_played += 1;
+    }
+    applyUpd(t1[0], s.ratingChanges[0], s.ladderPoints[0], t1Won, t1Std, t2Std);
+    applyUpd(t1[1], s.ratingChanges[1], s.ladderPoints[1], t1Won, t1Std, t2Std);
+    applyUpd(t2[0], s.ratingChanges[2], s.ladderPoints[2], t2Won, t2Std, t1Std);
+    applyUpd(t2[1], s.ratingChanges[3], s.ladderPoints[3], t2Won, t2Std, t1Std);
+  }
+
+  log('ok', 'All matches replayed and verified. Writing player stats...');
+
+  // Write player stats
+  for (const p of players) {
+    const s = state[p.id];
+    const { error } = await db.from('players').update({
+      display_rating: s.display_rating,
+      dynamic_rating: s.dynamic_rating,
+      rating: s.rating,
+      ladder_points: s.ladder_points,
+      wins: s.wins,
+      losses: s.losses,
+      games_won: s.games_won,
+      games_lost: s.games_lost,
+      matches_played: s.matches_played,
+    }).eq('id', p.id);
+    if (error) log('error', `  ERROR player ${s.name}: ${error.message}`);
+  }
+
+  log('header', '=== Recalculation complete ===');
+
+  // Build change summary for active players
+  const changes = players
+    .filter(p => state[p.id].matches_played > 0)
+    .sort((a, b) => state[b.id].ladder_points - state[a.id].ladder_points)
+    .map(p => ({
+      name: state[p.id].name,
+      newPts: state[p.id].ladder_points,
+      oldPts: oldStats[p.id].ladder_points,
+      newRating: state[p.id].dynamic_rating,
+      oldRating: oldStats[p.id].dynamic_rating,
+    }));
+
+  return { success: true, changes };
+}
+
+// ─── Confirm modal (Promise-based) ────────────────────────────────────────────
+
+function showConfirm(title, message) {
+  return new Promise(resolve => {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-status').textContent = '';
+    document.getElementById('confirm-modal').classList.remove('hidden');
+
+    const yes = document.getElementById('confirm-yes');
+    const no  = document.getElementById('confirm-no');
+
+    function cleanup() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      yes.removeEventListener('click', onYes);
+      no.removeEventListener('click', onNo);
+    }
+    function onYes() { cleanup(); resolve(true); }
+    function onNo()  { cleanup(); resolve(false); }
+
+    yes.addEventListener('click', onYes);
+    no.addEventListener('click', onNo);
+  });
+}
+
+// ─── Section 1: Match Management ─────────────────────────────────────────────
+
+let allMatches = [];
+let playerNameMap = {};
+
+async function loadMatches() {
+  setStatus('match-mgmt-status', 'Loading matches…');
+  const tbody = document.getElementById('admin-match-body');
+
+  const [matchRes, playerRes] = await Promise.all([
+    db.from('matches')
+      .select(`id, date_played, match_type, winner_team, score_text,
+        team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
+        ladder_points_p1, ladder_points_p2, ladder_points_p3, ladder_points_p4,
+        set1_team1_games, set1_team2_games, set2_team1_games, set2_team2_games,
+        set3_team1_games, set3_team2_games`)
+      .order('date_played', { ascending: false })
+      .order('created_at', { ascending: false }),
+    db.from('players').select('id, name'),
+  ]);
+
+  if (matchRes.error) { setStatus('match-mgmt-status', matchRes.error.message, 'error'); return; }
+
+  allMatches = matchRes.data || [];
+  playerNameMap = Object.fromEntries((playerRes.data || []).map(p => [p.id, p.name]));
+
+  const pName = id => playerNameMap[id] || '?';
+
+  tbody.innerHTML = allMatches.map(m => {
+    const t1 = m.team1_player2_id
+      ? `${pName(m.team1_player1_id)} &amp; ${pName(m.team1_player2_id)}`
+      : esc(pName(m.team1_player1_id));
+    const t2 = m.team2_player2_id
+      ? `${pName(m.team2_player1_id)} &amp; ${pName(m.team2_player2_id)}`
+      : esc(pName(m.team2_player1_id));
+
+    const winnerText = m.winner_team === 1 ? t1 : t2;
+    const wPts = m.winner_team === 1 ? (m.ladder_points_p1 ?? '—') : (m.ladder_points_p3 ?? '—');
+    const lPts = m.winner_team === 1 ? (m.ladder_points_p3 ?? '—') : (m.ladder_points_p1 ?? '—');
+
+    return `<tr data-id="${m.id}">
+      <td style="white-space:nowrap">${esc(m.date_played)}</td>
+      <td>${t1} <span style="color:var(--muted)">vs</span> ${t2}</td>
+      <td style="white-space:nowrap">${esc(m.score_text || '—')}</td>
+      <td>${esc(m.match_type)}</td>
+      <td>${winnerText}</td>
+      <td style="white-space:nowrap"><strong>${wPts}</strong> / ${lPts}</td>
+      <td>
+        <div class="adm-action-group">
+          <button class="adm-btn adm-btn-sm adm-btn-warning edit-score-btn" data-id="${m.id}">Edit Score</button>
+          <button class="adm-btn adm-btn-sm adm-btn-danger void-btn" data-id="${m.id}">Void</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7">No matches found.</td></tr>';
+
+  setStatus('match-mgmt-status', `${allMatches.length} matches loaded.`);
+
+  // Delegate click events
+  tbody.querySelectorAll('.void-btn').forEach(btn => {
+    btn.addEventListener('click', () => voidMatch(Number(btn.dataset.id)));
+  });
+  tbody.querySelectorAll('.edit-score-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEditScore(Number(btn.dataset.id)));
+  });
+}
+
+async function voidMatch(matchId) {
+  const match = allMatches.find(m => m.id === matchId);
+  if (!match) return;
+
+  const n1 = playerNameMap[match.team1_player1_id] || '?';
+  const n3 = playerNameMap[match.team2_player1_id] || '?';
+  const confirmed = await showConfirm(
+    'Void Match',
+    `Void the match: ${n1} vs ${n3} (${match.date_played}, ${match.score_text})?\n\nThis will delete it permanently and trigger a full recalculation.`
+  );
+  if (!confirmed) return;
+
+  setStatus('match-mgmt-status', 'Deleting match…');
+
+  const { error } = await db.from('matches').delete().eq('id', matchId);
+  if (error) {
+    setStatus('match-mgmt-status', `Delete failed: ${error.message}`, 'error');
+    return;
+  }
+
+  setStatus('match-mgmt-status', 'Match deleted. Running recalculation…');
+  await runAndShowRecalc('match-mgmt-status');
+  await loadMatches();
+  await loadPlayers();
+}
+
+// ─── Edit Score Modal ─────────────────────────────────────────────────────────
+
+let editingMatchId = null;
+
+function openEditScore(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  if (!m) return;
+  editingMatchId = matchId;
+
+  const n1 = playerNameMap[m.team1_player1_id] || '?';
+  const n3 = playerNameMap[m.team2_player1_id] || '?';
+  document.getElementById('edit-score-meta').textContent =
+    `${m.date_played} — ${n1} vs ${n3} (${m.match_type})`;
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val !== null && val !== undefined ? val : '';
+  };
+
+  set('es-s1t1', m.set1_team1_games);
+  set('es-s1t2', m.set1_team2_games);
+  set('es-s2t1', m.set2_team1_games);
+  set('es-s2t2', m.set2_team2_games);
+  set('es-s3t1', m.set3_team1_games);
+  set('es-s3t2', m.set3_team2_games);
+
+  document.getElementById('edit-score-status').textContent = '';
+  document.getElementById('edit-score-modal').classList.remove('hidden');
+}
+
+function closeEditScore() {
+  document.getElementById('edit-score-modal').classList.add('hidden');
+  editingMatchId = null;
+}
+
+async function saveEditScore() {
+  if (!editingMatchId) return;
+
+  const g = id => {
+    const v = document.getElementById(id)?.value.trim();
+    return v === '' || v === undefined ? null : Number(v);
+  };
+
+  const s1t1 = g('es-s1t1'), s1t2 = g('es-s1t2');
+  const s2t1 = g('es-s2t1'), s2t2 = g('es-s2t2');
+  const s3t1 = g('es-s3t1'), s3t2 = g('es-s3t2');
+
+  if (s1t1 === null || s1t2 === null || s2t1 === null || s2t2 === null) {
+    document.getElementById('edit-score-status').textContent = 'Sets 1 and 2 are required.';
+    return;
+  }
+
+  const parts = [`${s1t1}-${s1t2}`, `${s2t1}-${s2t2}`];
+  if (s3t1 !== null && s3t2 !== null) parts.push(`${s3t1}-${s3t2}`);
+  const scoreText = parts.join(', ');
+
+  const statusEl = document.getElementById('edit-score-status');
+  statusEl.textContent = 'Saving score…';
+
+  const payload = {
+    score_text: scoreText,
+    set1_team1_games: s1t1, set1_team2_games: s1t2,
+    set2_team1_games: s2t1, set2_team2_games: s2t2,
+    set3_team1_games: s3t1, set3_team2_games: s3t2,
+    team1_total_games: s1t1 + s2t1,
+    team2_total_games: s1t2 + s2t2,
+  };
+
+  const { error } = await db.from('matches').update(payload).eq('id', editingMatchId);
+  if (error) {
+    statusEl.textContent = `Save failed: ${error.message}`;
+    return;
+  }
+
+  statusEl.textContent = 'Score saved. Running recalculation…';
+  closeEditScore();
+  setStatus('match-mgmt-status', 'Score updated. Recalculating…');
+  await runAndShowRecalc('match-mgmt-status');
+  await loadMatches();
+  await loadPlayers();
+}
+
+// ─── Section 2: Player Management ────────────────────────────────────────────
+
+let allPlayers = [];
+
+async function loadPlayers() {
+  setStatus('player-mgmt-status', 'Loading players…');
+  const tbody = document.getElementById('admin-player-body');
+
+  const { data, error } = await db
+    .from('players')
+    .select('id, name, dynamic_rating, initial_rating, wins, losses, ladder_points, matches_played, sex, area')
+    .order('ladder_points', { ascending: false });
+
+  if (error) { setStatus('player-mgmt-status', error.message, 'error'); return; }
+
+  allPlayers = data || [];
+
+  tbody.innerHTML = allPlayers.map(p => `
+    <tr data-id="${p.id}">
+      <td>${esc(p.name)}</td>
+      <td class="num">${Number(p.dynamic_rating ?? 0).toFixed(2)}</td>
+      <td class="num">${Number(p.initial_rating ?? 0).toFixed(2)}</td>
+      <td class="num">${p.wins ?? 0}</td>
+      <td class="num">${p.losses ?? 0}</td>
+      <td class="num">${p.ladder_points ?? 0}</td>
+      <td class="num">${p.matches_played ?? 0}</td>
+      <td>
+        <div class="adm-action-group">
+          <button class="adm-btn adm-btn-sm adm-btn-primary adj-rating-btn" data-id="${p.id}">Adjust Rating</button>
+          <button class="adm-btn adm-btn-sm adm-btn-danger remove-player-btn" data-id="${p.id}">Remove</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8">No players found.</td></tr>';
+
+  setStatus('player-mgmt-status', `${allPlayers.length} players loaded.`);
+
+  tbody.querySelectorAll('.adj-rating-btn').forEach(btn => {
+    btn.addEventListener('click', () => openAdjustRating(Number(btn.dataset.id)));
+  });
+  tbody.querySelectorAll('.remove-player-btn').forEach(btn => {
+    btn.addEventListener('click', () => removePlayer(Number(btn.dataset.id)));
+  });
+}
+
+// ── Adjust Rating Modal ────────────────────────────────────────────────────────
+
+let adjustingPlayerId = null;
+
+function openAdjustRating(playerId) {
+  const p = allPlayers.find(x => x.id === playerId);
+  if (!p) return;
+  adjustingPlayerId = playerId;
+
+  document.getElementById('adjust-rating-name').textContent = `Player: ${p.name}`;
+  document.getElementById('ar-current-display').textContent =
+    Number(p.dynamic_rating ?? 0).toFixed(2);
+  document.getElementById('ar-rating').value = Number(p.dynamic_rating ?? 0).toFixed(2);
+  document.getElementById('ar-note').value = '';
+  document.getElementById('adjust-rating-status').textContent = '';
+  document.getElementById('adjust-rating-modal').classList.remove('hidden');
+}
+
+function closeAdjustRating() {
+  document.getElementById('adjust-rating-modal').classList.add('hidden');
+  adjustingPlayerId = null;
+}
+
+async function saveRatingAdjustment() {
+  if (!adjustingPlayerId) return;
+
+  const newRating = Number(document.getElementById('ar-rating').value);
+  if (!Number.isFinite(newRating) || newRating < 2.0 || newRating > 5.5) {
+    document.getElementById('adjust-rating-status').textContent =
+      'Enter a valid rating between 2.0 and 5.5.';
+    return;
+  }
+
+  const statusEl = document.getElementById('adjust-rating-status');
+  statusEl.textContent = 'Saving…';
+
+  const rounded = Math.round(newRating * 100) / 100;
+
+  const { error } = await db.from('players').update({
+    dynamic_rating: rounded,
+    display_rating: rounded,
+    rating: Math.round(rounded * 100),
+  }).eq('id', adjustingPlayerId);
+
+  if (error) {
+    statusEl.textContent = `Failed: ${error.message}`;
+    return;
+  }
+
+  closeAdjustRating();
+  setStatus('player-mgmt-status', 'Rating updated successfully.', 'success');
+  await loadPlayers();
+}
+
+// ── Remove Player ──────────────────────────────────────────────────────────────
+
+async function removePlayer(playerId) {
+  const p = allPlayers.find(x => x.id === playerId);
+  if (!p) return;
+
+  if ((p.matches_played ?? 0) > 0) {
+    await showConfirm(
+      'Cannot Remove Player',
+      `${p.name} has ${p.matches_played} match(es) recorded. Remove their matches first before deleting the player.`
+    );
+    return;
+  }
+
+  const confirmed = await showConfirm(
+    'Remove Player',
+    `Permanently remove ${p.name} from the ladder? This cannot be undone.`
+  );
+  if (!confirmed) return;
+
+  const { error } = await db.from('players').delete().eq('id', playerId);
+  if (error) {
+    setStatus('player-mgmt-status', `Delete failed: ${error.message}`, 'error');
+    return;
+  }
+
+  setStatus('player-mgmt-status', `${p.name} removed.`, 'success');
+  await loadPlayers();
+}
+
+// ─── Section 3: Recent Signups ────────────────────────────────────────────────
+
+async function loadRecentSignups() {
+  const container = document.getElementById('recent-signups-content');
+
+  const { data, error } = await db
+    .from('players')
+    .select('id, name, dynamic_rating, area, sex, created_at')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) {
+    // Fallback: order by id if created_at not available
+    const { data: d2 } = await db
+      .from('players')
+      .select('id, name, dynamic_rating, area, sex')
+      .order('id', { ascending: false })
+      .limit(10);
+
+    if (!d2?.length) { container.textContent = 'No players found.'; return; }
+
+    container.innerHTML = `<div class="adm-signups-grid">${
+      d2.map(p => `
+        <div class="adm-signup-card">
+          <div class="adm-signup-name">${esc(p.name)}</div>
+          <div class="adm-signup-meta">${esc(p.sex)} · ${Number(p.dynamic_rating ?? 0).toFixed(2)} · ${esc(p.area || '—')}</div>
+        </div>`).join('')
+    }</div>`;
+    return;
+  }
+
+  if (!data?.length) { container.textContent = 'No players found.'; return; }
+
+  container.innerHTML = `<div class="adm-signups-grid">${
+    data.map(p => {
+      const joined = p.created_at
+        ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '—';
+      return `
+        <div class="adm-signup-card">
+          <div class="adm-signup-name">${esc(p.name)}</div>
+          <div class="adm-signup-meta">
+            ${esc(p.sex)} · ${Number(p.dynamic_rating ?? 0).toFixed(2)} · ${esc(p.area || '—')}<br>
+            Joined ${joined}
+          </div>
+        </div>`;
+    }).join('')
+  }</div>`;
+}
+
+// ─── Section 4: Season Tools ──────────────────────────────────────────────────
+
+async function runAndShowRecalc(statusElId) {
+  const logEl   = document.getElementById('recalc-log');
+  const progress = document.getElementById('recalc-progress');
+  const summary  = document.getElementById('recalc-summary');
+
+  if (logEl)  { logEl.innerHTML = ''; }
+  if (progress) { progress.classList.remove('hidden'); }
+  if (summary)  { summary.classList.add('hidden'); }
+
+  function log(type, msg) {
+    if (!logEl) return;
+    const div = document.createElement('div');
+    div.className = type === 'header' ? 'log-header'
+      : type === 'match' ? 'log-match'
+      : type === 'error' ? 'log-error'
+      : 'log-ok';
+    div.textContent = msg;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+    if (statusElId) setStatus(statusElId, msg.replace(/=+/g, '').trim());
+  }
+
+  const result = await runRecalculation(log);
+
+  if (!result.success) {
+    log('error', `ERROR: ${result.error}`);
+    if (statusElId) setStatus(statusElId, `Recalculation failed: ${result.error}`, 'error');
+    return;
+  }
+
+  if (statusElId) setStatus(statusElId, 'Recalculation complete.', 'success');
+
+  if (summary && result.changes?.length) {
+    const rows = result.changes.map(c => {
+      const pdiff = c.newPts - c.oldPts;
+      const rdiff = roundToTwo(c.newRating - c.oldRating);
+      const pCls  = pdiff > 0 ? 'adm-delta-up' : pdiff < 0 ? 'adm-delta-down' : 'adm-delta-same';
+      const rCls  = rdiff > 0 ? 'adm-delta-up' : rdiff < 0 ? 'adm-delta-down' : 'adm-delta-same';
+      return `<tr>
+        <td>${esc(c.name)}</td>
+        <td class="num">${c.oldPts} → <strong>${c.newPts}</strong></td>
+        <td class="num ${pCls}">${pdiff >= 0 ? '+' : ''}${pdiff}</td>
+        <td class="num">${c.oldRating.toFixed(2)} → <strong>${c.newRating.toFixed(2)}</strong></td>
+        <td class="num ${rCls}">${rdiff >= 0 ? '+' : ''}${rdiff.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+
+    summary.innerHTML = `
+      <h3 style="margin:16px 0 8px;color:var(--green)">Recalculation Summary</h3>
+      <div class="table-wrap">
+        <table class="adm-summary-table">
+          <thead><tr>
+            <th>Player</th><th class="num">Points</th><th class="num">Δ Pts</th>
+            <th class="num">Rating</th><th class="num">Δ Rating</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    summary.classList.remove('hidden');
+  }
+}
+
+// ─── Wire up all events ───────────────────────────────────────────────────────
+
+function wireEvents() {
+  // Match management
+  document.getElementById('refresh-matches-btn')?.addEventListener('click', loadMatches);
+
+  document.getElementById('edit-score-close')?.addEventListener('click', closeEditScore);
+  document.getElementById('edit-score-cancel')?.addEventListener('click', closeEditScore);
+  document.getElementById('edit-score-save')?.addEventListener('click', saveEditScore);
+
+  // Player management
+  document.getElementById('refresh-players-btn')?.addEventListener('click', loadPlayers);
+
+  document.getElementById('adjust-rating-close')?.addEventListener('click', closeAdjustRating);
+  document.getElementById('adjust-rating-cancel')?.addEventListener('click', closeAdjustRating);
+  document.getElementById('adjust-rating-save')?.addEventListener('click', saveRatingAdjustment);
+
+  // Close modals on overlay click
+  document.getElementById('edit-score-modal')?.addEventListener('click', e => {
+    if (e.target.id === 'edit-score-modal') closeEditScore();
+  });
+  document.getElementById('adjust-rating-modal')?.addEventListener('click', e => {
+    if (e.target.id === 'adjust-rating-modal') closeAdjustRating();
+  });
+
+  // Season tools
+  document.getElementById('force-recalc-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('force-recalc-btn');
+    btn.disabled = true;
+    btn.textContent = 'Recalculating…';
+    await runAndShowRecalc(null);
+    await loadMatches();
+    await loadPlayers();
+    btn.disabled = false;
+    btn.textContent = '⟳ Force Full Recalculation';
+  });
+}
+
+// ─── Load everything ──────────────────────────────────────────────────────────
+
+async function loadAll() {
+  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups()]);
+}
+
+// ─── Bootstrap ────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupMobileMenu();
+  wireEvents();
+  setupAdminLogin();
+});

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DM3ZPBMBXE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-DM3ZPBMBXE');
+  </script>
+  <title>Admin Dashboard | Restoration Tennis Ladder</title>
+  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <!-- ── Login overlay ─────────────────────────────────── -->
+  <div id="admin-login-overlay" class="directory-login-overlay">
+    <div class="directory-login-card">
+      <div class="directory-login-top">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder" class="directory-login-logo">
+        <h2>Admin Dashboard</h2>
+        <p>Commissioner access only</p>
+      </div>
+      <form id="admin-login-form" class="directory-login-form">
+        <label for="admin-password" class="sr-only">Password</label>
+        <input type="password" id="admin-password" placeholder="Enter admin password"
+               autocomplete="current-password" required>
+        <button type="submit">Enter Dashboard</button>
+        <p id="admin-login-message" class="small-text directory-login-message"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Edit Score Modal ───────────────────────────────── -->
+  <div id="edit-score-modal" class="adm-overlay hidden">
+    <div class="adm-modal">
+      <div class="adm-modal-header">
+        <span class="adm-modal-title">Edit Match Score</span>
+        <button class="adm-modal-close" id="edit-score-close">✕</button>
+      </div>
+      <div class="adm-modal-body">
+        <p id="edit-score-meta" class="adm-meta"></p>
+        <div class="adm-score-grid">
+          <div class="adm-score-row">
+            <span class="adm-score-label">Set 1</span>
+            <input type="number" id="es-s1t1" min="0" max="7" class="adm-score-input">
+            <span class="adm-score-dash">–</span>
+            <input type="number" id="es-s1t2" min="0" max="7" class="adm-score-input">
+          </div>
+          <div class="adm-score-row">
+            <span class="adm-score-label">Set 2</span>
+            <input type="number" id="es-s2t1" min="0" max="7" class="adm-score-input">
+            <span class="adm-score-dash">–</span>
+            <input type="number" id="es-s2t2" min="0" max="7" class="adm-score-input">
+          </div>
+          <div class="adm-score-row">
+            <span class="adm-score-label">Set 3 <small class="adm-optional">(tiebreak, optional)</small></span>
+            <input type="number" id="es-s3t1" min="0" max="99" class="adm-score-input" placeholder="—">
+            <span class="adm-score-dash">–</span>
+            <input type="number" id="es-s3t2" min="0" max="99" class="adm-score-input" placeholder="—">
+          </div>
+        </div>
+        <p id="edit-score-status" class="adm-status-text"></p>
+      </div>
+      <div class="adm-modal-footer">
+        <button id="edit-score-save" class="adm-btn adm-btn-primary">Save &amp; Recalculate</button>
+        <button id="edit-score-cancel" class="adm-btn adm-btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Adjust Rating Modal ────────────────────────────── -->
+  <div id="adjust-rating-modal" class="adm-overlay hidden">
+    <div class="adm-modal">
+      <div class="adm-modal-header">
+        <span class="adm-modal-title">Adjust Player Rating</span>
+        <button class="adm-modal-close" id="adjust-rating-close">✕</button>
+      </div>
+      <div class="adm-modal-body">
+        <p id="adjust-rating-name" class="adm-meta"></p>
+        <div class="form-group">
+          <label>New Rating (NTRP, 2.0–5.5 in 0.25 steps)</label>
+          <input type="number" id="ar-rating" min="2.0" max="5.5" step="0.25" class="adm-input">
+          <p class="small-text">Current: <strong id="ar-current-display"></strong></p>
+        </div>
+        <div class="form-group">
+          <label>Reason for adjustment</label>
+          <input type="text" id="ar-note" placeholder="e.g. Player confirmed NTRP 3.5" class="adm-input">
+        </div>
+        <p id="adjust-rating-status" class="adm-status-text"></p>
+      </div>
+      <div class="adm-modal-footer">
+        <button id="adjust-rating-save" class="adm-btn adm-btn-primary">Save Rating</button>
+        <button id="adjust-rating-cancel" class="adm-btn adm-btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Confirm Modal ──────────────────────────────────── -->
+  <div id="confirm-modal" class="adm-overlay hidden">
+    <div class="adm-modal adm-modal-sm">
+      <div class="adm-modal-header">
+        <span class="adm-modal-title" id="confirm-title">Confirm</span>
+      </div>
+      <div class="adm-modal-body">
+        <p id="confirm-message"></p>
+        <p id="confirm-status" class="adm-status-text"></p>
+      </div>
+      <div class="adm-modal-footer">
+        <button id="confirm-yes" class="adm-btn adm-btn-danger">Confirm</button>
+        <button id="confirm-no" class="adm-btn adm-btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Site header ────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="brand">
+      <a href="index.html" class="logo-link">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo">
+      </a>
+      <div class="brand-text">
+        <h1>Restoration Tennis Ladder</h1>
+      </div>
+    </div>
+
+    <button class="hamburger-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+    </nav>
+
+    <div class="mobile-nav-menu" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="contacts.html">Directory</a>
+    </div>
+  </header>
+
+  <!-- ── Main content ───────────────────────────────────── -->
+  <main>
+    <section id="admin-page" class="hidden">
+
+      <!-- Section 1: Match Management -->
+      <div class="card">
+        <div class="adm-section-header">
+          <h2>Match Management</h2>
+          <button id="refresh-matches-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p class="small-text" style="margin-bottom:12px;">Void a match to delete it and trigger a full recalculation. Edit Score to correct set scores without deleting.</p>
+        <p id="match-mgmt-status" class="adm-status-text"></p>
+        <div class="table-wrap">
+          <table class="adm-table" id="admin-match-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Players</th>
+                <th>Score</th>
+                <th>Type</th>
+                <th>Winner</th>
+                <th>Points (W/L)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-match-body">
+              <tr><td colspan="7">Loading matches…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 2: Player Management -->
+      <div class="card">
+        <div class="adm-section-header">
+          <h2>Player Management</h2>
+          <button id="refresh-players-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p id="player-mgmt-status" class="adm-status-text"></p>
+        <div class="table-wrap">
+          <table class="adm-table" id="admin-player-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th class="num">Rating</th>
+                <th class="num">Initial</th>
+                <th class="num">W</th>
+                <th class="num">L</th>
+                <th class="num">Pts</th>
+                <th class="num">MP</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-player-body">
+              <tr><td colspan="8">Loading players…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 3: Recent Signups -->
+      <div class="card">
+        <h2>Recent Signups</h2>
+        <p class="small-text" style="margin-bottom:12px;">10 most recently joined players.</p>
+        <div id="recent-signups-content">Loading…</div>
+      </div>
+
+      <!-- Section 4: Season Tools -->
+      <div class="card">
+        <h2>Season Tools</h2>
+        <p class="small-text">Resets all player stats to initial ratings and replays every match in chronological order. Use this to correct standings after any manual data changes.</p>
+        <div style="margin-top:16px;">
+          <button id="force-recalc-btn" class="adm-btn adm-btn-primary adm-btn-lg">⟳ Force Full Recalculation</button>
+        </div>
+        <div id="recalc-progress" class="adm-recalc-progress hidden">
+          <div id="recalc-log" class="adm-recalc-log"></div>
+        </div>
+        <div id="recalc-summary" class="hidden"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
