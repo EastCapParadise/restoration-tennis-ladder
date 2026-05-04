@@ -1735,8 +1735,7 @@ th[data-sort]:hover {
 
 .ladder-table th:nth-child(9),
 .ladder-table td:nth-child(9) {
-  width: 52px;
-  min-width: 52px;   /* SOS */
+  min-width: 44px;   /* SOS — wide enough for values like "3.14" or "—" */
   text-align: right;
 }
 
