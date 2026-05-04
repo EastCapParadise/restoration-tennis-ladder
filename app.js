@@ -3050,32 +3050,65 @@ async function loadGauntlet() {
       return;
     }
 
-    // ── Not #1: build smart opponent selection by expected points value ────
+    // ── Not #1: build smart opponent selection ───────────────────────────────
+    // Competitiveness multiplier: rewards playing up, penalises farming weaker opponents.
+    // ratingGap = opp.dynamic_rating - viewed.dynamic_rating (positive = opp is stronger)
+    function compMult(gap) {
+      if (gap >= 0.5)   return 1.5;  // 0.5+ above: strongly rewarded
+      if (gap >= 0)     return 1.3;  // 0 to 0.5 above: slight underdog
+      if (gap >= -0.25) return 1.2;  // within 0.25 below: even match
+      if (gap >= -0.5)  return 0.8;  // 0 to 0.5 below: mild penalty
+      if (gap >= -1.0)  return 0.5;  // 0.5 to 1.0 below: strong penalty
+      return 0.25;                   // 1.0+ below: very strong penalty
+    }
+
     const candidates = genderPlayers
       .filter(p => String(p.id) !== String(playerId))
       .map(opp => {
-        const oppObj  = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
-        const probRaw = eloWinProb(Number(viewed.dynamic_rating ?? 0), Number(opp.dynamic_rating ?? 0));
-        const probPct = Math.round(probRaw * 100);
-        const lowPts  = estimatePts(viewedObj, oppObj, 13, 11);
-        const highPts = estimatePts(viewedObj, oppObj, 12, 1);
-        const midPts  = Math.round((lowPts + highPts) / 2);
-        // Score = expected points value weighted by win probability
-        const score   = midPts * probRaw;
-        return { opp, probPct, probRaw, lowPts, highPts, midPts, score };
+        const oppObj    = { sex: opp.sex, dynamic_rating: opp.dynamic_rating, matches_played: opp.matches_played ?? 0 };
+        const probRaw   = eloWinProb(Number(viewed.dynamic_rating ?? 0), Number(opp.dynamic_rating ?? 0));
+        const probPct   = Math.round(probRaw * 100);
+        const lowPts    = estimatePts(viewedObj, oppObj, 13, 11);
+        const highPts   = estimatePts(viewedObj, oppObj, 12, 1);
+        const midPts    = Math.round((lowPts + highPts) / 2);
+        const ratingGap = Number(opp.dynamic_rating ?? 0) - Number(viewed.dynamic_rating ?? 0);
+        const score     = midPts * probRaw * compMult(ratingGap);
+        return { opp, probPct, probRaw, lowPts, highPts, midPts, score, ratingGap };
       });
 
-    const eligible       = candidates.filter(c => c.probPct >= 20);
-    const pool           = eligible.length >= 3 ? eligible : candidates;
-    const showUpsetNote  = eligible.length < 3;
+    const eligible      = candidates.filter(c => c.probPct >= 20);
+    const pool          = eligible.length >= 3 ? eligible : candidates;
+    const showUpsetNote = eligible.length < 3;
 
-    // Top 4 by score, then re-sorted easiest first (most actionable at top)
-    const topPicks = [...pool]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .sort((a, b) => b.probPct - a.probPct);
+    // Select top 4 by adjusted score
+    let topPicks = [...pool].sort((a, b) => b.score - a.score).slice(0, 4);
 
-    const stepLabels = ["Best next match", "High value target", "The test", "The stretch"];
+    // Diversity cap: no more than 1 opponent rated > 0.5 below the viewed player
+    const WEAK_THRESH = -0.5;
+    if (topPicks.filter(c => c.ratingGap < WEAK_THRESH).length > 1) {
+      let keptWeak = false;
+      topPicks = topPicks.filter(c => {
+        if (c.ratingGap < WEAK_THRESH) {
+          if (!keptWeak) { keptWeak = true; return true; }
+          return false;
+        }
+        return true;
+      });
+      // Fill gaps with the highest-scored non-weak eligible opponents not already chosen
+      const selectedIds  = new Set(topPicks.map(c => String(c.opp.id)));
+      const replacements = pool
+        .filter(c => !selectedIds.has(String(c.opp.id)) && c.ratingGap >= WEAK_THRESH && c.probPct >= 20)
+        .sort((a, b) => b.score - a.score);
+      for (const r of replacements) {
+        if (topPicks.length >= 4) break;
+        topPicks.push(r);
+      }
+    }
+
+    // Sort: highest win probability first (most actionable) → lowest (most aspirational)
+    topPicks.sort((a, b) => b.probPct - a.probPct);
+
+    const stepLabels = ["Most winnable", "Best value", "The challenge", "The stretch"];
 
     // Minimum wins needed: accumulate midPts from highest-yielding picks until gap closes
     const picksByMid  = [...topPicks].sort((a, b) => b.midPts - a.midPts);
