@@ -595,7 +595,7 @@ function getPlayerStatus(playerId, matches) {
   });
 
   if (lastTwo.length === 2 && lastTwo.every(Boolean)) return "Hot";
-  if (lastTwo.length === 2 && lastTwo.every((result) => !result)) return "Cooling";
+  if (lastTwo.length === 2 && lastTwo.every((result) => !result)) return "On a Slide";
 
   const lastMatchDate = new Date(playerMatches[0].date_played || playerMatches[0].created_at);
   const daysAgo = (Date.now() - lastMatchDate.getTime()) / (1000 * 60 * 60 * 24);
