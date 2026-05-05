@@ -521,7 +521,7 @@ function setupLadderSorting() {
       } else {
         state.ladder.sortBy = sortBy;
         state.ladder.sortDir =
-          ["name", "sex", "area", "status"].includes(sortBy) ? "asc" : "desc";
+          ["name", "sex", "area", "status", "season_rank"].includes(sortBy) ? "asc" : "desc";
       }
       state.ladder.userHasSorted = true;
       updateSortIndicators();
@@ -822,6 +822,10 @@ async function loadLadder() {
       status: getPlayerStatus(player.id, recentMatches),
       sos: calculatePlayerSOS(player.id, sosMatches, sexMap)
     }));
+
+    // Assign overall standings rank before filtering so it stays consistent
+    // across Men's / Women's / All views and when the user sorts by Rank.
+    sortPlayersForStandings(playersWithStatus).forEach((p, i) => { p.season_rank = i + 1; });
 
     const filtered = applyLadderFilters(playersWithStatus);
     const sorted = state.ladder.userHasSorted
