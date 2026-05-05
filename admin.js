@@ -9,7 +9,7 @@ const SUPABASE_URL     = 'https://jntspohwzkugcuisoofm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_CgGyn2sReCxWz6Li9QnWnw_kC-8CgVO';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const ADMIN_PASSWORD   = 'RestAdmin2026';
+const ADMIN_PASSWORD   = 'RestoAdmin';
 const ADMIN_SESSION    = 'rtl_admin_access';
 
 // ─── Tiny helpers ────────────────────────────────────────────────────────────
