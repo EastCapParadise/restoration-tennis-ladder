@@ -1727,7 +1727,8 @@ th[data-sort]:hover {
 
 .ladder-table th:nth-child(3),
 .ladder-table td:nth-child(3) {
-  width: auto;       /* Area: shrinks to fit content */
+  width: 1%;         /* Area: 1% collapses to minimum content width in table-layout:auto */
+  white-space: nowrap;
 }
 
 .ladder-table th:nth-child(7),
