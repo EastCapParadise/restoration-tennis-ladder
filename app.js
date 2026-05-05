@@ -2549,6 +2549,16 @@ function unadjustedTeamRating(storedAvg, teamIds, sexMap, isMixed) {
   return roundToTwo(storedAvg - (maleCount * 0.5) / players.length);
 }
 
+// Returns true if the winner had <40% pre-match win probability (upset)
+function isMatchUpset(match) {
+  const t1avg = Number(match.team1_avg_rating);
+  const t2avg = Number(match.team2_avg_rating);
+  if (!t1avg || !t2avg) return false;
+  const winnerAvg = match.winner_team === 1 ? t1avg : t2avg;
+  const loserAvg  = match.winner_team === 1 ? t2avg : t1avg;
+  return (1 / (1 + Math.pow(10, (loserAvg - winnerAvg) / 0.45))) < 0.40;
+}
+
 function buildMatchDisplay(match, playerMap) {
   const team1Names = [
     playerMap[match.team1_player1_id],
@@ -2696,11 +2706,14 @@ async function loadMatchHistory() {
         notes: match.match_notes || ""
       });
 
+      const upset = isMatchUpset(match);
+
       return `
-        <div class="history-item fade-in-card premium-match-card">
+        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}">
           <div class="history-top-row">
             <div class="history-title-group">
               <h3>${escapeHtml(match.match_type || "Match")}</h3>
+              ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
             </div>
             <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
           </div>
@@ -3197,12 +3210,14 @@ async function loadPlayerMatchHistory() {
       const perspective = getPlayerMatchPerspective(match, playerId, sexMap);
       const resultClass = perspective?.won ? "win" : "loss";
       const resultText = perspective?.won ? "Win" : "Loss";
+      const upset = isMatchUpset(match);
 
       return `
-        <div class="history-item fade-in-card premium-match-card">
+        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}">
           <div class="history-top-row">
             <div class="history-title-group">
               <h3>${escapeHtml(match.match_type || "Match")}</h3>
+              ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
             </div>
             <span class="winner-pill ${resultClass}">${resultText}</span>
           </div>

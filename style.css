@@ -98,6 +98,11 @@ nav a {
     padding: 10px 20px;
     font-size: 15px;
   }
+
+  .logo {
+    width: 76px;
+    height: 76px;
+  }
 }
 
 nav a:hover {
@@ -553,14 +558,23 @@ td {
 }
 
 th {
-  background: #f1f6f3;
+  background: #edf2ee;
   color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid #dde6e0;
   position: sticky;
   top: 0;
 }
 
 tr:hover td {
-  background: #fafcfb;
+  background: rgba(31, 77, 58, 0.04);
+  transition: background 0.15s ease;
+}
+
+.ladder-table tbody tr:hover td:first-child {
+  border-left: 3px solid rgba(31, 77, 58, 0.2);
 }
 
 .score-row {
@@ -743,11 +757,18 @@ hr {
   }
 
   .card {
-    padding: 18px;
+    padding: 14px;
   }
 
   main {
     padding: 18px 12px 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .history-item,
+  .premium-match-card {
+    padding: 13px 14px;
   }
 }
 
@@ -773,29 +794,29 @@ hr {
 
 .rank-1 td {
   font-weight: 700;
-  background: rgba(255, 215, 0, 0.28);
+  background: rgba(255, 215, 0, 0.14);
 }
 
 .rank-1 td:first-child {
-  border-left: 4px solid gold;
+  border-left: 5px solid #FFD700;
 }
 
 .rank-2 td {
   font-weight: 700;
-  background: rgba(192, 192, 192, 0.18);
+  background: rgba(192, 192, 192, 0.14);
 }
 
 .rank-2 td:first-child {
-  border-left: 4px solid silver;
+  border-left: 5px solid #C0C0C0;
 }
 
 .rank-3 td {
   font-weight: 700;
-  background: rgba(205, 127, 50, 0.18);
+  background: rgba(205, 127, 50, 0.14);
 }
 
 .rank-3 td:first-child {
-  border-left: 4px solid #cd7f32;
+  border-left: 5px solid #CD7F32;
 }
 
 .rank-top-10 td {
@@ -826,25 +847,28 @@ hr {
 }
 
 .filter-btn {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
   background: #fff;
   color: #222;
   padding: 10px 14px;
   border-radius: 999px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  font-weight: 600;
+  transition: all 0.15s ease;
 }
 
 .filter-btn:hover {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.25);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .filter-btn.active {
-  background: #1d4ed8;
+  background: #1f3558;
   color: #fff;
-  border-color: #1d4ed8;
-  box-shadow: 0 6px 18px rgba(29, 78, 216, 0.22);
+  border-color: #1f3558;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(31, 53, 88, 0.25);
 }
 
 #ladder-search {
@@ -882,7 +906,7 @@ hr {
 .history-score {
   margin-top: 10px;
   margin-bottom: 4px;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: #111827;
   letter-spacing: -0.01em;
@@ -903,7 +927,7 @@ hr {
 }
 
 .table-wrap table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(31, 77, 58, 0.04);
 }
 
 .history-top-row {
@@ -1172,6 +1196,28 @@ th[data-sort]:hover {
   color: #1d4ed8;
 }
 
+/* Upset badge */
+.upset-badge {
+  background: rgba(217, 119, 6, 0.12);
+  color: #92400e;
+}
+
+/* Match type left-border accents (via :has()) */
+.premium-match-card:has(.match-badge.singles),
+.history-item:has(.match-badge.singles) {
+  border-left: 3px solid #0f766e;
+}
+
+.premium-match-card:has(.match-badge.doubles),
+.history-item:has(.match-badge.doubles) {
+  border-left: 3px solid #1d4ed8;
+}
+
+/* Upset border overrides match-type border */
+.upset-match {
+  border-left: 4px solid #d97706 !important;
+}
+
 .match-result.win {
   color: #15803d;
   font-weight: 700;
@@ -1183,8 +1229,9 @@ th[data-sort]:hover {
 }
 
 .match-score {
-  font-size: 1.1rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   margin-bottom: 6px;
 }
 
@@ -1309,8 +1356,8 @@ th[data-sort]:hover {
 /* Match History filter chips */
 
 .filter-chip {
-  border: none;
-  background: #f3f4f6;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
   color: #1f2937;
   padding: 10px 16px;
   border-radius: 999px;
@@ -1320,12 +1367,16 @@ th[data-sort]:hover {
 }
 
 .filter-chip:hover {
-  background: #e5e7eb;
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.22);
 }
 
 .filter-chip.active {
-  background: #0f172a;
+  background: #1f3558;
   color: white;
+  border-color: #1f3558;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(31, 53, 88, 0.25);
 }
 
 /* =========================
@@ -1680,7 +1731,11 @@ th[data-sort]:hover {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: #f8fafc;
+  background: #edf2ee;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid #dde6e0;
 }
 
 /* Rank column — z-index 26 keeps it above the Name column (z-index 24) */
@@ -2696,7 +2751,7 @@ th[data-sort]:hover {
 .stat-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-top: 3px solid #16a34a;
+  border-top: 4px solid #1f4d3a;
   border-radius: var(--radius);
   padding: 24px 16px;
   box-shadow: var(--shadow);
@@ -2705,17 +2760,23 @@ th[data-sort]:hover {
   text-decoration: none;
   color: inherit;
   display: block;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 36px rgba(19, 33, 26, 0.13);
+  transform: scale(1.02);
+  box-shadow: 0 14px 36px rgba(19, 33, 26, 0.15);
 }
 
+/* Per-card accent colors */
+.home-stat-row > a:nth-child(1) { border-top-color: #1f4d3a; }
+.home-stat-row > a:nth-child(2) { border-top-color: #1f3558; }
+.home-stat-row > a:nth-child(3) { border-top-color: #d97706; }
+
 .stat-value {
-  font-size: 2.8rem;
-  font-weight: 800;
+  font-size: 3.2rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   line-height: 1;
   margin-bottom: 6px;
   color: #1f4d3a;
@@ -2837,7 +2898,7 @@ th[data-sort]:hover {
 
 @media (max-width: 480px) {
   .stat-value {
-    font-size: 1.8rem;
+    font-size: 2.4rem;
   }
 
   .stat-card {
@@ -3511,13 +3572,21 @@ th[data-sort]:hover {
    SEASON STORY SO FAR
 ========================= */
 
+#season-story h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f3558;
+  margin-bottom: 10px;
+}
+
 .season-story-text {
   font-style: italic;
-  color: var(--text);
-  line-height: 1.75;
+  color: #2d3f35;
+  line-height: 1.7;
   font-size: 15px;
-  opacity: 0.88;
   margin-top: 8px;
+  border-left: 3px solid #1f4d3a;
+  padding-left: 16px;
 }
 
 /* =========================
