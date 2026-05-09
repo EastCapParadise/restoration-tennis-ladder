@@ -3569,6 +3569,31 @@ th[data-sort]:hover {
 }
 
 /* =========================
+   COMMUNITY PHOTO CARD
+========================= */
+
+.community-photo-heading {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.community-photo-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+
+.community-photo-caption {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 10px 0 0;
+  text-align: center;
+}
+
+/* =========================
    SEASON STORY SO FAR
 ========================= */
 
