@@ -3852,3 +3852,199 @@ th[data-sort]:hover {
   .gauntlet-step-num { font-size: 18px; }
   .gauntlet-opp-pts { display: none; }
 }
+
+/* =========================
+   EVENTS PAGE
+========================= */
+
+.events-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green-dark);
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.event-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(19, 33, 26, 0.13);
+}
+
+/* Type-specific left border accent colors */
+.event-card.type-drop-in    { border-left-color: #1f4d3a; }
+.event-card.type-mens       { border-left-color: #1f3558; }
+.event-card.type-womens     { border-left-color: #6b3d9e; }
+.event-card.type-tournament { border-left-color: #d97706; }
+.event-card.type-other      { border-left-color: #6b7280; }
+
+/* Past events — muted, gray border */
+.event-card.past-event {
+  opacity: 0.65;
+  border-left-color: #9ca3af;
+}
+
+.event-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.event-type-badge {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.event-badge-past {
+  background: #9ca3af;
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.event-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.event-datetime {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.event-courts {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.event-location {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.event-map-link {
+  color: var(--green);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.event-map-link:hover {
+  text-decoration: underline;
+}
+
+.event-description {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.event-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.btn-calendar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.18s;
+  white-space: nowrap;
+}
+
+.btn-calendar:hover {
+  background: var(--green-light);
+}
+
+/* Past events toggle */
+.past-events-toggle {
+  background: none;
+  border: none;
+  color: var(--green);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0 12px;
+  display: block;
+}
+
+.past-events-collapsed {
+  display: none;
+}
+
+/* Empty state */
+.events-empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--muted);
+}
+
+/* Admin event form */
+.adm-events-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.adm-events-form .form-group-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 600px) {
+  .adm-events-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.adm-events-table td,
+.adm-events-table th {
+  font-size: 13px;
+  padding: 8px 10px;
+}

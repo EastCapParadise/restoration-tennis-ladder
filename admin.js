@@ -656,7 +656,99 @@ async function removePlayer(playerId) {
   await loadPlayers();
 }
 
-// ─── Section 3: Recent Signups ────────────────────────────────────────────────
+// ─── Section 3: Event Management ─────────────────────────────────────────────
+
+// Convert "19:30" (from <input type="time">) → "7:30 PM"
+function formatTimeTo12h(val) {
+  const [h, m] = val.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+async function loadAdminEvents() {
+  const tbody = document.getElementById('admin-events-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await db
+    .from('events')
+    .select('id, title, event_type, event_date, start_time, end_time, location_name, courts')
+    .gte('event_date', today)
+    .order('event_date', { ascending: true });
+
+  if (error) { tbody.innerHTML = `<tr><td colspan="6">Error: ${esc(error.message)}</td></tr>`; return; }
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="6">No upcoming events.</td></tr>'; return; }
+
+  tbody.innerHTML = data.map(ev => {
+    const d = new Date(ev.event_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `<tr>
+      <td>${esc(d)}</td>
+      <td>${esc(ev.title)}</td>
+      <td>${esc(ev.event_type)}</td>
+      <td>${esc(ev.location_name)}</td>
+      <td class="num">${ev.courts ?? '—'}</td>
+      <td><button class="adm-btn adm-btn-sm adm-btn-danger" data-delete-event="${esc(ev.id)}">Delete</button></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('[data-delete-event]').forEach(btn => {
+    btn.addEventListener('click', () => deleteEvent(btn.dataset.deleteEvent));
+  });
+}
+
+async function submitAddEvent(e) {
+  e.preventDefault();
+  const statusEl = document.getElementById('add-event-status');
+  setStatus('add-event-status', 'Saving…');
+
+  const title    = document.getElementById('ev-title').value.trim();
+  const type     = document.getElementById('ev-type').value;
+  const date     = document.getElementById('ev-date').value;
+  const start    = document.getElementById('ev-start').value;
+  const end      = document.getElementById('ev-end').value;
+  const locName  = document.getElementById('ev-location-name').value.trim();
+  const locAddr  = document.getElementById('ev-location-address').value.trim();
+  const courts   = document.getElementById('ev-courts').value;
+  const desc     = document.getElementById('ev-description').value.trim();
+
+  if (!title || !type || !date || !start || !end || !locName || !locAddr) {
+    setStatus('add-event-status', 'Please fill in all required fields.', 'error'); return;
+  }
+
+  const payload = {
+    title,
+    event_type:       type,
+    event_date:       date,
+    start_time:       formatTimeTo12h(start),
+    end_time:         formatTimeTo12h(end),
+    location_name:    locName,
+    location_address: locAddr,
+    courts:           courts ? parseInt(courts, 10) : null,
+    description:      desc || null,
+  };
+
+  const { error } = await db.from('events').insert([payload]);
+  if (error) { setStatus('add-event-status', `Failed: ${error.message}`, 'error'); return; }
+
+  setStatus('add-event-status', 'Event added! It will appear on the Events page immediately.', 'success');
+  document.getElementById('add-event-form').reset();
+  await loadAdminEvents();
+}
+
+async function deleteEvent(id) {
+  const confirmed = await showConfirm('Delete Event', 'Delete this event? This cannot be undone.');
+  if (!confirmed) return;
+
+  const { error } = await db.from('events').delete().eq('id', id);
+  if (error) { setStatus('add-event-status', `Delete failed: ${error.message}`, 'error'); return; }
+
+  setStatus('add-event-status', 'Event deleted.', 'success');
+  await loadAdminEvents();
+}
+
+// ─── Section 4: Recent Signups ────────────────────────────────────────────────
 
 async function loadRecentSignups() {
   const container = document.getElementById('recent-signups-content');
@@ -795,6 +887,9 @@ function wireEvents() {
     if (e.target.id === 'adjust-rating-modal') closeAdjustRating();
   });
 
+  // Event management
+  document.getElementById('add-event-form')?.addEventListener('submit', submitAddEvent);
+
   // Season tools
   document.getElementById('force-recalc-btn')?.addEventListener('click', async () => {
     const btn = document.getElementById('force-recalc-btn');
@@ -811,7 +906,7 @@ function wireEvents() {
 // ─── Load everything ──────────────────────────────────────────────────────────
 
 async function loadAll() {
-  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups()]);
+  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents()]);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
