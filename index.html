@@ -21,25 +21,23 @@
 </head>
 <body>
   <header class="site-header">
-    <div class="brand">
-      <a href="index.html" class="logo-link"><img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="logo"></a>
-      <div class="brand-text">
-        <h1>Restoration Tennis Ladder</h1>
-      </div>
+    <div class="header-inner">
+      <a href="index.html" class="header-brand">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="header-logo">
+        <span class="header-title">Restoration Tennis Ladder</span>
+      </a>
+      <nav class="desktop-nav">
+        <a href="index.html">Home</a>
+        <a href="rules.html">About</a>
+        <a href="join.html">Join</a>
+        <a href="ladder.html">Rankings</a>
+        <a href="report.html">Report Match</a>
+        <a href="history.html">Match History</a>
+        <a href="events.html">Events</a>
+        <a href="contacts.html">Directory</a>
+      </nav>
+      <button class="hamburger-btn" aria-label="Open menu" aria-expanded="false">☰</button>
     </div>
-    <button class="hamburger-btn" aria-label="Open menu" aria-expanded="false">☰</button>
-
-    <nav>
-      <a href="index.html" class="active">Home</a>
-      <a href="rules.html">About</a>
-      <a href="join.html">Join</a>
-      <a href="ladder.html">Rankings</a>
-      <a href="report.html">Report Match</a>
-      <a href="history.html">Match History</a>
-      <a href="events.html">Events</a>
-      <a href="contacts.html">Directory</a>
-    </nav>
-
     <div class="mobile-nav-menu" aria-hidden="true">
       <a href="index.html" class="active">Home</a>
       <a href="rules.html">About</a>
@@ -142,5 +140,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js?v=10"></script>
+<script>
+  (function() {
+    var p = location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.desktop-nav a').forEach(function(a) {
+      if (a.getAttribute('href').split('/').pop() === p) a.classList.add('nav-active');
+    });
+  }());
+</script>
 </body>
 </html>
