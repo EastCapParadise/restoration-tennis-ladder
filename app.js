@@ -1940,14 +1940,32 @@ function calculateMatchScoring({
   // Winner: 11-base scaled by delta × 0.29, clamped [8, 18].
   let winnerPoints = Math.max(8, Math.min(18, Math.round(11 + delta * 0.29)));
 
-  // Loser: bageled (0 standard games) uses gap-scaled floor; otherwise games-based.
-  const loserBageled = loserStdGames === 0;
-  let loserPoints = loserBageled
-    ? Math.max(5, Math.round(4 + gapMagnitude * 6))
-    : Math.max(5, Math.round(4 + loserStdGames * 0.7));
+  // LOSER POINTS — expectation-adjusted formula
+  // Loser context flags drive the expectation component below.
+  let loserPoints;
+  const loserWasFavorite = loserAvgRating > winnerAvgRating;
+  const loserWasUnderdog = loserAvgRating < winnerAvgRating;
+  const evenMatch = gapMagnitude < 0.1;
 
-  // Enforce: loser ≤ winner − 2, loser ≥ 5, then push winner up if spread < 3.
-  loserPoints = Math.min(loserPoints, winnerPoints - 2);
+  if (loserStdGames === 0) {
+    // Bagel exception — gap-based floor, smaller coefficient encourages mismatched play.
+    loserPoints = Math.max(5, Math.round(4 + gapMagnitude * 4));
+  } else {
+    // games_component: rewards the loser for games won regardless of context.
+    const gamesComponent = loserStdGames * 0.6;
+    // expect_component: adjusts for whether the loser was expected to win or lose.
+    //   Favorite lost → penalised (they were supposed to win).
+    //   Underdog lost → rewarded (they were expected to lose by more).
+    //   Even match    → no adjustment (expectations were symmetric).
+    let expectComponent = 0;
+    if (loserWasFavorite) expectComponent = -(gapMagnitude * 6);
+    if (loserWasUnderdog) expectComponent = +(gapMagnitude * 4);
+    const loserRaw = 4 + gamesComponent + expectComponent;
+    loserPoints = Math.max(5, Math.round(loserRaw));
+  }
+
+  // Enforce minimum 3-point gap between winner and loser.
+  loserPoints = Math.min(loserPoints, winnerPoints - 3);
   loserPoints = Math.max(5, loserPoints);
   if (winnerPoints - loserPoints < 3) winnerPoints = loserPoints + 3;
 
