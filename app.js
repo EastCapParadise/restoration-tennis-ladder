@@ -2958,23 +2958,10 @@ async function loadPlayerProfile() {
 
       <div class="profile-actions">
         <a href="report.html?opponentId=${player.id}" class="button">Report a Match Against ${escapeHtml(player.name || "Player")}</a>
-        <button class="btn-share-profile" id="share-profile-btn">⬆ Share Profile</button>
-        <span class="share-copied-tip" id="share-copied-tip">Copied!</span>
       </div>
 
       <button class="btn-share-mobile" id="share-profile-image-btn">📲 Share Profile</button>
     `;
-
-    document.getElementById("share-profile-btn")?.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        const tip = document.getElementById("share-copied-tip");
-        if (tip) {
-          tip.classList.add("visible");
-          setTimeout(() => tip.classList.remove("visible"), 2200);
-        }
-      } catch (_) {}
-    });
 
     document.getElementById("share-profile-image-btn")?.addEventListener("click", (e) => {
       sharePlayerProfile(playerId, player, e.currentTarget);
@@ -3348,19 +3335,38 @@ function showShareToast(msg) {
 }
 
 async function captureAndShare(cardEl, shareText, btn) {
+  // Mount visibly but out of interaction range so the browser fully paints it
   Object.assign(cardEl.style, {
-    position: "fixed", left: "-9999px", top: "0",
-    visibility: "hidden", zIndex: "-1"
+    position: "fixed", top: "0", left: "0",
+    opacity: "0", pointerEvents: "none", zIndex: "-1"
   });
   document.body.appendChild(cardEl);
+
+  // Force a layout reflow so dimensions and styles are resolved
+  void cardEl.offsetHeight;
+
+  // Give the browser time to paint fonts, colours, and layout
+  await new Promise((resolve) => setTimeout(resolve, 800));
 
   try {
     const canvas = await html2canvas(cardEl, {
       scale: 2,
       useCORS: true,
-      backgroundColor: "#1f4d3a",
+      allowTaint: true,
+      backgroundColor: "#1F4D3A",
       logging: false,
+      onclone: (_clonedDoc, clonedEl) => {
+        clonedEl.style.opacity = "1";
+        clonedEl.style.visibility = "visible";
+        clonedEl.style.position = "relative";
+        clonedEl.style.left = "0";
+        clonedEl.style.top = "0";
+        clonedEl.style.zIndex = "1";
+      },
     });
+
+    // Remove card before triggering share sheet so it doesn't flash
+    cardEl.remove();
 
     await new Promise((resolve) => {
       canvas.toBlob(async (blob) => {
@@ -3379,7 +3385,8 @@ async function captureAndShare(cardEl, shareText, btn) {
       }, "image/png");
     });
   } finally {
-    cardEl.remove();
+    // Guard: remove in case an error occurred before the explicit remove above
+    cardEl.parentNode && cardEl.remove();
     if (btn) {
       btn.disabled = false;
       btn.textContent = btn.dataset.origLabel || "📲 Share";
@@ -3476,8 +3483,7 @@ function buildPlayerShareCard(player, genderRank, genderLabel, statusText, sigMa
   const el = document.createElement("div");
   el.style.cssText = `
     width:390px;height:520px;overflow:hidden;
-    background:#1f4d3a;
-    background:linear-gradient(135deg,#16392b 0%,#1f4d3a 55%,#1a2744 100%);
+    background:#1F4D3A;
     font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;
     color:#fff;box-sizing:border-box;
     padding:24px 24px 20px;
@@ -3571,8 +3577,7 @@ function buildMatchShareCard(data) {
   const el = document.createElement("div");
   el.style.cssText = `
     width:390px;height:${upsetLine ? 460 : 440}px;overflow:hidden;
-    background:#1f4d3a;
-    background:linear-gradient(135deg,#16392b 0%,#1f4d3a 55%,#1a2744 100%);
+    background:#1F4D3A;
     font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;
     color:#fff;box-sizing:border-box;
     padding:24px 24px 20px;
