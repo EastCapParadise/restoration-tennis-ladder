@@ -3033,6 +3033,7 @@ async function loadPlayerProfile() {
     });
 
     await renderPlayerRatingTrend(playerId, player.display_rating, player.initial_rating);
+    renderPointsRankingChart(playerId, player.sex); // async, hides itself on error or <2 matches
   } catch (error) {
     console.error("Load player profile error:", error);
     container.innerHTML = "<p>Error loading player profile.</p>";
@@ -3832,6 +3833,176 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRa
     });
   } catch (error) {
     console.error("Render rating trend error:", error);
+  }
+}
+
+async function renderPointsRankingChart(playerId, playerSex) {
+  const section = document.getElementById("points-rank-section");
+  const canvas  = document.getElementById("points-rank-canvas");
+  if (!section || !canvas || typeof Chart === "undefined") return;
+
+  try {
+    const pid = Number(playerId);
+
+    // Fetch all players (for rank replay) and all matches (ordered chronologically)
+    const [playersRes, allMatchesRes] = await Promise.all([
+      supabaseClient.from("players").select("id, sex"),
+      supabaseClient.from("matches")
+        .select(`id, date_played, created_at,
+          team1_player1_id, team1_player2_id,
+          team2_player1_id, team2_player2_id,
+          ladder_points_p1, ladder_points_p2,
+          ladder_points_p3, ladder_points_p4`)
+        .order("date_played", { ascending: true })
+        .order("created_at", { ascending: true })
+    ]);
+
+    const allPlayers = playersRes.data || [];
+    const allMatches = allMatchesRes.data || [];
+
+    // Build sex map so we can rank within the correct gender ladder
+    const sexMap = {};
+    allPlayers.forEach(p => { sexMap[p.id] = p.sex; });
+
+    // Same-sex player IDs for rank calculation
+    const sameSexIds = new Set(
+      allPlayers.filter(p => p.sex === playerSex).map(p => p.id)
+    );
+
+    // Running cumulative points per player across the full replay
+    const cumPoints = {};
+    allPlayers.forEach(p => { cumPoints[p.id] = 0; });
+
+    const labels       = [];
+    const pointsSeries = [];
+    const rankSeries   = [];
+
+    for (const match of allMatches) {
+      // Apply ladder points for all four player slots
+      const slots = [
+        { id: match.team1_player1_id, pts: match.ladder_points_p1 },
+        { id: match.team1_player2_id, pts: match.ladder_points_p2 },
+        { id: match.team2_player1_id, pts: match.ladder_points_p3 },
+        { id: match.team2_player2_id, pts: match.ladder_points_p4 },
+      ];
+      for (const { id, pts } of slots) {
+        if (id && pts != null) cumPoints[id] = (cumPoints[id] ?? 0) + Number(pts);
+      }
+
+      // Only record a data point when this player appeared in the match
+      const inMatch = slots.some(s => s.id === pid);
+      if (!inMatch) continue;
+
+      const myPts = cumPoints[pid] ?? 0;
+
+      // Rank = number of same-sex players with strictly more points + 1
+      // Ties share the same rank number (standard competition ranking)
+      let rank = 1;
+      for (const id of sameSexIds) {
+        if (id !== pid && (cumPoints[id] ?? 0) > myPts) rank++;
+      }
+
+      const dateStr = match.date_played
+        ? new Date(match.date_played).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        : "";
+
+      labels.push(dateStr);
+      pointsSeries.push(myPts);
+      rankSeries.push(rank);
+    }
+
+    // Require at least 2 data points to draw a meaningful line
+    if (labels.length < 2) {
+      section.style.display = "none";
+      return;
+    }
+
+    const maxRank = Math.max(...rankSeries);
+
+    const ctx = canvas.getContext("2d");
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Points",
+            data: pointsSeries,
+            yAxisID: "yPoints",
+            tension: 0.3,
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: "#1f4d3a",
+            borderColor: "#1f4d3a",
+            backgroundColor: "rgba(31, 77, 58, 0.08)",
+            fill: true,
+          },
+          {
+            label: "Rank",
+            data: rankSeries,
+            yAxisID: "yRank",
+            tension: 0.3,
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointBackgroundColor: "#1f3558",
+            borderColor: "#1f3558",
+            backgroundColor: "transparent",
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: "top",
+            labels: { boxWidth: 12, font: { size: 12 } }
+          },
+          tooltip: {
+            // Show a single combined tooltip line; suppress second dataset's row
+            filter: (item) => item.datasetIndex === 0,
+            callbacks: {
+              label: (ctx) => {
+                const pts  = pointsSeries[ctx.dataIndex];
+                const rank = rankSeries[ctx.dataIndex];
+                return `${pts} pts · Ranked #${rank}`;
+              }
+            }
+          }
+        },
+        scales: {
+          yPoints: {
+            type: "linear",
+            position: "left",
+            min: 0,
+            ticks: {
+              color: "#1f4d3a",
+              callback: (v) => v + " pts"
+            },
+            grid: { color: "rgba(0,0,0,0.06)" }
+          },
+          yRank: {
+            type: "linear",
+            position: "right",
+            reverse: true,        // rank 1 at top
+            min: 1,
+            max: maxRank + 1,     // buffer below worst rank
+            ticks: {
+              color: "#1f3558",
+              stepSize: 1,
+              callback: (v) => Number.isInteger(v) ? `#${v}` : ""
+            },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Points rank chart error:", err);
+    if (section) section.style.display = "none";
   }
 }
 
