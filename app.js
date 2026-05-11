@@ -2726,13 +2726,21 @@ async function loadMatchHistory() {
       const winnerText = match.winner_team === 1 ? display.team1Text : display.team2Text;
       const loserText  = match.winner_team === 1 ? display.team2Text : display.team1Text;
 
+      const _wt = match.winner_team;
       const cardData = JSON.stringify({
         type: match.match_type || "Match",
         winner: winnerText || "—",
         loser: loserText || "—",
         score: winnerFirstScore(match.score_text || "", match.winner_team),
         date: safeDateText(match.date_played),
-        notes: match.match_notes || ""
+        notes: match.match_notes || "",
+        winnerTeam: _wt,
+        t1Avg: match.team1_avg_rating,
+        t2Avg: match.team2_avg_rating,
+        winnerPts: _wt === 1 ? match.ladder_points_p1 : match.ladder_points_p3,
+        loserPts:  _wt === 1 ? match.ladder_points_p3 : match.ladder_points_p1,
+        winnerRc:  _wt === 1 ? match.rating_change_p1 : match.rating_change_p3,
+        loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
       });
 
       const upset = isMatchUpset(match);
@@ -2785,7 +2793,7 @@ async function loadMatchHistory() {
         if (!btn) return;
         try {
           const matchData = JSON.parse(btn.getAttribute("data-match") || "{}");
-          showMatchCardModal(matchData);
+          shareMatchResult(matchData, btn);
         } catch (_) {}
       });
     }
@@ -2953,6 +2961,8 @@ async function loadPlayerProfile() {
         <button class="btn-share-profile" id="share-profile-btn">⬆ Share Profile</button>
         <span class="share-copied-tip" id="share-copied-tip">Copied!</span>
       </div>
+
+      <button class="btn-share-mobile" id="share-profile-image-btn">📲 Share Profile</button>
     `;
 
     document.getElementById("share-profile-btn")?.addEventListener("click", async () => {
@@ -2964,6 +2974,10 @@ async function loadPlayerProfile() {
           setTimeout(() => tip.classList.remove("visible"), 2200);
         }
       } catch (_) {}
+    });
+
+    document.getElementById("share-profile-image-btn")?.addEventListener("click", (e) => {
+      sharePlayerProfile(playerId, player, e.currentTarget);
     });
 
     await renderPlayerRatingTrend(playerId, player.display_rating, player.initial_rating);
@@ -3241,6 +3255,25 @@ async function loadPlayerMatchHistory() {
       const resultText = perspective?.won ? "Win" : "Loss";
       const upset = isMatchUpset(match);
 
+      const _wt = match.winner_team;
+      const _winnerText = _wt === 1 ? display.team1Text : display.team2Text;
+      const _loserText  = _wt === 1 ? display.team2Text : display.team1Text;
+      const playerMatchCardData = JSON.stringify({
+        type: match.match_type || "Match",
+        winner: _winnerText || "—",
+        loser:  _loserText  || "—",
+        score: winnerFirstScore(match.score_text || "", match.winner_team),
+        date: safeDateText(match.date_played),
+        notes: match.match_notes || "",
+        winnerTeam: _wt,
+        t1Avg: match.team1_avg_rating,
+        t2Avg: match.team2_avg_rating,
+        winnerPts: _wt === 1 ? match.ladder_points_p1 : match.ladder_points_p3,
+        loserPts:  _wt === 1 ? match.ladder_points_p3 : match.ladder_points_p1,
+        winnerRc:  _wt === 1 ? match.rating_change_p1 : match.rating_change_p3,
+        loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
+      });
+
       return `
         <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}">
           <div class="history-top-row">
@@ -3272,12 +3305,375 @@ async function loadPlayerMatchHistory() {
           ` : ""}
 
           ${renderMatchExtras(match, playerMap, sexMap, playerId)}
+
+          <div>
+            <button class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
+          </div>
         </div>
       `;
     }).join("");
+
+    if (!container.dataset.shareListenerAttached) {
+      container.dataset.shareListenerAttached = "1";
+      container.addEventListener("click", (e) => {
+        const btn = e.target.closest(".history-share-btn");
+        if (!btn) return;
+        try {
+          const matchData = JSON.parse(btn.getAttribute("data-match") || "{}");
+          shareMatchResult(matchData, btn);
+        } catch (_) {}
+      });
+    }
   } catch (error) {
     console.error("Load player history error:", error);
     container.innerHTML = "<p>Error loading player history.</p>";
+  }
+}
+
+/* =========================
+   SHARE CARDS (mobile image share)
+========================= */
+
+function showShareToast(msg) {
+  document.querySelector(".share-toast")?.remove();
+  const t = document.createElement("div");
+  t.className = "share-toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add("visible")));
+  setTimeout(() => {
+    t.classList.remove("visible");
+    setTimeout(() => t.remove(), 300);
+  }, 2800);
+}
+
+async function captureAndShare(cardEl, shareText, btn) {
+  Object.assign(cardEl.style, {
+    position: "fixed", left: "-9999px", top: "0",
+    visibility: "hidden", zIndex: "-1"
+  });
+  document.body.appendChild(cardEl);
+
+  try {
+    const canvas = await html2canvas(cardEl, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#1f4d3a",
+      logging: false,
+    });
+
+    await new Promise((resolve) => {
+      canvas.toBlob(async (blob) => {
+        if (!blob) { showShareToast("Could not generate image"); resolve(); return; }
+        try {
+          const file = new File([blob], "resto-tennis.png", { type: "image/png" });
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: "Restoration Tennis Ladder", text: shareText });
+          } else {
+            showShareToast("Open on mobile to share");
+          }
+        } catch (err) {
+          if (err.name !== "AbortError") showShareToast("Open on mobile to share");
+        }
+        resolve();
+      }, "image/png");
+    });
+  } finally {
+    cardEl.remove();
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset.origLabel || "📲 Share";
+    }
+  }
+}
+
+function findSignatureMatch(playerId, matches, nameMap) {
+  const pid = Number(playerId);
+
+  const wins = matches.filter((m) => {
+    if (!m.team1_avg_rating || !m.team2_avg_rating) return false;
+    const onT1 = [m.team1_player1_id, m.team1_player2_id].includes(pid);
+    return (onT1 && m.winner_team === 1) || (!onT1 && m.winner_team === 2);
+  });
+
+  if (!wins.length) return null;
+
+  const scored = wins.map((m) => {
+    const onT1 = [m.team1_player1_id, m.team1_player2_id].includes(pid);
+    const myAvg  = onT1 ? Number(m.team1_avg_rating) : Number(m.team2_avg_rating);
+    const oppAvg = onT1 ? Number(m.team2_avg_rating) : Number(m.team1_avg_rating);
+    const prob   = 1 / (1 + Math.pow(10, (oppAvg - myAvg) / 0.45));
+
+    const t1Std = Number(m.set1_team1_games ?? 0) + Number(m.set2_team1_games ?? 0);
+    const t2Std = Number(m.set1_team2_games ?? 0) + Number(m.set2_team2_games ?? 0);
+    const wStd  = onT1 ? t1Std : t2Std;
+    const lStd  = onT1 ? t2Std : t1Std;
+    const gap   = Math.min(Math.abs(myAvg - oppAvg), 0.5);
+    const exp   = myAvg >= oppAvg ? gap * 16 : -(gap * 16);
+    const delta = (wStd - lStd) - exp;
+
+    const oppIds = onT1
+      ? [m.team2_player1_id, m.team2_player2_id].filter(Boolean)
+      : [m.team1_player1_id, m.team1_player2_id].filter(Boolean);
+    const oppNames = oppIds.map((id) => nameMap[id] || "?").join(" / ");
+
+    // Points earned by the player in this match
+    let pts = null;
+    if (m.team1_player1_id === pid) pts = m.ladder_points_p1;
+    else if (m.team1_player2_id === pid) pts = m.ladder_points_p2;
+    else if (m.team2_player1_id === pid) pts = m.ladder_points_p3;
+    else if (m.team2_player2_id === pid) pts = m.ladder_points_p4;
+
+    return { match: m, prob, delta, pts, oppNames };
+  });
+
+  const upsets = scored.filter((w) => w.prob < 0.40);
+  if (upsets.length) {
+    const best = upsets.reduce((a, b) => a.prob < b.prob ? a : b);
+    return { type: "upset", ...best };
+  }
+
+  const best = scored.reduce((a, b) => a.delta > b.delta ? a : b);
+  return { type: "performance", ...best };
+}
+
+function buildPlayerShareCard(player, genderRank, genderLabel, statusText, sigMatch) {
+  const statusBg = {
+    "Hot": "#b91c1c",
+    "On a Slide": "#6b7280",
+    "Active": "#166534",
+    "New": "#1e40af",
+    "Idle": "#4b5563",
+  }[statusText] || "#1f4d3a";
+
+  const statusEmoji = statusText === "Hot" ? " 🔥" : statusText === "On a Slide" ? " 📉" : "";
+
+  let sigHTML = "";
+  if (sigMatch) {
+    const score   = winnerFirstScore(sigMatch.match.score_text || "", sigMatch.match.winner_team);
+    const dateStr = sigMatch.match.date_played
+      ? new Date(sigMatch.match.date_played).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "";
+    const subline = sigMatch.type === "upset"
+      ? `${Math.round(sigMatch.prob * 100)}% chance going in`
+      : `Outperformed by +${sigMatch.delta.toFixed(1)} games`;
+    const label   = sigMatch.type === "upset" ? "⚡ Best Upset" : "🎯 Best Performance";
+
+    sigHTML = `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15);">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">${label}</div>
+        <div style="font-size:14px;font-weight:700;line-height:1.3;">def. ${escapeHtml(sigMatch.oppNames)}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-top:3px;">${escapeHtml(score)} &nbsp;·&nbsp; ${escapeHtml(dateStr)} &nbsp;·&nbsp; ${sigMatch.pts ?? "—"} pts</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;">${escapeHtml(subline)}</div>
+      </div>`;
+  } else {
+    sigHTML = `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15);">
+        <div style="font-size:13px;color:rgba(255,255,255,0.4);font-style:italic;">Season in progress…</div>
+      </div>`;
+  }
+
+  const el = document.createElement("div");
+  el.style.cssText = `
+    width:390px;height:520px;overflow:hidden;
+    background:#1f4d3a;
+    background:linear-gradient(135deg,#16392b 0%,#1f4d3a 55%,#1a2744 100%);
+    font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+    color:#fff;box-sizing:border-box;
+    padding:24px 24px 20px;
+    display:flex;flex-direction:column;
+    border-radius:16px;
+  `;
+
+  el.innerHTML = `
+    <div style="text-align:right;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:.03em;margin-bottom:18px;">
+      🎾 Restoration Tennis Ladder
+    </div>
+
+    <div style="flex:1;min-height:0;">
+      <div style="font-size:28px;font-weight:800;line-height:1.1;letter-spacing:-.5px;">${escapeHtml(player.name || "")}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px;">${escapeHtml(player.area || "")}</div>
+
+      <div style="height:1px;background:rgba(255,255,255,0.15);margin:16px 0;"></div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:12px;">
+        <div style="flex:1 1 155px;background:rgba(255,255,255,0.09);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Rank</div>
+          <div style="font-size:19px;font-weight:700;">#${genderRank || "—"} <span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.55);">${escapeHtml(genderLabel)}</span></div>
+        </div>
+        <div style="flex:1 1 155px;background:rgba(255,255,255,0.09);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Rating</div>
+          <div style="font-size:19px;font-weight:700;">${formatDisplayRating(player.dynamic_rating)}</div>
+        </div>
+        <div style="flex:1 1 155px;background:rgba(255,255,255,0.09);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Record</div>
+          <div style="font-size:19px;font-weight:700;">${player.wins ?? 0}–${player.losses ?? 0}</div>
+        </div>
+        <div style="flex:1 1 155px;background:rgba(255,255,255,0.09);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Points</div>
+          <div style="font-size:19px;font-weight:700;">${player.ladder_points ?? 0}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <span style="display:inline-block;background:${statusBg};color:#fff;font-size:12px;font-weight:600;padding:4px 13px;border-radius:50px;">
+          ${escapeHtml(statusText || "Active")}${statusEmoji}
+        </span>
+      </div>
+
+      ${sigHTML}
+    </div>
+
+    <div style="text-align:center;font-size:12px;color:rgba(255,255,255,0.35);padding-top:14px;">
+      restotennis.com
+    </div>
+  `;
+
+  return el;
+}
+
+function buildMatchShareCard(data) {
+  const { type, winner, loser, score, date,
+          winnerTeam, t1Avg, t2Avg,
+          winnerPts, loserPts, winnerRc, loserRc } = data;
+
+  const wAvg = Number(t1Avg || 0);
+  const lAvgVal = Number(t2Avg || 0);
+  let upsetProb = null;
+  let isUpset = false;
+  if (wAvg && lAvgVal) {
+    const winnerAvgN = winnerTeam === 1 ? wAvg : lAvgVal;
+    const loserAvgN  = winnerTeam === 1 ? lAvgVal : wAvg;
+    upsetProb = Math.round((1 / (1 + Math.pow(10, (loserAvgN - winnerAvgN) / 0.45))) * 100);
+    isUpset = upsetProb < 40;
+  }
+
+  const upsetLine = (() => {
+    if (!isUpset || upsetProb === null) return "";
+    const first = (winner || "").split("/")[0].trim().split(" ")[0];
+    const lines = [
+      `${first} had a ${upsetProb}% chance. Didn't matter.`,
+      `The odds said no. ${first} said yes.`,
+      `${upsetProb}% — and ${first} took it anyway.`,
+      `Nobody expected this. ${first} did.`,
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  })();
+
+  const rcFmt = (v) => { const n = Number(v || 0); return (n >= 0 ? "+" : "") + n.toFixed(2); };
+  const dateStr = date
+    ? new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "";
+
+  const winnerTrunc = (winner || "—").length > 22 ? (winner || "—").slice(0, 21) + "…" : (winner || "—");
+  const loserTrunc  = (loser  || "—").length > 26 ? (loser  || "—").slice(0, 25) + "…" : (loser  || "—");
+
+  const el = document.createElement("div");
+  el.style.cssText = `
+    width:390px;height:${upsetLine ? 460 : 440}px;overflow:hidden;
+    background:#1f4d3a;
+    background:linear-gradient(135deg,#16392b 0%,#1f4d3a 55%,#1a2744 100%);
+    font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+    color:#fff;box-sizing:border-box;
+    padding:24px 24px 20px;
+    display:flex;flex-direction:column;
+    border-radius:16px;
+  `;
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <span style="background:rgba(255,255,255,0.15);font-size:11px;font-weight:700;padding:3px 11px;border-radius:50px;text-transform:uppercase;letter-spacing:.07em;">
+          ${escapeHtml((type || "Match").toUpperCase())}
+        </span>
+        ${isUpset ? `<span style="background:#d97706;font-size:11px;font-weight:700;padding:3px 11px;border-radius:50px;">⚡ Upset</span>` : ""}
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);text-align:right;line-height:1.4;">🎾 Restoration<br>Tennis Ladder</div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:24px;font-weight:800;line-height:1.15;letter-spacing:-.3px;">${escapeHtml(winnerTrunc)}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.45);margin:5px 0 6px;">def.</div>
+      <div style="font-size:18px;font-weight:600;color:rgba(255,255,255,0.75);">${escapeHtml(loserTrunc)}</div>
+      <div style="font-size:30px;font-weight:800;letter-spacing:-.5px;margin:14px 0 4px;">${escapeHtml(score || "")}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.45);">${escapeHtml(dateStr)}</div>
+    </div>
+
+    <div style="height:1px;background:rgba(255,255,255,0.15);margin:14px 0;"></div>
+
+    <div style="display:flex;gap:10px;margin-bottom:${upsetLine ? "10px" : "0"};">
+      <div style="flex:1;background:rgba(255,255,255,0.09);border-radius:10px;padding:10px 12px;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${escapeHtml((winner || "Winner").split("/")[0].trim())}</div>
+        <div style="font-size:17px;font-weight:700;">${winnerPts != null ? winnerPts + " pts" : "—"}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);">${rcFmt(winnerRc)} rating</div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${escapeHtml((loser || "Loser").split("/")[0].trim())}</div>
+        <div style="font-size:17px;font-weight:700;">${loserPts != null ? loserPts + " pts" : "—"}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);">${rcFmt(loserRc)} rating</div>
+      </div>
+    </div>
+
+    ${upsetLine ? `<div style="font-size:13px;color:rgba(255,255,255,0.6);font-style:italic;text-align:center;margin-bottom:10px;">"${escapeHtml(upsetLine)}"</div>` : ""}
+
+    <div style="text-align:center;font-size:12px;color:rgba(255,255,255,0.35);margin-top:auto;">
+      restotennis.com
+    </div>
+  `;
+
+  return el;
+}
+
+async function sharePlayerProfile(playerId, player, btn) {
+  if (btn) {
+    btn.dataset.origLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+  }
+
+  try {
+    const [allPlayersRes, playerMatches, recentMatches] = await Promise.all([
+      supabaseClient.from("players").select("id, name, sex, ladder_points, dynamic_rating, wins").order("ladder_points", { ascending: false }),
+      fetchMatchesForPlayer(playerId),
+      fetchRecentMatchesForStatus(),
+    ]);
+
+    const allPlayers = allPlayersRes.data || [];
+    const nameMap = {};
+    allPlayers.forEach((p) => { nameMap[p.id] = p.name; });
+
+    const genderLabel = player.sex === "Man" ? "Men's" : "Women's";
+    const sameSex     = sortPlayersForStandings(allPlayers.filter((p) => p.sex === player.sex));
+    const genderRank  = sameSex.findIndex((p) => String(p.id) === String(playerId)) + 1 || null;
+
+    const status    = getPlayerStatus(playerId, recentMatches);
+    const sigMatch  = findSignatureMatch(playerId, playerMatches, nameMap);
+
+    const cardEl    = buildPlayerShareCard(player, genderRank, genderLabel, status, sigMatch);
+    const shareText = `${player.name} is ranked #${genderRank || "?"} on the Restoration Tennis Ladder — restotennis.com`;
+    await captureAndShare(cardEl, shareText, btn);
+  } catch (err) {
+    console.error("sharePlayerProfile error:", err);
+    showShareToast("Something went wrong");
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origLabel || "📲 Share Profile"; }
+  }
+}
+
+async function shareMatchResult(matchData, btn) {
+  if (btn) {
+    btn.dataset.origLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+  }
+
+  try {
+    const cardEl    = buildMatchShareCard(matchData);
+    const shareText = `${matchData.winner} def. ${matchData.loser} ${matchData.score} — restotennis.com`;
+    await captureAndShare(cardEl, shareText, btn);
+  } catch (err) {
+    console.error("shareMatchResult error:", err);
+    showShareToast("Something went wrong");
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origLabel || "⬆ Share"; }
   }
 }
 

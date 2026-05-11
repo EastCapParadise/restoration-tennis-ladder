@@ -3094,6 +3094,65 @@ th[data-sort]:hover {
   background: rgba(31, 77, 58, 0.16);
 }
 
+/* Mobile image-share button — hidden on desktop */
+.btn-share-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 11px 18px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 10px;
+  transition: background 0.2s;
+}
+
+.btn-share-mobile:hover {
+  background: var(--green-dark);
+}
+
+.btn-share-mobile:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (min-width: 769px) {
+  .btn-share-mobile {
+    display: none;
+  }
+}
+
+/* Toast notification */
+.share-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(22, 57, 43, 0.95);
+  color: #fff;
+  padding: 10px 22px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.share-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* Share profile button */
 .btn-share-profile {
   display: inline-flex;
