@@ -134,6 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadHomeStats();
       await loadMyLadderCard(); // injected before stat cards, no-op if no player selected
     }
+    if (document.getElementById("weather-widget")) loadWeatherWidget(); // fire-and-forget — hides itself on error
     if (document.getElementById("activity-feed")) await loadActivityFeed();
     if (document.getElementById("season-story")) await loadSeasonStory();
 
@@ -888,6 +889,52 @@ async function loadHomeStats() {
       <div class="stat-label">Days Left</div>
     </a>
   `;
+}
+
+/* =========================
+   WEATHER WIDGET
+========================= */
+
+async function loadWeatherWidget() {
+  const container = document.getElementById("weather-widget");
+  if (!container) return;
+
+  try {
+    const res = await fetch(
+      "https://api.open-meteo.com/v1/forecast?latitude=38.8816&longitude=-77.0910" +
+      "&current=temperature_2m,weathercode,windspeed_10m" +
+      "&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=America%2FNew_York"
+    );
+    if (!res.ok) { container.style.display = "none"; return; }
+
+    const data = await res.json();
+    const { temperature_2m: tempRaw, weathercode: code, windspeed_10m: windRaw } = data.current;
+    const temp = Math.round(tempRaw);
+    const wind = Math.round(windRaw);
+
+    // Determine tennis condition message and accent color
+    let message, accent;
+    if (code <= 1) {
+      if (wind < 15)      { message = "⛅ Good conditions for tennis today";            accent = "green"; }
+      else if (wind <= 25){ message = "🌬️ Windy but playable — factor in the wind";     accent = "amber"; }
+      else                { message = "💨 Very windy — tough conditions today";          accent = "amber"; }
+    } else if (code <= 3) { message = "☁️ Overcast — playable, bring layers";            accent = "amber"; }
+    else if (code <= 48)  { message = "🌫️ Foggy — check conditions before heading out"; accent = "amber"; }
+    else if (code <= 67)  { message = "🌧️ Rain today — courts likely wet";              accent = "red";   }
+    else if (code <= 77)  { message = "❄️ Snow — courts closed";                        accent = "red";   }
+    else if (code <= 82)  { message = "🌦️ Showers expected — check before you go";     accent = "red";   }
+    else                  { message = "⛈️ Thunderstorms — do not play";                 accent = "red";   }
+
+    container.innerHTML = `
+      <div class="weather-card weather-${escapeHtml(accent)}">
+        <div class="weather-location">Arlington, VA</div>
+        <div class="weather-condition">${escapeHtml(message)}</div>
+        <div class="weather-detail">${temp}°F · ${wind} mph winds</div>
+      </div>
+    `;
+  } catch (_) {
+    container.style.display = "none";
+  }
 }
 
 /* =========================

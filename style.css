@@ -2802,6 +2802,44 @@ th[data-sort]:hover {
 }
 
 /* =========================
+   WEATHER WIDGET
+========================= */
+
+.weather-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.weather-card.weather-amber { border-left-color: #d97706; }
+.weather-card.weather-red   { border-left-color: #dc2626; }
+
+.weather-location {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.weather-condition {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.weather-detail {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* =========================
    HOMEPAGE CTA BUTTONS
 ========================= */
 
