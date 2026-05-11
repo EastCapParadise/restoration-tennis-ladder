@@ -22,7 +22,6 @@ function roundToTwo(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 function fmt(n) {
   const x = Number(n ?? 0);
@@ -110,12 +109,16 @@ function avgAdjRating(players, adj) {
   }, 0) / v.length;
 }
 
-function provisionalBaseK(player) {
-  return (player && (player.matches_played ?? 0) < 5) ? 0.12 : 0.06;
+// K three-tier: matches 1-3 = 0.15, matches 4-8 = 0.10, matches 9+ = 0.06
+function playerK(player) {
+  const mp = player?.matches_played ?? 0;
+  if (mp < 3) return 0.15;
+  if (mp < 8) return 0.10;
+  return 0.06;
 }
 
-function scoreMatch({ matchType, winnerTeam, team1Players, team2Players,
-  team1StandardGames, team2StandardGames, team1TotalGames, team2TotalGames }) {
+function scoreMatch({ winnerTeam, team1Players, team2Players,
+  team1StandardGames, team2StandardGames, has3Set = false }) {
 
   const mixed = isMixedGender(team1Players, team2Players);
   const t1avg = avgAdjRating(team1Players, mixed);
@@ -126,37 +129,45 @@ function scoreMatch({ matchType, winnerTeam, team1Players, team2Players,
   const wStd = winnerTeam === 1 ? team1StandardGames : team2StandardGames;
   const lStd = winnerTeam === 1 ? team2StandardGames : team1StandardGames;
 
+  // Expected spread = gapMagnitude × 16, signed (+ if winner favourite, − if underdog)
   const gap = Math.min(Math.abs(wAvg - lAvg), 0.5);
-  const expSpread = wAvg >= lAvg ? gap * 24 : -(gap * 24);
+  const expSpread = wAvg >= lAvg ? gap * 16 : -(gap * 16);
   const delta = (wStd - lStd) - expSpread;
 
-  const wPerf = clamp(0.5 + delta / 48, 0, 1);
-  const lPerf = 1 - wPerf;
-  const pT1 = winnerTeam === 1 ? wPerf : lPerf;
-  const pT2 = winnerTeam === 2 ? wPerf : lPerf;
+  // Rating change: RC = (delta / 24) × K × 0.85, signed per winner/loser
+  function rc(player, isWinner) {
+    const raw = roundToTwo((delta / 24) * playerK(player) * 0.85);
+    const val = Number.isFinite(raw) ? raw : 0;
+    return isWinner ? val : -val;
+  }
 
-  const rGap   = Math.abs(t1avg - t2avg);
-  const eT1    = 1 / (1 + Math.pow(10, (t2avg - t1avg) / 0.45));
-  const eT2    = 1 - eT1;
-  const tot    = Math.max(team1TotalGames + team2TotalGames, 1);
-  const mRatio = Math.abs(team1TotalGames - team2TotalGames) / tot;
-  const gapB   = Math.min(rGap * 0.04, 0.05);
-  const marB   = mRatio * 0.06;
+  const rc1 = rc(team1Players[0], winnerTeam === 1);
+  const rc2 = rc(team1Players[1], winnerTeam === 1);
+  const rc3 = rc(team2Players[0], winnerTeam === 2);
+  const rc4 = rc(team2Players[1], winnerTeam === 2);
 
-  const pK = p => provisionalBaseK(p) + gapB + marB;
-  const sRC = (perf, exp, p) => {
-    const raw = roundToTwo((perf - exp) * pK(p));
-    return Number.isFinite(raw) ? raw : 0;
-  };
+  // Winner points: 11-base, delta × 0.29, clamped [8, 18]
+  let wPts = Math.max(8, Math.min(18, Math.round(11 + delta * 0.29)));
 
-  const rc1 = sRC(pT1, eT1, team1Players[0]);
-  const rc2 = sRC(pT1, eT1, team1Players[1]);
-  const rc3 = sRC(pT2, eT2, team2Players[0]);
-  const rc4 = sRC(pT2, eT2, team2Players[1]);
+  // Loser points: bagel → gap-scaled floor; otherwise games-based
+  const bagel = lStd === 0;
+  let lPts = bagel
+    ? Math.max(5, Math.round(4 + gap * 6))
+    : Math.max(5, Math.round(4 + lStd * 0.7));
 
-  let wPts = Math.max(7, Math.min(18, Math.round(13 + delta * 0.5)));
-  let lPts = delta >= 0 ? 5 : Math.round(5 + (-delta * 0.6));
-  lPts = Math.max(5, Math.min(wPts - 1, lPts));
+  // Enforce: loser ≤ winner − 2, loser ≥ 5, winner − loser ≥ 3
+  lPts = Math.min(lPts, wPts - 2);
+  lPts = Math.max(5, lPts);
+  if (wPts - lPts < 3) wPts = lPts + 3;
+
+  // 3-set bonus: winner +2; loser +1 or +2 based on rating relationship
+  if (has3Set) {
+    wPts += 2;
+    if (gap < 0.1)        lPts += 2;  // even match
+    else if (lAvg > wAvg) lPts += 1;  // loser was favourite
+    else                  lPts += 2;  // loser was underdog
+    if (wPts - lPts < 3) wPts = lPts + 3;
+  }
 
   const lp = winnerTeam === 1
     ? [wPts, wPts, lPts, lPts]
@@ -221,16 +232,15 @@ async function runRecalculation(log) {
     const t1 = [gP(m.team1_player1_id), gP(m.team1_player2_id)];
     const t2 = [gP(m.team2_player1_id), gP(m.team2_player2_id)];
 
-    const t1Std = Number(m.set1_team1_games ?? 0) + Number(m.set2_team1_games ?? 0);
-    const t2Std = Number(m.set1_team2_games ?? 0) + Number(m.set2_team2_games ?? 0);
-    const t1Tot = t1Std + Number(m.set3_team1_games ?? 0);
-    const t2Tot = t2Std + Number(m.set3_team2_games ?? 0);
+    const t1Std  = Number(m.set1_team1_games ?? 0) + Number(m.set2_team1_games ?? 0);
+    const t2Std  = Number(m.set1_team2_games ?? 0) + Number(m.set2_team2_games ?? 0);
+    const has3Set = m.set3_team1_games != null && m.set3_team2_games != null;
 
     const s = scoreMatch({
-      matchType: m.match_type, winnerTeam: m.winner_team,
+      winnerTeam: m.winner_team,
       team1Players: t1, team2Players: t2,
       team1StandardGames: t1Std, team2StandardGames: t2Std,
-      team1TotalGames: t1Tot, team2TotalGames: t2Tot,
+      has3Set,
     });
 
     const payload = {

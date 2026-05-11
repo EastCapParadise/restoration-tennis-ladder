@@ -1843,22 +1843,19 @@ function buildScoringContext(formData, hydrated) {
     set3Team2Games
   } = formData;
 
-  // Standard sets (1 and 2) only — used for player Games W/L stats and match storage
+  // Standard games: sets 1 and 2 only. Tiebreak (set 3) is never counted in the spread.
   const standardSets = [
     [set1Team1Games, set1Team2Games],
     [set2Team1Games, set2Team2Games]
   ];
 
-  // All sets including tiebreak — used only for rating margin bonus calculation
-  const allSets = [...standardSets];
-  if (set3Team1Games !== null && set3Team2Games !== null) {
-    allSets.push([set3Team1Games, set3Team2Games]);
-  }
-
   const team1StandardGames = standardSets.reduce((sum, [a]) => sum + Number(a || 0), 0);
   const team2StandardGames = standardSets.reduce((sum, [, b]) => sum + Number(b || 0), 0);
-  const team1TotalGames = allSets.reduce((sum, [a]) => sum + Number(a || 0), 0);
-  const team2TotalGames = allSets.reduce((sum, [, b]) => sum + Number(b || 0), 0);
+  const team1TotalGames = team1StandardGames + Number(set3Team1Games || 0);
+  const team2TotalGames = team2StandardGames + Number(set3Team2Games || 0);
+
+  // has3Set triggers the 3-set bonus in calculateMatchScoring
+  const has3Set = set3Team1Games !== null && set3Team2Games !== null;
 
   return {
     matchType: formData.matchType,
@@ -1868,10 +1865,25 @@ function buildScoringContext(formData, hydrated) {
     team1StandardGames,
     team2StandardGames,
     team1TotalGames,
-    team2TotalGames
+    team2TotalGames,
+    has3Set
   };
 }
 
+/*
+ * calculateMatchScoring — scoring formula
+ *
+ * Expected spread = gapMagnitude × 16, signed (+ if winner is favorite, - if underdog).
+ * Gap capped at 0.5, so expected spread ranges from -8 to +8.
+ * Delta = (winner_std_games - loser_std_games) - expected_spread.
+ * Positive delta = outperformed expectations; negative = closer than expected.
+ *
+ * Anchor verification (no 3-set bonus):
+ *   Even match,        6-3 6-2 → winner=13, loser=8
+ *   Fav 0.5,           6-3 6-2 → winner=11, loser=8
+ *   Fav 0.75 (capped), 6-0 6-0 → winner=12, loser=7
+ *   Major upset 0.5,   6-0 6-0 → winner=17, loser=7
+ */
 function calculateMatchScoring({
   matchType,
   winnerTeam,
@@ -1880,43 +1892,41 @@ function calculateMatchScoring({
   team1StandardGames,
   team2StandardGames,
   team1TotalGames,
-  team2TotalGames
+  team2TotalGames,
+  has3Set = false
 }) {
   const mixedGender = isMixedGenderMatch(team1Players, team2Players);
-  // Gender adjustment: +0.5 added to male ratings for mixed-gender match calculations per NTRP convention
+  // Gender adjustment: +0.5 added to male ratings in mixed matches before all calculations
   const team1AvgRating = averageAdjustedRating(team1Players, mixedGender);
   const team2AvgRating = averageAdjustedRating(team2Players, mixedGender);
 
-  // --- Performance delta (shared by rating change and ladder points) ---
-  // Standard games = sets 1 and 2 only. Tiebreak (set 3) always excluded.
   const winnerAvgRating = winnerTeam === 1 ? team1AvgRating : team2AvgRating;
   const loserAvgRating  = winnerTeam === 1 ? team2AvgRating : team1AvgRating;
   const winnerStdGames  = winnerTeam === 1 ? team1StandardGames : team2StandardGames;
   const loserStdGames   = winnerTeam === 1 ? team2StandardGames : team1StandardGames;
 
-  // Expected spread anchors to USTA standard: 0.5 rating gap = 6-0, 6-0 = 12-game spread.
-  // Gap capped at 0.5, so expected_spread ranges from -12 (big underdog) to +12 (big favorite).
+  // Gap capped at 0.5; expected spread uses ×16 anchor.
   const gapMagnitude = Math.min(Math.abs(winnerAvgRating - loserAvgRating), 0.5);
   const expectedSpread = winnerAvgRating >= loserAvgRating
-    ? gapMagnitude * 24
-    : -(gapMagnitude * 24);
+    ? gapMagnitude * 16
+    : -(gapMagnitude * 16);
   const actualSpread = winnerStdGames - loserStdGames;
   const delta = actualSpread - expectedSpread;
-  // Positive delta = outperformed expectations; negative = closer match than expected.
 
-  // --- Dynamic rating change (pure game-spread based) ---
-  // ratingChange = (delta / 24) × K × 0.85
-  // Winner and loser are always symmetric: winner gains, loser loses the same amount.
-  // The Elo win probability is NOT used for rating changes — only in buildOddsLine
-  // for the "Odds: X% · Y%" display on match cards.
-  // Provisional K: 0.12 for a player's first 5 matches, 0.06 after. Applied per player
-  // so doubles teammates at different experience levels get different K values.
-  function playerBaseK(player) {
-    return (player && (player.matches_played ?? 0) < 5) ? 0.12 : 0.06;
+  // --- Dynamic rating change ---
+  // RC = (delta / 24) × K × 0.85. Winner gains, loser loses.
+  // Elo win probability is NOT used here — only in buildOddsLine for display.
+  // K three-tier by sequential match count: matches 1-3 = 0.15, 4-8 = 0.10, 9+ = 0.06.
+  // Applied per player so doubles teammates at different experience levels get different K.
+  function playerK(player) {
+    const mp = player?.matches_played ?? 0;
+    if (mp < 3) return 0.15;
+    if (mp < 8) return 0.10;
+    return 0.06;
   }
 
   function playerRc(player, isWinnerTeam) {
-    const raw = roundToTwo((delta / 24) * playerBaseK(player) * 0.85);
+    const raw = roundToTwo((delta / 24) * playerK(player) * 0.85);
     const rc = Number.isFinite(raw) ? raw : 0;
     return isWinnerTeam ? rc : -rc;
   }
@@ -1926,19 +1936,38 @@ function calculateMatchScoring({
   const rc3 = playerRc(team2Players[0], winnerTeam === 2);
   const rc4 = playerRc(team2Players[1], winnerTeam === 2);
 
-  // --- Ladder points (3-part system) ---
-  // Part A: Loser always gets a participation floor of 5 points, no exceptions.
-  // Part B: Winner always gets +6 just for winning, regardless of opponent rating.
-  // Part C: Performance delta (computed above) adjusts scores vs statistically expected result.
+  // --- Ladder points ---
+  // Winner: 11-base scaled by delta × 0.29, clamped [8, 18].
+  let winnerPoints = Math.max(8, Math.min(18, Math.round(11 + delta * 0.29)));
 
-  // Winner: base 13 (6 win bonus + 7 floor), scaled by delta at 0.5x. Clamped [7, 18].
-  let winnerPoints = Math.round(6 + 7 + delta * 0.5);
-  winnerPoints = Math.max(7, Math.min(18, winnerPoints));
+  // Loser: bageled (0 standard games) uses gap-scaled floor; otherwise games-based.
+  const loserBageled = loserStdGames === 0;
+  let loserPoints = loserBageled
+    ? Math.max(5, Math.round(4 + gapMagnitude * 6))
+    : Math.max(5, Math.round(4 + loserStdGames * 0.7));
 
-  // Loser: floor 5; earns extra points when the match was closer than expected (delta < 0).
-  // Hard cap at winner_pts - 1 so winner always finishes ahead.
-  let loserPoints = delta >= 0 ? 5 : Math.round(5 + (-delta * 0.6));
-  loserPoints = Math.max(5, Math.min(winnerPoints - 1, loserPoints));
+  // Enforce: loser ≤ winner − 2, loser ≥ 5, then push winner up if spread < 3.
+  loserPoints = Math.min(loserPoints, winnerPoints - 2);
+  loserPoints = Math.max(5, loserPoints);
+  if (winnerPoints - loserPoints < 3) winnerPoints = loserPoints + 3;
+
+  // 3-set bonus: awarded only when a set-3 score is present (has3Set = true).
+  if (has3Set) {
+    winnerPoints += 2;
+    // Loser bonus based on pre-match rating relationship (adjusted ratings):
+    //   even match (gap < 0.1)        → +2  (credits pushing the favorite to a decider)
+    //   loser was the favorite        → +1  (expected to win; partial credit for losing in 3)
+    //   loser was the underdog        → +2  (rewards an underdog going the distance)
+    if (gapMagnitude < 0.1) {
+      loserPoints += 2;
+    } else if (loserAvgRating > winnerAvgRating) {
+      loserPoints += 1;
+    } else {
+      loserPoints += 2;
+    }
+    // Re-enforce 3-point minimum spread after bonuses
+    if (winnerPoints - loserPoints < 3) winnerPoints = loserPoints + 3;
+  }
 
   return {
     team1AvgRating: roundToTwo(team1AvgRating),

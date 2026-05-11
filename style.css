@@ -477,6 +477,17 @@ p {
   font-size: 14px;
 }
 
+.scoring-disclaimer {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--green-light);
+  border-left: 3px solid var(--green);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
 .button-group {
   display: flex;
   flex-direction: column;
