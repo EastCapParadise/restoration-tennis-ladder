@@ -205,6 +205,22 @@ body {
   text-align: center;
 }
 
+@media (max-width: 768px) {
+  .profile-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .profile-actions .button,
+  .profile-actions .btn-share-mobile {
+    flex: 1;
+    font-size: 13px;
+    margin-top: 0;
+    width: auto;
+    padding: 12px 8px;
+  }
+}
+
 /* =========================
    ACTIVITY FEED
 ========================= */

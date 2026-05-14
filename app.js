@@ -3023,9 +3023,8 @@ async function loadPlayerProfile() {
 
       <div class="profile-actions">
         <a href="report.html?opponentId=${player.id}" class="button">Report a Match Against ${escapeHtml(player.name || "Player")}</a>
+        <button class="btn-share-mobile" id="share-profile-image-btn">📲 Share Profile</button>
       </div>
-
-      <button class="btn-share-mobile" id="share-profile-image-btn">📲 Share Profile</button>
     `;
 
     document.getElementById("share-profile-image-btn")?.addEventListener("click", (e) => {
@@ -3146,17 +3145,16 @@ function closeMatchPreviewModal() {
 }
 
 function mpPlayerOption(player, rankMap) {
-  const rank   = rankMap[player.id] ? `Rank #${rankMap[player.id]}` : "Unranked";
-  const rating = Number(player.dynamic_rating || player.display_rating || 0).toFixed(2);
-  const pts    = player.ladder_points ?? 0;
-  return `<option value="${player.id}">${escapeHtml(player.name)} — ${rank} — Rating ${rating} — ${pts} pts</option>`;
+  const rank = rankMap[player.id] ? `Rank #${rankMap[player.id]}` : "Unranked";
+  return `<option value="${player.id}">${escapeHtml(player.name)} — ${rank}</option>`;
 }
 
 function mpFillSelect(sel, players) {
   if (!sel) return;
-  const prev = sel.value;
-  sel.innerHTML = players.map(p => mpPlayerOption(p, mpState.rankMap)).join("");
-  if (prev && players.some(p => String(p.id) === prev)) sel.value = prev;
+  const prev   = sel.value;
+  const sorted = [...players].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  sel.innerHTML = sorted.map(p => mpPlayerOption(p, mpState.rankMap)).join("");
+  if (prev && sorted.some(p => String(p.id) === prev)) sel.value = prev;
 }
 
 function mpFillSinglesDropdown() {
