@@ -3160,7 +3160,7 @@ function mpFillSelect(sel, players) {
 function mpFillSinglesDropdown() {
   const pid = mpState.playerId;
   const opp1 = document.getElementById("mp-opp1");
-  mpFillSelect(opp1, mpState.genderPlayers.filter(p => p.id !== pid));
+  mpFillSelect(opp1, mpState.allSorted.filter(p => p.id !== pid));
 }
 
 function mpFillDoublesDropdowns() {
@@ -3172,7 +3172,7 @@ function mpFillDoublesDropdowns() {
   const partnerId = partner ? Number(partner.value) || null : null;
   const dopp1Id   = dopp1   ? Number(dopp1.value)   || null : null;
 
-  mpFillSelect(partner, mpState.genderPlayers.filter(p => p.id !== pid));
+  mpFillSelect(partner, mpState.allSorted.filter(p => p.id !== pid));
 
   const excl1 = new Set([pid, partnerId].filter(Boolean));
   mpFillSelect(dopp1, mpState.allSorted.filter(p => !excl1.has(p.id)));
