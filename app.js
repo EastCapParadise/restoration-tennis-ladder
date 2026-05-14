@@ -3986,6 +3986,21 @@ const BIWEEKLY_CHECKPOINTS = [
   { label: 'Oct 30', date: '2026-10-30' },
 ];
 
+// Returns the active checkpoint list ending exactly at today.
+// If today is already a biweekly Friday it is used as-is; otherwise today
+// is appended as a final point flagged isToday:true.
+function buildActiveCheckpoints() {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const active = BIWEEKLY_CHECKPOINTS.filter(cp => cp.date <= today);
+  const todayIsCheckpoint = BIWEEKLY_CHECKPOINTS.some(cp => cp.date === today);
+  if (!todayIsCheckpoint) {
+    const todayLabel = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    active.push({ label: todayLabel, date: today, isToday: true });
+  }
+  return active;
+}
+
 async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRating) {
   const section = document.getElementById("rating-trend-section");
   const canvas  = document.getElementById("rating-trend-canvas");
@@ -4015,11 +4030,12 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRa
       matchTimeline.push({ date: item.match.date_played.slice(0, 10), rating: running });
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const activeCheckpoints = BIWEEKLY_CHECKPOINTS.filter(cp => cp.date <= today);
+    const activeCheckpoints = buildActiveCheckpoints();
+    const liveRating = roundToTwo(Number(currentDisplayRating ?? 0));
 
     const labels  = activeCheckpoints.map(cp => cp.label);
     const ratings = activeCheckpoints.map(cp => {
+      if (cp.isToday) return liveRating;
       let val = baseRating;
       for (const entry of matchTimeline) {
         if (entry.date <= cp.date) val = entry.rating;
@@ -4070,8 +4086,10 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRa
               maxRotation: 0,
               minRotation: 0,
               callback: function(val, index) {
-                if (isMobile && index % 2 !== 0) return null;
-                return labels[index];
+                if (!isMobile) return labels[index];
+                const last = labels.length - 1;
+                if (index === 0 || index === last) return labels[index];
+                return index % 2 === 0 ? labels[index] : null;
               }
             }
           },
@@ -4127,8 +4145,7 @@ async function renderPointsRankingChart(playerId, playerSex) {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const activeCheckpoints = BIWEEKLY_CHECKPOINTS.filter(cp => cp.date <= today);
+    const activeCheckpoints = buildActiveCheckpoints();
 
     const cumPoints = {};
     allPlayers.forEach(p => { cumPoints[p.id] = 0; });
@@ -4181,8 +4198,10 @@ async function renderPointsRankingChart(playerId, playerSex) {
       maxRotation: 0,
       minRotation: 0,
       callback: function(val, index) {
-        if (isMobile && index % 2 !== 0) return null;
-        return labels[index];
+        if (!isMobile) return labels[index];
+        const last = labels.length - 1;
+        if (index === 0 || index === last) return labels[index];
+        return index % 2 === 0 ? labels[index] : null;
       }
     };
 
