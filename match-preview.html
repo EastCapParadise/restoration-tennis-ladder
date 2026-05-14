@@ -322,9 +322,21 @@ function toScore(wStd, lStd) {
   return `6-${lps + ext}, 6-${lps}`;
 }
 
+function firstName(name) {
+  return (name || '').trim().split(' ')[0] || name;
+}
+
 function lastName(name) {
   const p = (name || '').trim().split(' ');
   return p[p.length - 1] || name;
+}
+
+function teamTitle(players) {
+  if (players.length === 1) return firstName(players[0].name);
+  const last0 = lastName(players[0].name);
+  const last1 = lastName(players[1].name);
+  if (last0 === last1) return last0 + 's';
+  return `${firstName(players[0].name)} & ${firstName(players[1].name)}`;
 }
 
 function teamShortName(players) {
@@ -396,9 +408,17 @@ function render(data) {
   });
 
   /* Title line */
-  const titleStr = isDoubles
-    ? `${teamShortName(team1)} vs ${teamShortName(team2)}`
-    : `${lastName(team1[0].name)} vs ${lastName(team2[0].name)}`;
+  const t1Title = teamTitle(team1);
+  const t2Title = teamTitle(team2);
+  // Edge case: both doubles teams share the same last name — fall back to first names
+  const bothSameLast = isDoubles
+    && team1.length > 1 && team2.length > 1
+    && lastName(team1[0].name) === lastName(team1[1].name)
+    && lastName(team2[0].name) === lastName(team2[1].name)
+    && lastName(team1[0].name) === lastName(team2[0].name);
+  const titleStr = bothSameLast
+    ? `${firstName(team1[0].name)} & ${firstName(team1[1].name)} vs ${firstName(team2[0].name)} & ${firstName(team2[1].name)}`
+    : `${t1Title} vs ${t2Title}`;
 
   const favName  = teamShortName(favTeam);
   const probLine = `${esc(favName)} ${favPct}% fav · Expected ~${scenarios[0].score}`;
