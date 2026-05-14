@@ -3034,10 +3034,230 @@ async function loadPlayerProfile() {
 
     await renderPlayerRatingTrend(playerId, player.display_rating, player.initial_rating);
     renderPointsRankingChart(playerId, player.sex); // async, hides itself on error or <2 matches
+    initMatchPreviewButton(playerId, player);
   } catch (error) {
     console.error("Load player profile error:", error);
     container.innerHTML = "<p>Error loading player profile.</p>";
   }
+}
+
+/* =========================
+   MATCH PREVIEW BUTTON + MODAL
+========================= */
+
+let _mpCachedPlayers = null;
+
+const mpState = {
+  playerId: null,
+  player: null,
+  genderPlayers: [],
+  allSorted: [],
+  rankMap: {},
+};
+
+function initMatchPreviewButton(playerId, player) {
+  const wrap = document.getElementById("match-preview-btn-wrap");
+  if (!wrap) return;
+  wrap.innerHTML = `<button class="mp-trigger-btn" id="mp-trigger-btn">🎾 Generate Match Preview</button>`;
+  document.getElementById("mp-trigger-btn").addEventListener("click", () => {
+    openMatchPreviewModal(playerId, player);
+  });
+}
+
+async function openMatchPreviewModal(playerId, player) {
+  const overlay = document.getElementById("mp-overlay");
+  if (!overlay) return;
+
+  if (!_mpCachedPlayers) {
+    try {
+      const { data } = await supabaseClient
+        .from("players")
+        .select("id, name, sex, dynamic_rating, display_rating, ladder_points, wins, matches_played");
+      _mpCachedPlayers = data || [];
+    } catch (e) {
+      console.error("Match preview: failed to load players", e);
+      return;
+    }
+  }
+
+  const menSorted   = sortPlayersForStandings(_mpCachedPlayers.filter(p => p.sex === "Man"));
+  const womenSorted = sortPlayersForStandings(_mpCachedPlayers.filter(p => p.sex === "Woman"));
+  const genderPlayers = player.sex === "Man" ? menSorted : womenSorted;
+  const allSorted   = sortPlayersForStandings(_mpCachedPlayers);
+
+  const rankMap = {};
+  menSorted.forEach((p, i)   => { rankMap[p.id] = i + 1; });
+  womenSorted.forEach((p, i) => { rankMap[p.id] = i + 1; });
+
+  mpState.playerId      = Number(playerId);
+  mpState.player        = player;
+  mpState.genderPlayers = genderPlayers;
+  mpState.allSorted     = allSorted;
+  mpState.rankMap       = rankMap;
+
+  // Reset to singles mode
+  const singlesBtn   = document.getElementById("mp-btn-singles");
+  const doublesBtn   = document.getElementById("mp-btn-doubles");
+  const singlesFields = document.getElementById("mp-singles-fields");
+  const doublesFields = document.getElementById("mp-doubles-fields");
+
+  singlesBtn.classList.add("active");
+  doublesBtn.classList.remove("active");
+  singlesFields.style.display = "";
+  doublesFields.style.display = "none";
+
+  mpFillSinglesDropdown();
+  mpFillDoublesDropdowns();
+
+  singlesBtn.onclick = () => {
+    singlesBtn.classList.add("active");
+    doublesBtn.classList.remove("active");
+    singlesFields.style.display = "";
+    doublesFields.style.display = "none";
+  };
+
+  doublesBtn.onclick = () => {
+    doublesBtn.classList.add("active");
+    singlesBtn.classList.remove("active");
+    singlesFields.style.display = "none";
+    doublesFields.style.display = "";
+  };
+
+  const generateBtn = document.getElementById("mp-generate-btn");
+  if (generateBtn) generateBtn.onclick = mpHandleGenerate;
+
+  const closeBtn = document.getElementById("mp-close-btn");
+  if (closeBtn) closeBtn.onclick = closeMatchPreviewModal;
+
+  overlay.onclick = (e) => { if (e.target === overlay) closeMatchPreviewModal(); };
+
+  overlay.classList.add("open");
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+
+function closeMatchPreviewModal() {
+  const overlay = document.getElementById("mp-overlay");
+  if (overlay) {
+    overlay.classList.remove("open");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  document.body.style.overflow = "";
+}
+
+function mpPlayerOption(player, rankMap) {
+  const rank   = rankMap[player.id] ? `Rank #${rankMap[player.id]}` : "Unranked";
+  const rating = Number(player.dynamic_rating || player.display_rating || 0).toFixed(2);
+  const pts    = player.ladder_points ?? 0;
+  return `<option value="${player.id}">${escapeHtml(player.name)} — ${rank} — Rating ${rating} — ${pts} pts</option>`;
+}
+
+function mpFillSelect(sel, players) {
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = players.map(p => mpPlayerOption(p, mpState.rankMap)).join("");
+  if (prev && players.some(p => String(p.id) === prev)) sel.value = prev;
+}
+
+function mpFillSinglesDropdown() {
+  const pid = mpState.playerId;
+  const opp1 = document.getElementById("mp-opp1");
+  mpFillSelect(opp1, mpState.genderPlayers.filter(p => p.id !== pid));
+}
+
+function mpFillDoublesDropdowns() {
+  const pid      = mpState.playerId;
+  const partner  = document.getElementById("mp-partner");
+  const dopp1    = document.getElementById("mp-dopp1");
+  const dopp2    = document.getElementById("mp-dopp2");
+
+  const partnerId = partner ? Number(partner.value) || null : null;
+  const dopp1Id   = dopp1   ? Number(dopp1.value)   || null : null;
+
+  mpFillSelect(partner, mpState.genderPlayers.filter(p => p.id !== pid));
+
+  const excl1 = new Set([pid, partnerId].filter(Boolean));
+  mpFillSelect(dopp1, mpState.allSorted.filter(p => !excl1.has(p.id)));
+
+  const excl2 = new Set([pid, partnerId, dopp1Id].filter(Boolean));
+  mpFillSelect(dopp2, mpState.allSorted.filter(p => !excl2.has(p.id)));
+
+  if (partner) partner.onchange = mpFillDoublesDropdowns;
+  if (dopp1)   dopp1.onchange   = mpFillDoublesDropdowns;
+}
+
+function mpFindWatcher(playingIds, pts) {
+  const pid      = new Set(playingIds.map(Number));
+  const minPts   = Math.min(...pts);
+  const maxPts   = Math.max(...pts);
+  for (const p of mpState.genderPlayers) {
+    if (pid.has(p.id)) continue;
+    const pp = p.ladder_points ?? 0;
+    if (pp > minPts && pp < maxPts) {
+      const parts = p.name.trim().split(" ");
+      const short = parts[0] + (parts.length > 1 ? " " + parts[parts.length - 1][0] + "." : "");
+      return { name: short, points: pp, rank: mpState.rankMap[p.id] || null };
+    }
+  }
+  return null;
+}
+
+function mpGetPlayerData(player) {
+  return {
+    id:     player.id,
+    name:   player.name,
+    rating: Number(player.dynamic_rating || player.display_rating || 0),
+    points: player.ladder_points ?? 0,
+    rank:   mpState.rankMap[player.id] || null,
+    sex:    player.sex,
+  };
+}
+
+function mpFindPlayerById(id) {
+  return _mpCachedPlayers.find(p => p.id === Number(id)) || null;
+}
+
+function mpHandleGenerate() {
+  const singlesActive = document.getElementById("mp-btn-singles")?.classList.contains("active");
+
+  let team1, team2;
+
+  if (singlesActive) {
+    const opp1Id = document.getElementById("mp-opp1")?.value;
+    if (!opp1Id) return alert("Please select an opponent.");
+    const opp = mpFindPlayerById(opp1Id);
+    if (!opp) return;
+    team1 = [mpGetPlayerData(mpState.player)];
+    team2 = [mpGetPlayerData(opp)];
+  } else {
+    const partnerId = document.getElementById("mp-partner")?.value;
+    const dopp1Id   = document.getElementById("mp-dopp1")?.value;
+    const dopp2Id   = document.getElementById("mp-dopp2")?.value;
+    if (!partnerId || !dopp1Id || !dopp2Id) return alert("Please select all four players.");
+    const ids = [mpState.playerId, Number(partnerId), Number(dopp1Id), Number(dopp2Id)];
+    if (new Set(ids).size < 4) return alert("Please select four different players.");
+    const partner = mpFindPlayerById(partnerId);
+    const dopp1   = mpFindPlayerById(dopp1Id);
+    const dopp2   = mpFindPlayerById(dopp2Id);
+    if (!partner || !dopp1 || !dopp2) return;
+    team1 = [mpGetPlayerData(mpState.player), mpGetPlayerData(partner)];
+    team2 = [mpGetPlayerData(dopp1), mpGetPlayerData(dopp2)];
+  }
+
+  const playingIds = [...team1, ...team2].map(p => p.id);
+  const allPts     = [...team1, ...team2].map(p => p.points);
+  const watcher    = mpFindWatcher(playingIds, allPts);
+
+  const payload = {
+    matchType: singlesActive ? "singles" : "doubles",
+    team1,
+    team2,
+    watcher,
+  };
+
+  const encoded = encodeURIComponent(JSON.stringify(payload));
+  closeMatchPreviewModal();
+  window.location.href = `match-preview.html?data=${encoded}`;
 }
 
 /* =========================
@@ -3748,6 +3968,24 @@ async function shareMatchResult(matchData, btn) {
   }
 }
 
+const BIWEEKLY_CHECKPOINTS = [
+  { label: 'Apr 17', date: '2026-04-17' },
+  { label: 'May 01', date: '2026-05-01' },
+  { label: 'May 15', date: '2026-05-15' },
+  { label: 'May 29', date: '2026-05-29' },
+  { label: 'Jun 12', date: '2026-06-12' },
+  { label: 'Jun 26', date: '2026-06-26' },
+  { label: 'Jul 10', date: '2026-07-10' },
+  { label: 'Jul 24', date: '2026-07-24' },
+  { label: 'Aug 07', date: '2026-08-07' },
+  { label: 'Aug 21', date: '2026-08-21' },
+  { label: 'Sep 04', date: '2026-09-04' },
+  { label: 'Sep 18', date: '2026-09-18' },
+  { label: 'Oct 02', date: '2026-10-02' },
+  { label: 'Oct 16', date: '2026-10-16' },
+  { label: 'Oct 30', date: '2026-10-30' },
+];
+
 async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRating) {
   const section = document.getElementById("rating-trend-section");
   const canvas  = document.getElementById("rating-trend-canvas");
@@ -3761,65 +3999,82 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRa
         match,
         perspective: getPlayerMatchPerspective(match, playerId)
       }))
-      .filter((item) => item.perspective);
+      .filter((item) => item.perspective && item.match.date_played);
 
-    // Hide section when no matches at all — the initial point alone is just a dot.
-    if (perspectives.length < 1) {
+    if (perspectives.length < 2) {
       if (section) section.style.display = "none";
       return;
     }
 
-    // Build post-match rating series by walking backwards from current rating.
-    let running = Number(currentDisplayRating ?? 0);
-    const matchRatings = [];
-
-    for (let i = perspectives.length - 1; i >= 0; i--) {
-      matchRatings.unshift(roundToTwo(running));
-      running = roundToTwo(running - Number(perspectives[i].perspective.ratingChange || 0));
+    // Walk forward from initial_rating applying each match's ratingChange
+    const baseRating = roundToTwo(Number(initialRating ?? 0));
+    let running = baseRating;
+    const matchTimeline = [];
+    for (const item of perspectives) {
+      running = roundToTwo(running + Number(item.perspective.ratingChange || 0));
+      matchTimeline.push({ date: item.match.date_played.slice(0, 10), rating: running });
     }
 
-    const matchLabels = perspectives.map((item) => {
-      const d = item.match.date_played;
-      if (!d) return "";
-      return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const today = new Date().toISOString().split('T')[0];
+    const activeCheckpoints = BIWEEKLY_CHECKPOINTS.filter(cp => cp.date <= today);
+
+    const labels  = activeCheckpoints.map(cp => cp.label);
+    const ratings = activeCheckpoints.map(cp => {
+      let val = baseRating;
+      for (const entry of matchTimeline) {
+        if (entry.date <= cp.date) val = entry.rating;
+        else break;
+      }
+      return val;
     });
 
-    // Prepend the initial rating as point 0.
-    const startRating = roundToTwo(Number(initialRating ?? running));
-    const ratings = [startRating, ...matchRatings];
-    const labels  = ["Start", ...matchLabels];
-
-    // Y-axis: pad ±0.5 around the full data range, then round to nearest 0.25.
     const minVal = Math.min(...ratings);
     const maxVal = Math.max(...ratings);
     const yMin = Math.floor((minVal - 0.5) / 0.25) * 0.25;
     const yMax = Math.ceil((maxVal + 0.5) / 0.25) * 0.25;
+
+    const isMobile = window.innerWidth < 640;
 
     const ctx = canvas.getContext("2d");
     new Chart(ctx, {
       type: "line",
       data: {
         labels,
-        datasets: [
-          {
-            label: "Rating",
-            data: ratings,
-            tension: 0.3,
-            borderWidth: 2.5,
-            pointRadius: 4,
-            pointBackgroundColor: "#1f4d3a",
-            borderColor: "#1f4d3a",
-            backgroundColor: "rgba(31, 77, 58, 0.08)",
-            fill: true
-          }
-        ]
+        datasets: [{
+          label: "Rating",
+          data: ratings,
+          tension: 0,
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: "#1f4d3a",
+          borderColor: "#1f4d3a",
+          backgroundColor: "rgba(31, 77, 58, 0.08)",
+          fill: true
+        }]
       },
       options: {
         responsive: true,
         plugins: {
-          legend: { display: false }
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: () => '',
+              label: (item) => `${item.label} — Rating: ${Number(item.raw).toFixed(2)}`
+            }
+          }
         },
         scales: {
+          x: {
+            ticks: {
+              autoSkip: false,
+              maxRotation: 0,
+              minRotation: 0,
+              callback: function(val, index) {
+                if (isMobile && index % 2 !== 0) return null;
+                return labels[index];
+              }
+            }
+          },
           y: {
             min: yMin,
             max: yMax,
@@ -3844,7 +4099,6 @@ async function renderPointsRankingChart(playerId, playerSex) {
   try {
     const pid = Number(playerId);
 
-    // Fetch all players (for rank replay) and all matches (ordered chronologically)
     const [playersRes, allMatchesRes] = await Promise.all([
       supabaseClient.from("players").select("id, sex"),
       supabaseClient.from("matches")
@@ -3858,66 +4112,79 @@ async function renderPointsRankingChart(playerId, playerSex) {
     ]);
 
     const allPlayers = playersRes.data || [];
-    const allMatches = allMatchesRes.data || [];
+    const allMatches = (allMatchesRes.data || []).filter(m => m.date_played);
 
-    // Build sex map so we can rank within the correct gender ladder
-    const sexMap = {};
-    allPlayers.forEach(p => { sexMap[p.id] = p.sex; });
-
-    // Same-sex player IDs for rank calculation
     const sameSexIds = new Set(
       allPlayers.filter(p => p.sex === playerSex).map(p => p.id)
     );
 
-    // Running cumulative points per player across the full replay
-    const cumPoints = {};
-    allPlayers.forEach(p => { cumPoints[p.id] = 0; });
-
-    const labels       = [];
-    const pointsSeries = [];
-    const rankSeries   = [];
-
-    for (const match of allMatches) {
-      // Apply ladder points for all four player slots
-      const slots = [
-        { id: match.team1_player1_id, pts: match.ladder_points_p1 },
-        { id: match.team1_player2_id, pts: match.ladder_points_p2 },
-        { id: match.team2_player1_id, pts: match.ladder_points_p3 },
-        { id: match.team2_player2_id, pts: match.ladder_points_p4 },
-      ];
-      for (const { id, pts } of slots) {
-        if (id && pts != null) cumPoints[id] = (cumPoints[id] ?? 0) + Number(pts);
-      }
-
-      // Only record a data point when this player appeared in the match
-      const inMatch = slots.some(s => s.id === pid);
-      if (!inMatch) continue;
-
-      const myPts = cumPoints[pid] ?? 0;
-
-      // Rank = number of same-sex players with strictly more points + 1
-      // Ties share the same rank number (standard competition ranking)
-      let rank = 1;
-      for (const id of sameSexIds) {
-        if (id !== pid && (cumPoints[id] ?? 0) > myPts) rank++;
-      }
-
-      const dateStr = match.date_played
-        ? new Date(match.date_played).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-        : "";
-
-      labels.push(dateStr);
-      pointsSeries.push(myPts);
-      rankSeries.push(rank);
-    }
-
-    // Require at least 2 data points to draw a meaningful line
-    if (labels.length < 2) {
+    // Hide if the player has fewer than 2 total matches
+    const playerTotalMatches = allMatches.filter(m =>
+      [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id].includes(pid)
+    ).length;
+    if (playerTotalMatches < 2) {
       section.style.display = "none";
       return;
     }
 
-    const maxRank = Math.max(...rankSeries);
+    const today = new Date().toISOString().split('T')[0];
+    const activeCheckpoints = BIWEEKLY_CHECKPOINTS.filter(cp => cp.date <= today);
+
+    const cumPoints = {};
+    allPlayers.forEach(p => { cumPoints[p.id] = 0; });
+    const hasPlayed = new Set();
+
+    const labels       = activeCheckpoints.map(cp => cp.label);
+    const pointsSeries = [];
+    const rankSeries   = [];
+
+    let matchIdx = 0;
+    for (const cp of activeCheckpoints) {
+      // Apply all matches on or before this checkpoint (cursor walk — O(M + C))
+      while (matchIdx < allMatches.length && allMatches[matchIdx].date_played.slice(0, 10) <= cp.date) {
+        const match = allMatches[matchIdx];
+        const slots = [
+          { id: match.team1_player1_id, pts: match.ladder_points_p1 },
+          { id: match.team1_player2_id, pts: match.ladder_points_p2 },
+          { id: match.team2_player1_id, pts: match.ladder_points_p3 },
+          { id: match.team2_player2_id, pts: match.ladder_points_p4 },
+        ];
+        for (const { id, pts } of slots) {
+          if (id != null) {
+            hasPlayed.add(id);
+            if (pts != null) cumPoints[id] = (cumPoints[id] ?? 0) + Number(pts);
+          }
+        }
+        matchIdx++;
+      }
+
+      pointsSeries.push(cumPoints[pid] ?? 0);
+
+      if (hasPlayed.has(pid)) {
+        const myPts = cumPoints[pid] ?? 0;
+        let rank = 1;
+        for (const id of sameSexIds) {
+          if (id !== pid && hasPlayed.has(id) && (cumPoints[id] ?? 0) > myPts) rank++;
+        }
+        rankSeries.push(rank);
+      } else {
+        rankSeries.push(null);
+      }
+    }
+
+    const validRanks = rankSeries.filter(r => r != null);
+    const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 5;
+
+    const isMobile = window.innerWidth < 640;
+    const xTickConfig = {
+      autoSkip: false,
+      maxRotation: 0,
+      minRotation: 0,
+      callback: function(val, index) {
+        if (isMobile && index % 2 !== 0) return null;
+        return labels[index];
+      }
+    };
 
     const ctx = canvas.getContext("2d");
     new Chart(ctx, {
@@ -3929,7 +4196,7 @@ async function renderPointsRankingChart(playerId, playerSex) {
             label: "Points",
             data: pointsSeries,
             yAxisID: "yPoints",
-            tension: 0.3,
+            tension: 0,
             borderWidth: 2.5,
             pointRadius: 4,
             pointBackgroundColor: "#1f4d3a",
@@ -3941,7 +4208,7 @@ async function renderPointsRankingChart(playerId, playerSex) {
             label: "Rank",
             data: rankSeries,
             yAxisID: "yRank",
-            tension: 0.3,
+            tension: 0,
             borderWidth: 2,
             borderDash: [5, 4],
             pointRadius: 4,
@@ -3949,6 +4216,7 @@ async function renderPointsRankingChart(playerId, playerSex) {
             borderColor: "#1f3558",
             backgroundColor: "transparent",
             fill: false,
+            spanGaps: false,
           }
         ]
       },
@@ -3962,18 +4230,22 @@ async function renderPointsRankingChart(playerId, playerSex) {
             labels: { boxWidth: 12, font: { size: 12 } }
           },
           tooltip: {
-            // Show a single combined tooltip line; suppress second dataset's row
             filter: (item) => item.datasetIndex === 0,
             callbacks: {
+              title: () => '',
               label: (ctx) => {
-                const pts  = pointsSeries[ctx.dataIndex];
-                const rank = rankSeries[ctx.dataIndex];
-                return `${pts} pts · Ranked #${rank}`;
+                const label = labels[ctx.dataIndex];
+                const pts   = pointsSeries[ctx.dataIndex];
+                const rank  = rankSeries[ctx.dataIndex];
+                return rank != null
+                  ? `${label} — ${pts} pts · Ranked #${rank}`
+                  : `${label} — ${pts} pts · Unranked`;
               }
             }
           }
         },
         scales: {
+          x: { ticks: xTickConfig },
           yPoints: {
             type: "linear",
             position: "left",
@@ -3987,9 +4259,9 @@ async function renderPointsRankingChart(playerId, playerSex) {
           yRank: {
             type: "linear",
             position: "right",
-            reverse: true,        // rank 1 at top
+            reverse: true,
             min: 1,
-            max: maxRank + 1,     // buffer below worst rank
+            max: maxRank + 1,
             ticks: {
               color: "#1f3558",
               stepSize: 1,

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Preview | Restoration Tennis Ladder</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0e1a13;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 14px 48px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #18201c;
+    }
+
+    /* ── Card shell ─────────────────────────────────── */
+    .preview-card {
+      width: 100%;
+      max-width: 390px;
+      background: #f7faf8;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    }
+
+    /* ── Card header bar ────────────────────────────── */
+    .pc-header {
+      background: linear-gradient(135deg, #16392b 0%, #1f4d3a 55%, #1f3558 100%);
+      padding: 14px 16px 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pc-brand {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.82);
+    }
+
+    .pc-badge {
+      background: rgba(255,255,255,0.18);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    /* ── Title section ──────────────────────────────── */
+    .pc-title-block {
+      background: linear-gradient(135deg, #1f4d3a 0%, #1a3d2f 100%);
+      padding: 18px 18px 16px;
+      text-align: center;
+    }
+
+    .pc-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 7px;
+    }
+
+    .pc-main-title {
+      font-size: 26px;
+      font-weight: 900;
+      color: white;
+      line-height: 1.15;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .pc-prob-line {
+      font-size: 12px;
+      color: rgba(255,255,255,0.75);
+      font-weight: 500;
+    }
+
+    /* ── Teams section ──────────────────────────────── */
+    .pc-teams {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 0;
+      background: #e9f3ee;
+      padding: 16px 14px;
+      border-bottom: 1px solid #d2e5da;
+    }
+
+    .pc-team {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .pc-team.right {
+      text-align: right;
+      align-items: flex-end;
+    }
+
+    .pc-team-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #18201c;
+      line-height: 1.2;
+    }
+
+    .pc-team-name + .pc-team-name {
+      margin-top: 6px;
+    }
+
+    .pc-team-rank {
+      font-size: 10px;
+      font-weight: 600;
+      color: #1f4d3a;
+      background: rgba(31,77,58,0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 1px;
+    }
+
+    .pc-team-rating {
+      font-size: 11px;
+      color: #66736c;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .pc-team-pts {
+      font-size: 14px;
+      font-weight: 800;
+      color: #1f4d3a;
+      margin-top: 2px;
+    }
+
+    .pc-vs {
+      font-size: 11px;
+      font-weight: 800;
+      color: #66736c;
+      letter-spacing: 1px;
+      padding: 0 8px;
+      text-align: center;
+    }
+
+    /* Second player in a doubles column */
+    .pc-team-separator {
+      border-top: 1px dashed #c4d8cb;
+      margin: 7px 0;
+    }
+
+    /* ── Scenarios ──────────────────────────────────── */
+    .pc-scenarios-label {
+      padding: 12px 16px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: #66736c;
+      background: #f7faf8;
+    }
+
+    .pc-scenarios-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 0 10px 10px;
+      background: #f7faf8;
+    }
+
+    .pc-scenario {
+      border-radius: 12px;
+      padding: 11px 11px 10px;
+    }
+
+    .pc-scenario.blue {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+
+    .pc-scenario.amber {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+    }
+
+    .pc-sc-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .pc-scenario.blue  .pc-sc-label { color: #1d4ed8; }
+    .pc-scenario.amber .pc-sc-label { color: #b45309; }
+
+    .pc-sc-score {
+      font-size: 12px;
+      font-weight: 600;
+      color: #18201c;
+      margin-bottom: 7px;
+    }
+
+    .pc-sc-row {
+      font-size: 11px;
+      color: #374151;
+      line-height: 1.5;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pc-sc-pts-earned {
+      font-weight: 700;
+    }
+
+    .pc-sc-pts-total {
+      color: #66736c;
+    }
+
+    /* ── Footer ─────────────────────────────────────── */
+    .pc-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #16392b 0%, #1f4d3a 100%);
+      padding: 11px 14px;
+      gap: 8px;
+    }
+
+    .pc-footer-left {
+      font-size: 10px;
+      color: rgba(255,255,255,0.7);
+      font-weight: 500;
+      line-height: 1.35;
+      flex: 1;
+    }
+
+    .pc-footer-right {
+      font-size: 10px;
+      color: rgba(255,255,255,0.55);
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    /* ── Screenshot hint ────────────────────────────── */
+    .screenshot-hint {
+      margin-top: 16px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.22);
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Error state ────────────────────────────────── */
+    .error-state {
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+      padding: 48px 24px;
+      font-size: 15px;
+    }
+
+    .error-state a {
+      color: #4ade80;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-card" id="preview-card">
+    <div class="error-state">Loading preview…</div>
+  </div>
+  <div class="screenshot-hint">📱 Screenshot this page to share</div>
+
+<script>
+/* ─── Scoring formula (mirrors production calculateMatchScoring) ─── */
+
+function adjTeamRating(players, isMixed) {
+  const v = players.filter(Boolean);
+  if (!v.length) return 0;
+  return v.reduce((s, p) => s + p.rating + (isMixed && p.sex === 'Man' ? 0.5 : 0), 0) / v.length;
+}
+
+function calcPoints(wStd, lStd, wAdj, lAdj) {
+  const gap     = Math.min(Math.abs(wAdj - lAdj), 0.5);
+  const expSprd = wAdj >= lAdj ? gap * 16 : -(gap * 16);
+  const delta   = (wStd - lStd) - expSprd;
+
+  let wp = Math.max(8, Math.min(18, Math.round(11 + delta * 0.29)));
+
+  let lp;
+  if (lStd === 0) {
+    lp = Math.max(5, Math.round(4 + gap * 4));
+  } else {
+    const eComp = lAdj > wAdj ? -(gap * 6) : lAdj < wAdj ? +(gap * 4) : 0;
+    lp = Math.max(5, Math.round(4 + lStd * 0.6 + eComp));
+  }
+
+  lp = Math.min(lp, wp - 3);
+  lp = Math.max(5, lp);
+  if (wp - lp < 3) wp = lp + 3;
+  return { wp, lp };
+}
+
+function toScore(wStd, lStd) {
+  const lps = Math.floor(lStd / 2);
+  const ext = lStd % 2;
+  return `6-${lps + ext}, 6-${lps}`;
+}
+
+function lastName(name) {
+  const p = (name || '').trim().split(' ');
+  return p[p.length - 1] || name;
+}
+
+function teamShortName(players) {
+  return players.map(p => lastName(p.name)).join('/');
+}
+
+function rankLabel(r) {
+  return r ? `#${r}` : '—';
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─── Main render ─── */
+
+function render(data) {
+  const { matchType, team1, team2, watcher } = data;
+  const isDoubles = matchType === 'doubles';
+
+  const hasMen   = [...team1, ...team2].some(p => p.sex === 'Man');
+  const hasWomen = [...team1, ...team2].some(p => p.sex === 'Woman');
+  const isMixed  = hasMen && hasWomen;
+
+  /* Match type label */
+  let typeLabel;
+  if (!isDoubles) {
+    typeLabel = 'Singles';
+  } else if (isMixed) {
+    typeLabel = 'Mixed Doubles';
+  } else if (hasMen) {
+    typeLabel = "Men's Doubles";
+  } else {
+    typeLabel = "Women's Doubles";
+  }
+
+  /* Team adjusted ratings */
+  const r1 = adjTeamRating(team1, isMixed);
+  const r2 = adjTeamRating(team2, isMixed);
+
+  /* Who's the favorite? */
+  const favTeam = r1 >= r2 ? team1 : team2;
+  const undTeam = r1 >= r2 ? team2 : team1;
+  const favAdj  = Math.max(r1, r2);
+  const undAdj  = Math.min(r1, r2);
+  const gapMag  = Math.min(Math.abs(favAdj - undAdj), 0.5);
+
+  /* Win probability */
+  const prob1   = 1 / (1 + Math.pow(10, (r2 - r1) / 0.45));
+  const favProb = r1 >= r2 ? prob1 : 1 - prob1;
+  const favPct  = Math.round(favProb * 100);
+
+  /* Scenario game counts */
+  const loserGames1 = Math.max(3, Math.min(8, Math.round(8 - gapMag * 10)));
+
+  const scenarios = [
+    { color:'blue',  label:'Fav. wins', winTeam:favTeam, loseTeam:undTeam, wStd:12, lStd:loserGames1 },
+    { color:'blue',  label:'Fav. dominates', winTeam:favTeam, loseTeam:undTeam, wStd:12, lStd:2 },
+    { color:'amber', label:'Upset!', winTeam:undTeam, loseTeam:favTeam, wStd:12, lStd:6 },
+    { color:'amber', label:'Underdog wins', winTeam:undTeam, loseTeam:favTeam, wStd:12, lStd:2 },
+  ];
+
+  scenarios.forEach(s => {
+    const wA = adjTeamRating(s.winTeam, isMixed);
+    const lA = adjTeamRating(s.loseTeam, isMixed);
+    const { wp, lp } = calcPoints(s.wStd, s.lStd, wA, lA);
+    s.wp = wp; s.lp = lp;
+    s.score = toScore(s.wStd, s.lStd);
+  });
+
+  /* Title line */
+  const titleStr = isDoubles
+    ? `${teamShortName(team1)} vs ${teamShortName(team2)}`
+    : `${lastName(team1[0].name)} vs ${lastName(team2[0].name)}`;
+
+  const favName  = teamShortName(favTeam);
+  const probLine = `${esc(favName)} ${favPct}% fav · Expected ~${scenarios[0].score}`;
+
+  /* ── Teams HTML ── */
+  function teamColHtml(players) {
+    return players.map((p, i) => `
+      ${i > 0 ? '<div class="pc-team-separator"></div>' : ''}
+      <div class="pc-team-name">${esc(p.name)}</div>
+      <div class="pc-team-rank">Rank ${rankLabel(p.rank)}</div>
+      <div class="pc-team-rating">Rating ${Number(p.rating).toFixed(2)}</div>
+      <div class="pc-team-pts">${p.points} pts</div>
+    `).join('');
+  }
+
+  /* ── Scenario card HTML ── */
+  function scenarioHtml(s) {
+    const score = s.score;
+    /* Winner rows */
+    const winRows = s.winTeam.map(p =>
+      `<div class="pc-sc-row">
+        <span class="pc-sc-pts-earned">${esc(lastName(p.name))} +${s.wp}</span>
+        <span class="pc-sc-pts-total"> (${p.points + s.wp})</span>
+       </div>`
+    ).join('');
+    /* Loser rows */
+    const loseRows = s.loseTeam.map(p =>
+      `<div class="pc-sc-row">
+        <span class="pc-sc-pts-earned">${esc(lastName(p.name))} +${s.lp}</span>
+        <span class="pc-sc-pts-total"> (${p.points + s.lp})</span>
+       </div>`
+    ).join('');
+
+    return `
+      <div class="pc-scenario ${s.color}">
+        <div class="pc-sc-label">${esc(s.label)}</div>
+        <div class="pc-sc-score">${score}</div>
+        ${winRows}
+        ${loseRows}
+      </div>`;
+  }
+
+  /* ── Footer ── */
+  const footerLeft = watcher
+    ? `${esc(watcher.name)} (${watcher.points} pts) watching nervously`
+    : '';
+
+  const html = `
+    <div class="pc-header">
+      <span class="pc-brand">🎾 Restoration Tennis Ladder</span>
+      <span class="pc-badge">Match Preview</span>
+    </div>
+
+    <div class="pc-title-block">
+      <div class="pc-eyebrow">${esc(typeLabel)} · What's At Stake</div>
+      <div class="pc-main-title">${esc(titleStr)}</div>
+      <div class="pc-prob-line">${probLine}</div>
+    </div>
+
+    <div class="pc-teams">
+      <div class="pc-team left">${teamColHtml(team1)}</div>
+      <div class="pc-vs">VS</div>
+      <div class="pc-team right">${teamColHtml(team2)}</div>
+    </div>
+
+    <div class="pc-scenarios-label">What's At Stake</div>
+    <div class="pc-scenarios-grid">
+      ${scenarios.map(scenarioHtml).join('')}
+    </div>
+
+    <div class="pc-footer">
+      <div class="pc-footer-left">${footerLeft}</div>
+      <div class="pc-footer-right">restotennis.com</div>
+    </div>
+  `;
+
+  document.getElementById('preview-card').innerHTML = html;
+  document.title = `${titleStr} — Match Preview`;
+}
+
+/* ─── Bootstrap ─── */
+
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const raw    = params.get('data');
+  if (!raw) {
+    document.getElementById('preview-card').innerHTML =
+      '<div class="error-state">No match data found.<br><a href="index.html">← Back to ladder</a></div>';
+    return;
+  }
+  try {
+    const data = JSON.parse(decodeURIComponent(raw));
+    render(data);
+  } catch (e) {
+    console.error('match-preview parse error', e);
+    document.getElementById('preview-card').innerHTML =
+      '<div class="error-state">Could not load preview.<br><a href="index.html">← Back to ladder</a></div>';
+  }
+})();
+</script>
+</body>
+</html>
