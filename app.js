@@ -2011,10 +2011,10 @@ function calculateMatchScoring({
     loserPoints = Math.max(5, Math.round(loserRaw));
   }
 
-  // Enforce minimum 3-point gap between winner and loser.
-  loserPoints = Math.min(loserPoints, winnerPoints - 3);
+  // Enforce minimum 2-point gap between winner and loser.
+  loserPoints = Math.min(loserPoints, winnerPoints - 2);
   loserPoints = Math.max(5, loserPoints);
-  if (winnerPoints - loserPoints < 3) winnerPoints = loserPoints + 3;
+  if (winnerPoints - loserPoints < 2) winnerPoints = loserPoints + 2;
 
   // 3-set bonus: awarded only when a set-3 score is present (has3Set = true).
   if (has3Set) {
@@ -2030,8 +2030,8 @@ function calculateMatchScoring({
     } else {
       loserPoints += 2;
     }
-    // Re-enforce 3-point minimum spread after bonuses
-    if (winnerPoints - loserPoints < 3) winnerPoints = loserPoints + 3;
+    // Re-enforce 2-point minimum spread after bonuses
+    if (winnerPoints - loserPoints < 2) winnerPoints = loserPoints + 2;
   }
 
   return {
