@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (document.getElementById("gauntlet-section")) await loadGauntlet();
     if (document.getElementById("player-h2h-section")) await loadPlayerH2H();
+    if (document.getElementById("player-doubles-section")) await loadDoublesPartners();
 
     if (document.getElementById("player-match-history")) {
       await loadPlayerMatchHistory();
@@ -1338,6 +1339,98 @@ async function loadPlayerH2H() {
     `;
   } catch (error) {
     console.error("H2H load error:", error);
+    container.style.display = "none";
+  }
+}
+
+/* =========================
+   DOUBLES PARTNERS TABLE
+========================= */
+
+async function loadDoublesPartners() {
+  const container = document.getElementById("player-doubles-section");
+  if (!container) return;
+
+  const playerId = getPlayerIdFromUrl();
+  if (!playerId) { container.style.display = "none"; return; }
+
+  const emptyState = () => {
+    container.innerHTML = `
+      <h2>🤝 Doubles Partners</h2>
+      <p class="small-text" style="color: var(--muted); margin: 0;">No doubles matches yet</p>
+    `;
+  };
+
+  try {
+    const matches = await fetchMatchesForPlayer(playerId);
+    const pid = Number(playerId);
+
+    const doubles = matches.filter(m => m.match_type === "Doubles");
+    if (!doubles.length) { emptyState(); return; }
+
+    const partners = {};
+
+    for (const match of doubles) {
+      const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
+      const won = onTeam1 ? match.winner_team === 1 : match.winner_team === 2;
+
+      const partnerId = onTeam1
+        ? (match.team1_player1_id === pid ? match.team1_player2_id : match.team1_player1_id)
+        : (match.team2_player1_id === pid ? match.team2_player2_id : match.team2_player1_id);
+
+      if (!partnerId) continue;
+      if (!partners[partnerId]) partners[partnerId] = { wins: 0, losses: 0 };
+      won ? partners[partnerId].wins++ : partners[partnerId].losses++;
+    }
+
+    const partnerIds = Object.keys(partners).map(Number);
+    if (!partnerIds.length) { emptyState(); return; }
+
+    const { data: partnerData } = await supabaseClient
+      .from("players").select("id, name").in("id", partnerIds);
+
+    const partnerMap = {};
+    (partnerData || []).forEach(p => { partnerMap[p.id] = p; });
+
+    const sorted = [...partnerIds].sort((a, b) => {
+      const ta = partners[a].wins + partners[a].losses;
+      const tb = partners[b].wins + partners[b].losses;
+      if (tb !== ta) return tb - ta;
+      return (partnerMap[a]?.name || "").localeCompare(partnerMap[b]?.name || "");
+    });
+
+    container.innerHTML = `
+      <h2>🤝 Doubles Partners</h2>
+      <div class="table-wrap">
+        <table class="h2h-table">
+          <thead>
+            <tr>
+              <th>Partner</th>
+              <th class="num">W</th>
+              <th class="num">L</th>
+              <th class="num">Record</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(partnerId => {
+              const rec = partners[partnerId];
+              const partner = partnerMap[partnerId];
+              const nameHtml = partner
+                ? `<a href="player.html?id=${partner.id}" class="player-link">${escapeHtml(partner.name)}</a>`
+                : "Unknown";
+              return `<tr>
+                <td>${nameHtml}</td>
+                <td class="num">${rec.wins}</td>
+                <td class="num">${rec.losses}</td>
+                <td class="num">${rec.wins}-${rec.losses}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    console.error("Doubles partners load error:", error);
     container.style.display = "none";
   }
 }
@@ -4582,6 +4675,7 @@ function setupRealtimeSubscriptions() {
           if (document.getElementById("player-match-history")) await loadPlayerMatchHistory();
           if (document.getElementById("player-profile")) await loadPlayerProfile();
           if (document.getElementById("player-h2h-section")) await loadPlayerH2H();
+          if (document.getElementById("player-doubles-section")) await loadDoublesPartners();
         }
       )
       .subscribe();

@@ -281,6 +281,30 @@ body {
   white-space: nowrap;
 }
 
+/* H2H + Doubles Partners two-column layout */
+.h2h-doubles-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-bottom: 20px;
+}
+
+.h2h-doubles-grid .card {
+  margin-bottom: 20px;
+}
+
+@media (min-width: 768px) {
+  .h2h-doubles-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .h2h-doubles-grid .card {
+    margin-bottom: 0;
+  }
+}
+
 /* =========================
    MATCH OF THE WEEK
 ========================= */
