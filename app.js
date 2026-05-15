@@ -1103,56 +1103,150 @@ async function loadSeasonStory() {
 
     // Build narrative
     const matchWord = totalMatches === 1 ? "match" : "matches";
-    const upsetPct  = Math.round(biggestUpsetProb * 100);
+    const upsetPct  = biggestUpsetMatch ? Math.round(biggestUpsetProb * 100) : null;
 
-    let parts = [];
+    // Local helpers
+    const fn = name => {
+      if (!name) return "";
+      return escapeHtml(name.split(" / ")[0].trim().split(" ")[0]);
+    };
+    const fnTeam = name => {
+      if (!name) return "";
+      if (name.includes(" / "))
+        return name.split(" / ").map(n => escapeHtml(n.trim().split(" ")[0])).join(" & ");
+      return escapeHtml(name.split(" ")[0]);
+    };
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-    // Opener + overall leader
-    const gapPhrase = (overallSecond && pointsGap > 0)
-      ? `, just ${pointsGap} point${pointsGap === 1 ? "" : "s"} ahead of ${escapeHtml(overallSecond.name)}`
-      : "";
-    if (overallLeader) {
-      parts.push(`${totalMatches} ${matchWord} into the 2026 season and ${escapeHtml(overallLeader.name)} leads the overall standings with ${overallLeader.ladder_points ?? 0} points${gapPhrase}.`);
-    } else {
-      parts.push(`${totalMatches} ${matchWord} into the 2026 season and the race is wide open.`);
-    }
+    const mensSecond   = menPlayers[1];
+    const womensSecond = womenPlayers[1];
+    const mensGap = (mensLeader && mensSecond)
+      ? (mensLeader.ladder_points ?? 0) - (mensSecond.ladder_points ?? 0)
+      : null;
+    const womensGap = (womensLeader && womensSecond)
+      ? (womensLeader.ladder_points ?? 0) - (womensSecond.ladder_points ?? 0)
+      : null;
 
-    // Men's and Women's leaders
-    if (mensLeader && womensLeader && mensLeader.id !== womensLeader.id) {
-      parts.push(`${escapeHtml(mensLeader.name)} sits atop the Men's ladder while ${escapeHtml(womensLeader.name)} leads the Women's side.`);
-    } else if (mensLeader) {
-      parts.push(`${escapeHtml(mensLeader.name)} holds down the top spot on the Men's ladder.`);
-    } else if (womensLeader) {
-      parts.push(`${escapeHtml(womensLeader.name)} leads the Women's ladder.`);
-    }
+    // Highest-rated player who still hasn't shown up to play
+    const topSleeper = players
+      .filter(p => (p.matches_played ?? 0) === 0 && (p.dynamic_rating ?? 0) >= 3.5)
+      .sort((a, b) => (b.dynamic_rating ?? 0) - (a.dynamic_rating ?? 0))[0] || null;
 
-    // Biggest upset
-    if (biggestUpsetMatch && biggestUpsetWinner) {
-      if (upsetPct <= 35) {
-        parts.push(`The biggest shock so far: ${escapeHtml(biggestUpsetWinner)} came in with just a ${upsetPct}% chance of winning and pulled it off against ${escapeHtml(biggestUpsetLoser)} — the kind of result that keeps everyone on their toes.`);
-      } else {
-        parts.push(`${escapeHtml(biggestUpsetWinner)}'s win over ${escapeHtml(biggestUpsetLoser)} stands as the most surprising result of the season.`);
+    const parts = [];
+
+    // 1. OPENER — rotate 5 options
+    parts.push(pick([
+      `${totalMatches} ${matchWord} deep and the Restoration Tennis Ladder is already telling stories.`,
+      `We are ${totalMatches} matches into the 2026 season and the group chat energy is high.`,
+      `${totalMatches} matches played across ${activePlayers.length} players and things are getting interesting in the most church-tennis way possible.`,
+      `The 2026 Arlington church tennis cinematic universe has ${totalMatches} matches on the board — let's talk about it.`,
+      `${totalMatches} ${matchWord} in and nobody has gone home fully satisfied, which means this ladder is working exactly as intended.`,
+    ]));
+
+    // 2. MEN'S SITUATION — rotate based on gap
+    if (mensLeader) {
+      const ml   = fn(mensLeader.name);
+      const mlPts = mensLeader.ladder_points ?? 0;
+      if (!mensSecond) {
+        parts.push(pick([
+          `${ml} is the only man who's played so far with ${mlPts} points, which is technically a lead and also technically means nothing yet.`,
+          `${ml} leads the men's ladder right now, though that's a bit like being first to arrive at a party — great position, limited context.`,
+        ]));
+      } else if (mensGap !== null && mensGap <= 4) {
+        const ml2 = fn(mensSecond.name);
+        parts.push(pick([
+          `${ml} leads the men's side over ${ml2} by just ${mensGap} point${mensGap === 1 ? "" : "s"} — that's not a standings gap, that's a rivalry waiting to explode.`,
+          `${ml} and ${ml2} are separated by ${mensGap} point${mensGap === 1 ? "" : "s"} on the men's ladder, which means every match from here on matters enormously and they both know it.`,
+          `Men's ladder: ${ml} ahead of ${ml2} by ${mensGap}. The audacity of holding that lead. The disrespect of being that close. Depends who you ask.`,
+        ]));
+      } else if (mensGap !== null && mensGap > 12) {
+        const ml2 = fn(mensSecond.name);
+        parts.push(pick([
+          `${ml} is running away on the men's side with ${mlPts} points — ${mensGap} ahead of ${ml2} — and at some point someone has to actually challenge him or this gets boring.`,
+          `${ml} has ${mlPts} points and a ${mensGap}-point lead on the men's side, which either means he's the real deal or nobody's tested him yet. Both can be true.`,
+        ]));
+      } else if (mensGap !== null) {
+        const ml2 = fn(mensSecond.name);
+        parts.push(pick([
+          `${ml} leads the men's side with ${mlPts} points, ${mensGap} clear of ${ml2} — comfortable for now but this thing can flip fast.`,
+          `On the men's ladder it's ${ml} out front over ${ml2} by ${mensGap} points. Not a blowout, not a nail-biter. A match that needs to happen.`,
+        ]));
       }
     }
 
-    // Most improved
-    if (mostImproved && mostImprovedGain > 0) {
-      parts.push(`${escapeHtml(mostImproved.name)} has been the most improved player, up ${mostImprovedGain} rating points from their starting mark.`);
+    // 3. BIGGEST UPSET — only if it's actually interesting
+    if (biggestUpsetMatch && biggestUpsetWinner && upsetPct !== null && upsetPct <= 38) {
+      const uw = fnTeam(biggestUpsetWinner);
+      const ul = fnTeam(biggestUpsetLoser);
+      if (upsetPct <= 20) {
+        parts.push(pick([
+          `${uw} walked in as a ${upsetPct}% underdog against ${ul} and left with a win and zero apologies — that's the match of the season and it isn't close.`,
+          `Best story so far: ${uw} had a ${upsetPct}% chance of beating ${ul}. The court had other plans. Someone frame that result.`,
+          `${uw} beat ${ul} as a ${upsetPct}% underdog. Screenshot that for the reunion slideshow.`,
+        ]));
+      } else {
+        parts.push(pick([
+          `Best upset so far: ${uw} over ${ul}, coming in at ${upsetPct}% odds. Upsets hit different on a church ladder.`,
+          `${uw} pulled off the most surprising win of the season against ${ul} — ${upsetPct}% going in and they did it anyway.`,
+        ]));
+      }
     }
 
-    // Highest SOS
+    // 4. ONE PLAYER ANGLE — pick the best available story
+    const playerStories = [];
+
+    if (mostImproved && mostImprovedGain > 0.05) {
+      const mi = fn(mostImproved.name);
+      playerStories.push(pick([
+        `${mi} has made the biggest rating jump so far — up ${mostImprovedGain} from their starting mark, which is either proof they've been grinding or proof they undersold themselves at signup.`,
+        `The most improved player is ${mi}, up ${mostImprovedGain} rating points off their initial number. Either the algorithm loves them or they've been putting in work. Maybe both.`,
+      ]));
+    }
+
+    if (topSleeper) {
+      const sn = fn(topSleeper.name);
+      const sr = Number(topSleeper.dynamic_rating ?? 0).toFixed(1);
+      playerStories.push(pick([
+        `Meanwhile ${sn} is rated ${sr} and has played zero matches so far, which is a choice, and we respect it, and also — what are you doing.`,
+        `There's a ${sr}-rated player named ${sn} who signed up and then apparently entered witness protection. No matches. No excuses. Clock is ticking.`,
+        `${sn} — rated ${sr} — hasn't played yet. That rating means nothing on paper. Show up.`,
+      ]));
+    }
+
+    if (inactivePlayers > 3) {
+      playerStories.push(pick([
+        `${inactivePlayers} registered players haven't played a match yet, which means this ladder looks nothing like where it'll end up.`,
+        `There are ${inactivePlayers} people on this roster who haven't played yet — when they do, the whole thing reshuffles.`,
+      ]));
+    }
+
     if (topSOSPlayer && topSOSValue > 0) {
-      parts.push(`${escapeHtml(topSOSPlayer.name)} has drawn the toughest competition this season, facing opponents rated ${topSOSValue} on average — a sign they're playing up.`);
+      const sop = fn(topSOSPlayer.name);
+      playerStories.push(`${sop} has faced the toughest slate so far — playing up is the fastest way to find out what you're actually made of.`);
     }
 
-    // Inactive players
-    if (inactivePlayers > 0) {
-      parts.push(`${inactivePlayers} of our ${totalPlayers} player${totalPlayers === 1 ? "" : "s"} ${inactivePlayers === 1 ? "is" : "are"} still looking for their first match — every week someone new steps on court, the ladder gets a little more interesting.`);
+    if (playerStories.length > 0) {
+      parts.push(playerStories[Math.floor(Math.random() * playerStories.length)]);
+    }
+
+    // 5. CLOSE — forward-looking, slightly absurd
+    if (inactivePlayers > 5) {
+      parts.push(pick([
+        `The season runs through October 30th and ${inactivePlayers} players still haven't played — the real chaos hasn't even started yet.`,
+        `${inactivePlayers} people on this ladder haven't played a match yet. When they finally do, everything changes. It's going to be wonderfully chaotic.`,
+      ]));
+    } else {
+      parts.push(pick([
+        `The season runs through October 30th. A lot of tennis left to play, a lot of takes left to be wrong about.`,
+        `October 30th is a long way away. Everything you think you know about this ladder right now is temporary.`,
+        `This is early days. Check back in August and none of it will look the same.`,
+        `The field is still sorting itself out and the best tennis on this ladder probably hasn't happened yet.`,
+      ]));
     }
 
     container.innerHTML = `
       <h2>📖 Season Story So Far</h2>
-      <p class="season-story-text">${parts.join(" ")}</p>
+      <p class="season-story-text">${parts.slice(0, 6).join(" ")}</p>
     `;
   } catch (err) {
     console.error("Season story error:", err);
