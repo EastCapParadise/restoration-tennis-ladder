@@ -927,14 +927,18 @@ hr {
   display: none;
 }
 
-/* Mobile: filter tabs + Show More Stats stay on one row, never stack */
+/* Mobile: filter tabs + Show More Stats on one row, never stack or overflow.
+   margin-left: auto on #show-more-stats-btn (from .toggle-stats-link base rule)
+   pushes it right — do NOT also use justify-content: space-between or the two
+   mechanisms fight and the button gets pushed past the viewport edge. */
 @media (max-width: 767px) {
   .ladder-filters-row {
+    display: flex;
     flex-direction: row;
-    justify-content: space-between;
     align-items: center;
     flex-wrap: nowrap;
     gap: 6px;
+    /* no justify-content: space-between — margin-left:auto on the button handles it */
   }
 
   .ladder-filters-row .ladder-filters {
@@ -943,21 +947,27 @@ hr {
     flex-wrap: nowrap;
     gap: 4px;
     flex: 1;
+    min-width: 0; /* allow the flex item to shrink below its content size */
     margin: 0;
   }
 
   .ladder-filters-row .ladder-filters .filter-btn {
     flex: 1;
+    min-width: 0; /* allow buttons to shrink below text width on tiny screens */
     font-size: 11px;
     padding: 6px 4px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   #show-more-stats-btn {
-    font-size: 11px;
-    padding: 6px 8px;
+    font-size: 10px;
+    padding: 5px 6px;
     white-space: nowrap;
     flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
