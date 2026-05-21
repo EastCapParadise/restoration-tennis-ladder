@@ -903,6 +903,25 @@ hr {
   box-shadow: 0 4px 12px rgba(31, 53, 88, 0.25);
 }
 
+/* Filter tabs + Show More Stats on one row */
+.ladder-filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Keep filter tabs horizontal regardless of the generic .button-group column default */
+.ladder-filters-row .ladder-filters {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
 #ladder-search {
   padding: 10px 12px;
   border: 1px solid rgba(0, 0, 0, 0.14);
@@ -2723,15 +2742,18 @@ th[data-sort]:hover {
   background: none;
   border: none;
   color: var(--navy);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
   box-shadow: none;
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: background 0.15s ease;
+  margin-left: auto; /* right-align in flex row; also works when wrapping to a second line */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .toggle-stats-link:hover {
