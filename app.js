@@ -127,7 +127,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       setupLadderSorting();
       setupShowMoreStats();
       await loadLadder();
-      setupStickyScrollbar(document.querySelector(".ladder-table")?.closest(".table-wrap"), "top");
     }
 
     if (document.getElementById("home-stats")) {
@@ -283,66 +282,6 @@ function sortPlayersForStandings(players) {
   });
 }
 
-// Adds a thin duplicate scrollbar just below a table-wrap so users can
-// scroll horizontally without travelling to the bottom of a tall table.
-// Call once per table-wrap; safe to call multiple times (guarded).
-// position = "top"    → inserts mirror ABOVE table-wrap, sticky below the site header
-// position = "bottom" → inserts mirror BELOW table-wrap (default, used for Directory)
-function setupStickyScrollbar(tableWrap, position = "bottom") {
-  if (!tableWrap) return;
-
-  // Guard: prevent double-initialisation
-  if (position === "top") {
-    if (tableWrap.previousElementSibling?.classList.contains("scroll-mirror-top")) return;
-  } else {
-    if (tableWrap.nextElementSibling?.classList.contains("scroll-mirror-wrap")) return;
-  }
-
-  const mirror = document.createElement("div");
-  mirror.className = position === "top"
-    ? "scroll-mirror-wrap scroll-mirror-top"
-    : "scroll-mirror-wrap";
-  const inner = document.createElement("div");
-  inner.className = "scroll-mirror-inner";
-  mirror.appendChild(inner);
-
-  if (position === "top") {
-    // Offset sticky top by the actual header height so the mirror sits flush below it
-    const header = document.querySelector(".site-header");
-    mirror.style.top = (header ? header.offsetHeight : 0) + "px";
-    tableWrap.parentNode.insertBefore(mirror, tableWrap);
-  } else {
-    tableWrap.parentNode.insertBefore(mirror, tableWrap.nextSibling);
-  }
-
-  function syncWidth() {
-    inner.style.width = tableWrap.scrollWidth + "px";
-    mirror.style.display = tableWrap.scrollWidth > tableWrap.clientWidth ? "" : "none";
-  }
-  syncWidth();
-  if (window.ResizeObserver) new ResizeObserver(syncWidth).observe(tableWrap);
-
-  let syncing = false;
-  mirror.addEventListener("scroll", () => {
-    if (syncing) return;
-    syncing = true;
-    tableWrap.scrollLeft = mirror.scrollLeft;
-    requestAnimationFrame(() => { syncing = false; });
-  });
-  tableWrap.addEventListener("scroll", () => {
-    if (syncing) return;
-    syncing = true;
-    mirror.scrollLeft = tableWrap.scrollLeft;
-    requestAnimationFrame(() => { syncing = false; });
-  });
-
-  if (window.IntersectionObserver) {
-    new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) syncWidth();
-      else mirror.style.display = "none";
-    }, { threshold: 0.01 }).observe(tableWrap);
-  }
-}
 
 /* =========================
    JOIN FORM
@@ -2568,7 +2507,6 @@ async function loadDirectory() {
 
     setupDirectorySorting();
     renderDirectory(players);
-    setupStickyScrollbar(document.querySelector(".directory-table")?.closest(".table-wrap"));
   } catch (error) {
     console.error("Load directory error:", error);
     setTableMessage(tbody, "Error loading directory.", 8);
