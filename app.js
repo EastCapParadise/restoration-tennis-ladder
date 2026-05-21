@@ -1645,12 +1645,6 @@ async function setupReportForm() {
       const scoringResult = calculateMatchScoring(scoringContext);
       const finalMatchPayload = buildMatchPayload({ formData, hydrated, scoringResult });
 
-      const duplicate = await isDuplicateMatchSameDay(finalMatchPayload);
-      if (duplicate) {
-        showReportError("This match appears to already be recorded for that date.");
-        return;
-      }
-
       const { error: matchError } = await supabaseClient
         .from("matches")
         .insert([finalMatchPayload]);
@@ -2272,40 +2266,6 @@ function buildMatchPayload({ formData, hydrated, scoringResult }) {
     ladder_points_p3: scoringResult.ladderPoints[2],
     ladder_points_p4: hydrated.team2Players[1] ? scoringResult.ladderPoints[3] : null
   };
-}
-
-async function isDuplicateMatchSameDay(matchPayload) {
-  const ids = [
-    matchPayload.team1_player1_id,
-    matchPayload.team1_player2_id,
-    matchPayload.team2_player1_id,
-    matchPayload.team2_player2_id
-  ].filter(Boolean).sort((a, b) => a - b);
-
-  const { data, error } = await supabaseClient
-    .from("matches")
-    .select(`
-      id,
-      date_played,
-      team1_player1_id,
-      team1_player2_id,
-      team2_player1_id,
-      team2_player2_id
-    `)
-    .eq("date_played", matchPayload.date_played);
-
-  if (error) throw error;
-
-  return (data || []).some((match) => {
-    const matchIds = [
-      match.team1_player1_id,
-      match.team1_player2_id,
-      match.team2_player1_id,
-      match.team2_player2_id
-    ].filter(Boolean).sort((a, b) => a - b);
-
-    return JSON.stringify(ids) === JSON.stringify(matchIds);
-  });
 }
 
 async function applyPlayerUpdates({
