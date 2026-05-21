@@ -922,6 +922,45 @@ hr {
   margin: 0;
 }
 
+/* Hide scrollbar on the JS sticky header clone container (Chrome/Safari) */
+.ladder-sticky-header-clone::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile: filter tabs + Show More Stats stay on one row, never stack */
+@media (max-width: 767px) {
+  .ladder-filters-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .ladder-filters-row .ladder-filters {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex: 1;
+    margin: 0;
+  }
+
+  .ladder-filters-row .ladder-filters .filter-btn {
+    flex: 1;
+    font-size: 11px;
+    padding: 6px 4px;
+    white-space: nowrap;
+  }
+
+  #show-more-stats-btn {
+    font-size: 11px;
+    padding: 6px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
 #ladder-search {
   padding: 10px 12px;
   border: 1px solid rgba(0, 0, 0, 0.14);
@@ -1777,11 +1816,7 @@ th[data-sort]:hover {
   background: #fff;
 }
 
-/* Sticky header row — top offset = site-header height (12px pad + 44px logo + 12px pad = 68px) */
 .ladder-table thead th {
-  position: sticky;
-  top: 68px;
-  z-index: 30;
   background: #edf2ee;
   font-size: 13px;
   font-weight: 700;
@@ -1818,10 +1853,9 @@ th[data-sort]:hover {
   text-align: left;
 }
 
-/* Make sticky header cells sit above everything */
+/* Corner cells: distinct background so they don't bleed on horizontal scroll */
 .ladder-table thead th:nth-child(1),
 .ladder-table thead th:nth-child(2) {
-  z-index: 35;
   background: #f8fafc;
 }
 
@@ -3670,6 +3704,26 @@ th[data-sort]:hover {
 
 
 /* =========================
+   DIRECTORY SCROLL MIRROR
+   Mirrored scrollbar below the Directory table so users can scroll
+   horizontally without travelling to the bottom of the table.
+========================= */
+
+.scroll-mirror-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 14px;
+  display: none; /* toggled by JS */
+  cursor: default;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.scroll-mirror-inner {
+  height: 1px; /* non-zero so the scrollbar renders */
+  pointer-events: none;
+}
+
+/* =========================
    MOBILE LANDSCAPE — compact header
    Hides the brand/logo row and tightens header padding so the table
    gets maximum vertical space in landscape orientation on phones.
@@ -3688,10 +3742,6 @@ th[data-sort]:hover {
   .desktop-nav a {
     font-size: 11px !important;
     padding: 4px 7px !important;
-  }
-  /* Landscape header is shorter (6px pad + 32px logo + 6px pad = 44px) */
-  .ladder-table thead th {
-    top: 44px;
   }
 }
 

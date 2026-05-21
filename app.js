@@ -684,6 +684,130 @@ function getRankMovementHtml(currentRank, previousRank) {
   return `<span class="rank-move rank-move-same" title="No change">—</span>`;
 }
 
+function setupStickyTableHeader(table) {
+  // Remove previous clone and cancel previous listeners
+  const prevClone = document.getElementById('ladder-sticky-header-clone');
+  if (prevClone) prevClone.remove();
+  if (table._stickyController) table._stickyController.abort();
+  if (table._stickyResizeObs) table._stickyResizeObs.disconnect();
+  if (table._stickyMutationObs) table._stickyMutationObs.disconnect();
+
+  const thead = table.querySelector('thead');
+  const tableWrap = table.closest('.table-wrap');
+  if (!thead || !tableWrap) return;
+
+  const ac = new AbortController();
+  table._stickyController = ac;
+
+  const getHeaderHeight = () =>
+    document.querySelector('.site-header')?.offsetHeight || 68;
+
+  // Fixed-position clone container
+  const clone = document.createElement('div');
+  clone.id = 'ladder-sticky-header-clone';
+  clone.className = 'ladder-sticky-header-clone';
+  clone.style.position = 'fixed';
+  clone.style.zIndex = '100';
+  clone.style.overflowX = 'auto';
+  clone.style.overflowY = 'hidden';
+  clone.style.scrollbarWidth = 'none';
+  clone.style.msOverflowStyle = 'none';
+  clone.style.pointerEvents = 'none';
+  clone.style.display = 'none';
+  clone.style.background = 'transparent';
+
+  // Wrap cloned thead in a real table so .ladder-table CSS rules (backgrounds,
+  // borders, sticky columns) apply correctly
+  const cloneTable = document.createElement('table');
+  cloneTable.className = table.className;
+  cloneTable.style.tableLayout = 'fixed';
+  cloneTable.style.borderCollapse = 'separate';
+  cloneTable.style.borderSpacing = '0';
+
+  const cloneThead = thead.cloneNode(true);
+  cloneTable.appendChild(cloneThead);
+  clone.appendChild(cloneTable);
+  document.body.appendChild(clone);
+
+  function syncWidths() {
+    const ths = Array.from(thead.querySelectorAll('th'));
+    const cloneThs = Array.from(cloneThead.querySelectorAll('th'));
+    ths.forEach((th, i) => {
+      if (!cloneThs[i]) return;
+      const w = th.getBoundingClientRect().width;
+      cloneThs[i].style.width = w + 'px';
+      cloneThs[i].style.minWidth = w + 'px';
+      cloneThs[i].style.maxWidth = w + 'px';
+    });
+    cloneTable.style.width = table.scrollWidth + 'px';
+    cloneTable.style.minWidth = table.scrollWidth + 'px';
+  }
+
+  function updatePosition() {
+    const rect = tableWrap.getBoundingClientRect();
+    clone.style.top = getHeaderHeight() + 'px';
+    clone.style.left = rect.left + 'px';
+    clone.style.width = rect.width + 'px';
+  }
+
+  function syncScroll() {
+    clone.scrollLeft = tableWrap.scrollLeft;
+  }
+
+  // Mirror show-more-stats class to clone table so column visibility stays in sync
+  const mutationObs = new MutationObserver(() => {
+    cloneTable.className = table.className;
+    requestAnimationFrame(syncWidths);
+  });
+  mutationObs.observe(table, { attributes: true, attributeFilter: ['class'] });
+  table._stickyMutationObs = mutationObs;
+
+  // Show clone when thead has scrolled above the fixed nav
+  let ioObserver;
+  function createObserver() {
+    if (ioObserver) ioObserver.disconnect();
+    ioObserver = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting) {
+        clone.style.display = 'none';
+      } else if (entry.boundingClientRect.top < 0) {
+        syncWidths();
+        syncScroll();
+        clone.style.display = 'block';
+      } else {
+        clone.style.display = 'none';
+      }
+    }, {
+      threshold: 0,
+      rootMargin: `-${getHeaderHeight()}px 0px 0px 0px`
+    });
+    ioObserver.observe(thead);
+  }
+
+  tableWrap.addEventListener('scroll', syncScroll, { passive: true, signal: ac.signal });
+
+  if (window.ResizeObserver) {
+    const resizeObs = new ResizeObserver(() => {
+      syncWidths();
+      syncScroll();
+    });
+    resizeObs.observe(table);
+    table._stickyResizeObs = resizeObs;
+  }
+
+  // Orientation change and window resize: update top offset and column widths,
+  // recreate observer with updated rootMargin for new header height
+  window.addEventListener('resize', () => {
+    updatePosition();
+    syncWidths();
+    createObserver();
+  }, { passive: true, signal: ac.signal });
+
+  updatePosition();
+  syncWidths();
+  createObserver();
+}
+
 function renderLadder(players) {
   const ladderBody = getLadderBodyEl();
   if (!ladderBody) return;
@@ -739,6 +863,12 @@ function renderLadder(players) {
       if (meRow) meRow.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }
+
+  // Set up JS clone-based sticky header after DOM paints (getBoundingClientRect needs layout)
+  requestAnimationFrame(() => {
+    const tbl = document.querySelector('.ladder-table');
+    if (tbl) setupStickyTableHeader(tbl);
+  });
 }
 
 async function loadLadder() {
@@ -2433,6 +2563,41 @@ function setupDirectorySorting() {
   updateDirectorySortIndicators();
 }
 
+// Adds a mirrored scrollbar below a table-wrap so users can scroll horizontally
+// without travelling to the bottom of a tall table. Used for the Directory only.
+function setupStickyScrollbar(tableWrap) {
+  if (!tableWrap) return;
+  if (tableWrap.nextElementSibling?.classList.contains("scroll-mirror-wrap")) return;
+
+  const mirror = document.createElement("div");
+  mirror.className = "scroll-mirror-wrap";
+  const inner = document.createElement("div");
+  inner.className = "scroll-mirror-inner";
+  mirror.appendChild(inner);
+  tableWrap.parentNode.insertBefore(mirror, tableWrap.nextSibling);
+
+  function syncWidth() {
+    inner.style.width = tableWrap.scrollWidth + "px";
+    mirror.style.display = tableWrap.scrollWidth > tableWrap.clientWidth ? "" : "none";
+  }
+  syncWidth();
+  if (window.ResizeObserver) new ResizeObserver(syncWidth).observe(tableWrap);
+
+  let syncing = false;
+  mirror.addEventListener("scroll", () => {
+    if (syncing) return;
+    syncing = true;
+    tableWrap.scrollLeft = mirror.scrollLeft;
+    requestAnimationFrame(() => { syncing = false; });
+  });
+  tableWrap.addEventListener("scroll", () => {
+    if (syncing) return;
+    syncing = true;
+    mirror.scrollLeft = tableWrap.scrollLeft;
+    requestAnimationFrame(() => { syncing = false; });
+  });
+}
+
 function setupDirectoryPage() {
   const loginForm = document.getElementById("directory-login-form");
   const passwordInput = document.getElementById("directory-password");
@@ -2507,6 +2672,7 @@ async function loadDirectory() {
 
     setupDirectorySorting();
     renderDirectory(players);
+    setupStickyScrollbar(document.querySelector(".directory-table")?.closest(".table-wrap"));
   } catch (error) {
     console.error("Load directory error:", error);
     setTableMessage(tbody, "Error loading directory.", 8);
