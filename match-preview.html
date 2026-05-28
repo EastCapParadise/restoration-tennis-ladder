@@ -18,12 +18,13 @@
       padding: 20px 14px 48px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       color: #18201c;
+      overflow-x: hidden;
     }
 
     /* ── Card shell ─────────────────────────────────── */
     .preview-card {
       width: 100%;
-      max-width: 390px;
+      max-width: min(390px, 100vw);
       background: #f7faf8;
       border-radius: 20px;
       overflow: hidden;
@@ -98,12 +99,15 @@
       background: #e9f3ee;
       padding: 16px 14px;
       border-bottom: 1px solid #d2e5da;
+      width: 100%;
     }
 
     .pc-team {
       display: flex;
       flex-direction: column;
       gap: 3px;
+      min-width: 0;
+      align-items: flex-start; /* shrink badges to content width — prevents rank pill stretching */
     }
 
     .pc-team.right {
@@ -154,12 +158,15 @@
       letter-spacing: 1px;
       padding: 0 8px;
       text-align: center;
+      min-width: 0;
     }
 
     /* Second player in a doubles column */
     .pc-team-separator {
       border-top: 1px dashed #c4d8cb;
       margin: 7px 0;
+      width: 100%;   /* must span full column — overrides flex-start shrink */
+      align-self: stretch;
     }
 
     /* ── Scenarios ──────────────────────────────────── */
@@ -179,11 +186,15 @@
       gap: 6px;
       padding: 0 10px 10px;
       background: #f7faf8;
+      width: 100%;
     }
 
     .pc-scenario {
       border-radius: 12px;
       padding: 11px 11px 10px;
+      min-width: 0;
+      overflow: hidden;
+      word-break: break-word;
     }
 
     .pc-scenario.blue {
@@ -421,6 +432,7 @@ function render(data) {
   }
 
   // Build one scenario from a target spread (positive = fav wins, negative = und wins)
+  // Returns wAdj/lAdj so enforcement can recompute points after overriding game counts
   function buildScenario(targetSpread) {
     const favWins  = targetSpread > 0;
     const { w, l, score } = spreadToGameCounts(Math.abs(targetSpread));
@@ -429,29 +441,57 @@ function render(data) {
     const wAdj     = favWins ? favAdj  : undAdj;
     const lAdj     = favWins ? undAdj  : favAdj;
     const { wp, lp } = calcPoints(w, l, wAdj, lAdj);
-    return { targetSpread, favWins, score, w, l, winTeam, loseTeam, wp, lp };
+    return { targetSpread, favWins, score, w, l, winTeam, loseTeam, wAdj, lAdj, wp, lp };
   }
 
-  // Four target spreads, each 8 game-units apart:
-  // A = as expected  |  B = 8 closer  |  C = upset  |  D = underdog dominates
+  // Reverse lookup: given a loser game count, return { w, l, score }
+  function lToGameCounts(l) {
+    const map = {
+      2:  { w: 12, score: '6-1, 6-1' }, 3:  { w: 12, score: '6-2, 6-1' },
+      4:  { w: 12, score: '6-2, 6-2' }, 5:  { w: 12, score: '6-3, 6-2' },
+      6:  { w: 12, score: '6-3, 6-3' }, 7:  { w: 12, score: '6-4, 6-3' },
+      8:  { w: 12, score: '6-4, 6-4' }, 10: { w: 13, score: '7-6, 6-4' },
+      11: { w: 13, score: '7-5, 6-4' }, 12: { w: 13, score: '7-6, 7-5' },
+      13: { w: 13, score: '7-6, 7-6' },
+    };
+    const e = map[l] || map[2];
+    return { w: e.w, l, score: e.score };
+  }
+
+  // A = fav wins as expected  |  B = 8 closer (likely upset)
+  // C = underdog wins close   |  D = underdog dominates
+  // C and D use fixed absolute spreads so they always differ meaningfully:
+  //   C: abs 6  → always 6-3, 6-3 for the underdog winner
+  //   D: abs 20 → always capped to abs 10 → 6-1, 6-1 for the underdog winner
   const tSpreads = [
-    expSpread,
-    expSpread - 8,
-    expSpread - 16,
-    expSpread - 24,
+    expSpread,      // A
+    expSpread - 8,  // B
+    -6,             // C: fixed — underdog wins close
+    -20,            // D: fixed — underdog dominates (caps at abs 10)
   ];
 
   const scenarios = tSpreads.map(sp => buildScenario(sp));
 
-  // Ensure four distinct winner-point totals — nudge later scenarios if they collide
-  for (let pass = 0; pass < 20; pass++) {
-    const keys = scenarios.map(s => (s.favWins ? 1 : -1) * s.wp);
+  // Enforce: C's loser must have ≥2 more games than D's loser
+  // (C is the closer upset; D is the dominant one — they must be visually distinct)
+  if (scenarios[2].l < scenarios[3].l + 2) {
+    const gc = lToGameCounts(scenarios[3].l + 2);
+    const { wp, lp } = calcPoints(gc.w, gc.l, scenarios[2].wAdj, scenarios[2].lAdj);
+    scenarios[2] = { ...scenarios[2], ...gc, wp, lp };
+  }
+
+  // Enforce: no two scenarios share both the same winner direction and the same scoreline bucket
+  // If they do, bump the later scenario's loser-game count up by 2 (closer/tighter result)
+  for (let attempt = 0; attempt < 20; attempt++) {
     let changed = false;
     for (let i = 1; i < 4; i++) {
       for (let j = 0; j < i; j++) {
-        if (keys[i] === keys[j]) {
-          tSpreads[i] -= 2;
-          scenarios[i] = buildScenario(tSpreads[i]);
+        if (scenarios[i].favWins === scenarios[j].favWins &&
+            scenarios[i].w === scenarios[j].w &&
+            scenarios[i].l === scenarios[j].l) {
+          const gc = lToGameCounts(Math.min(scenarios[i].l + 2, 13));
+          const { wp, lp } = calcPoints(gc.w, gc.l, scenarios[i].wAdj, scenarios[i].lAdj);
+          scenarios[i] = { ...scenarios[i], ...gc, wp, lp };
           changed = true; break;
         }
       }
@@ -617,7 +657,7 @@ function render(data) {
     const exp    = g * 16;
     const favA   = Math.max(r1t, r2t);
     const undA   = Math.min(r1t, r2t);
-    const tsp    = [exp, exp - 8, exp - 16, exp - 24];
+    const tsp    = [exp, exp - 8, -6, -20];
     const rows   = tsp.map(sp => {
       const a = Math.round(Math.abs(sp));
       let w, l;
