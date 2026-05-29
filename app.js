@@ -1083,10 +1083,13 @@ async function loadSeasonStory() {
   try {
     const [playersRes, matchesRes] = await Promise.all([
       supabaseClient.from("players").select(
-        "id, name, sex, dynamic_rating, initial_rating, ladder_points, wins, losses, matches_played"
+        "id, name, sex, dynamic_rating, initial_rating, ladder_points, wins, losses, matches_played, previous_rank"
       ),
       supabaseClient.from("matches").select(
-        "id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, team1_avg_rating, team2_avg_rating, winner_team, date_played"
+        "id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, " +
+        "team1_avg_rating, team2_avg_rating, winner_team, date_played, " +
+        "match_type, score_text, team1_total_games, team2_total_games, " +
+        "ladder_points_p1, ladder_points_p2, ladder_points_p3, ladder_points_p4"
       )
     ]);
 
@@ -1170,215 +1173,253 @@ async function loadSeasonStory() {
       if (sos != null && sos > topSOSValue) { topSOSValue = sos; topSOSPlayer = p; }
     }
 
-    // ── Local helpers ────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
     const fn = name => {
       if (!name) return "";
       return escapeHtml(name.split(" / ")[0].trim().split(" ")[0]);
     };
-    const fnTeam = name => {
-      if (!name) return "";
-      if (name.includes(" / "))
-        return name.split(" / ").map(n => escapeHtml(n.trim().split(" ")[0])).join(" & ");
-      return escapeHtml(name.split(" ")[0]);
-    };
-    const fmtR = r => Number(r ?? 0).toFixed(2);
 
-    // ── Daily seed — paragraph changes each day, stable within a day ─────────
+    // Daily seed — text rotates each day, stable within a day
     const seed = new Date().toISOString().slice(0, 10);
-    const seededRandom = (index) => {
-      let hash = 0;
-      const str = seed + index;
-      for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
-      }
-      return Math.abs(hash) / 2147483647;
+    const seededRand = (i) => {
+      let h = 0; const s = seed + i;
+      for (let j = 0; j < s.length; j++) { h = ((h << 5) - h) + s.charCodeAt(j); h |= 0; }
+      return Math.abs(h) / 2147483647;
     };
-    const pick = (arr, index) => arr[Math.floor(seededRandom(index) * arr.length)];
+    const pick = (arr, i) => arr[Math.floor(seededRand(i) * arr.length)];
 
-    // ── Additional data points ────────────────────────────────────────────────
-    const mensSecond   = menPlayers[1];
-    const womensSecond = womenPlayers[1];
-    const mensGap = (mensLeader && mensSecond)
-      ? (mensLeader.ladder_points ?? 0) - (mensSecond.ladder_points ?? 0)
+    // ── New data computations ─────────────────────────────────────────────────
+
+    // Total ladder points awarded across all matches
+    const totalPoints = matches.reduce((sum, m) =>
+      sum + (Number(m.ladder_points_p1) || 0) + (Number(m.ladder_points_p2) || 0) +
+            (Number(m.ladder_points_p3) || 0) + (Number(m.ladder_points_p4) || 0), 0);
+
+    // Times men's #1 changed hands — replay matches in date order
+    const chromoMatches = [...matches].sort((a, b) => a.date_played.localeCompare(b.date_played));
+    const rPts = {};
+    let curMensLead = null;
+    let timesLeadChanged = 0;
+    for (const m of chromoMatches) {
+      [
+        [m.team1_player1_id, m.ladder_points_p1],
+        [m.team1_player2_id, m.ladder_points_p2],
+        [m.team2_player1_id, m.ladder_points_p3],
+        [m.team2_player2_id, m.ladder_points_p4],
+      ].forEach(([pid, pts]) => {
+        if (pid && pts != null) rPts[pid] = (rPts[pid] || 0) + Number(pts);
+      });
+      let topP = -1, topId = null;
+      for (const [pid, p] of Object.entries(rPts)) {
+        if (sexMap[pid] === "Man" && p > topP) { topP = p; topId = pid; }
+      }
+      if (topId && topId !== curMensLead) {
+        if (curMensLead !== null) timesLeadChanged++;
+        curMensLead = topId;
+      }
+    }
+
+    // Top 3 men and women (from already-sorted menPlayers / womenPlayers)
+    const mensTop3    = menPlayers.slice(0, 3).map(p => ({ name: fn(p.name), points: p.ladder_points ?? 0 }));
+    const womensTop3  = womenPlayers.slice(0, 3).map(p => ({ name: fn(p.name), points: p.ladder_points ?? 0 }));
+
+    // Season clock
+    const seasonStart     = new Date("2026-04-17");
+    const seasonEnd       = new Date("2026-11-01");
+    const todayDate       = new Date();
+    const msPerWeek       = 7 * 24 * 60 * 60 * 1000;
+    const seasonWeek      = Math.max(1, Math.ceil((todayDate - seasonStart) / msPerWeek));
+    const totalSeasonWeeks = Math.ceil((seasonEnd - seasonStart) / msPerWeek);
+    const weeksLeft       = Math.max(0, totalSeasonWeeks - seasonWeek);
+
+    // Biggest rank mover in last 10 days
+    const tenDaysAgoStr = new Date(todayDate - 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const curRankMap = {};
+    standings.forEach((p, i) => { curRankMap[p.id] = i + 1; });
+    const recentPids = new Set();
+    for (const m of matches) {
+      if (m.date_played >= tenDaysAgoStr) {
+        [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
+          .filter(Boolean).forEach(pid => recentPids.add(String(pid)));
+      }
+    }
+    let biggestMover = null;
+    let biggestMoverMag = 0;
+    for (const pidStr of recentPids) {
+      const player = players.find(p => String(p.id) === pidStr);
+      if (!player) continue;
+      const prev = player.previous_rank, curr = curRankMap[player.id];
+      if (!prev || !curr) continue;
+      const change = prev - curr;
+      if (Math.abs(change) > biggestMoverMag) {
+        biggestMoverMag = Math.abs(change);
+        let rW = 0, rL = 0;
+        for (const m of matches) {
+          if (m.date_played < tenDaysAgoStr) continue;
+          const t1 = [m.team1_player1_id, m.team1_player2_id].filter(Boolean).map(String);
+          const t2 = [m.team2_player1_id, m.team2_player2_id].filter(Boolean).map(String);
+          if (t1.includes(pidStr))      { m.winner_team === 1 ? rW++ : rL++; }
+          else if (t2.includes(pidStr)) { m.winner_team === 2 ? rW++ : rL++; }
+        }
+        biggestMover = { name: fn(player.name), spots: Math.abs(change),
+          direction: change > 0 ? "up" : "down", recentWins: rW, recentLosses: rL };
+      }
+    }
+
+    // Last 4 matches, newest first — with all highlight data
+    const fnIds = ids => ids.map(id => fn(playerMap[id] || "")).filter(Boolean).join(" & ");
+    const recentFour = [...matches]
+      .sort((a, b) => b.date_played.localeCompare(a.date_played))
+      .slice(0, 4)
+      .map(m => {
+        const wIds = (m.winner_team === 1
+          ? [m.team1_player1_id, m.team1_player2_id]
+          : [m.team2_player1_id, m.team2_player2_id]).filter(Boolean);
+        const lIds = (m.winner_team === 1
+          ? [m.team2_player1_id, m.team2_player2_id]
+          : [m.team1_player1_id, m.team1_player2_id]).filter(Boolean);
+        const t1a = Number(m.team1_avg_rating), t2a = Number(m.team2_avg_rating);
+        let winProb = null;
+        if (t1a && t2a) {
+          const wA = m.winner_team === 1 ? t1a : t2a, lA = m.winner_team === 1 ? t2a : t1a;
+          winProb = Math.round(100 / (1 + Math.pow(10, (lA - wA) / 0.45)));
+        }
+        return {
+          winner:     fnIds(wIds),
+          loser:      fnIds(lIds),
+          score:      m.score_text ? winnerFirstScore(m.score_text, m.winner_team) : "",
+          winProb,
+          totalGames: (Number(m.team1_total_games) || 0) + (Number(m.team2_total_games) || 0),
+          matchType:  m.match_type || "Singles",
+        };
+      })
+      .filter(m => m.winner && m.loser);
+
+    // Highlight 1: most surprising (lowest win prob); fallback: most games
+    const hl1 = recentFour.length
+      ? [...recentFour].sort((a, b) => {
+          if (a.winProb !== null && b.winProb !== null) return a.winProb - b.winProb;
+          return b.totalGames - a.totalGames;
+        })[0]
       : null;
-    const rivalryExists = mensGap !== null && mensGap <= 5;
+    // Highlight 2: most total games from the remaining matches
+    const hl2 = recentFour.length > 1
+      ? recentFour.filter(m => m !== hl1).sort((a, b) => b.totalGames - a.totalGames)[0]
+      : null;
+
     const playersWithMatches = activePlayers.length;
 
-    // Biggest rating riser (reuse mostImproved already computed above)
-    const biggestRatingRiser = mostImproved;
-    const riserGain = mostImprovedGain;
-
-    // Biggest rating faller
-    const biggestRatingFaller = activePlayers.length
-      ? [...activePlayers].sort((a, b) =>
-          ((a.dynamic_rating ?? 0) - (a.initial_rating ?? 0)) -
-          ((b.dynamic_rating ?? 0) - (b.initial_rating ?? 0)))[0]
-      : null;
-    const fallerDrop = biggestRatingFaller
-      ? roundToTwo((biggestRatingFaller.initial_rating ?? 0) - (biggestRatingFaller.dynamic_rating ?? 0))
-      : 0;
-
-    // Most matches played
-    const mostActivePlayer = activePlayers.length
-      ? [...activePlayers].sort((a, b) => (b.matches_played ?? 0) - (a.matches_played ?? 0))[0]
-      : null;
-
-    // Best current hot streak — consecutive wins counting backwards from most recent match
-    const sortedByDate = [...matches].sort((a, b) => a.date_played.localeCompare(b.date_played));
-    const playerMatchResults = {};
-    for (const match of sortedByDate) {
-      const t1 = [match.team1_player1_id, match.team1_player2_id].filter(Boolean);
-      const t2 = [match.team2_player1_id, match.team2_player2_id].filter(Boolean);
-      for (const pid of t1) {
-        if (!playerMatchResults[pid]) playerMatchResults[pid] = [];
-        playerMatchResults[pid].push(match.winner_team === 1);
-      }
-      for (const pid of t2) {
-        if (!playerMatchResults[pid]) playerMatchResults[pid] = [];
-        playerMatchResults[pid].push(match.winner_team === 2);
-      }
-    }
-    let bestStreakName = null;
-    let bestStreakCount = 0;
-    for (const [pid, results] of Object.entries(playerMatchResults)) {
-      let streak = 0;
-      for (let i = results.length - 1; i >= 0; i--) {
-        if (results[i]) streak++;
-        else break;
-      }
-      if (streak > bestStreakCount) {
-        bestStreakCount = streak;
-        bestStreakName = playerMap[pid] || null;
-      }
-    }
-    const bestHotStreak = (bestStreakCount >= 3 && bestStreakName)
-      ? { name: bestStreakName, count: bestStreakCount }
-      : null;
-
-    // Highest-rated player with 0 matches
-    const unplayedHighRated = players
-      .filter(p => (p.matches_played ?? 0) === 0 && (p.dynamic_rating ?? 0) >= 3.5)
-      .sort((a, b) => (b.dynamic_rating ?? 0) - (a.dynamic_rating ?? 0))[0] || null;
-
-    // Biggest upset shorthand object
-    const upsetPct = biggestUpsetMatch ? Math.round(biggestUpsetProb * 100) : null;
-    const biggestUpset = (biggestUpsetMatch && upsetPct !== null && upsetPct <= 40)
-      ? { winner: fnTeam(biggestUpsetWinner), loser: fnTeam(biggestUpsetLoser), prob: upsetPct }
-      : null;
-
-    // ── SENTENCE 1: Season overview ──────────────────────────────────────────
+    // ── SENTENCE 1: Season numbers ────────────────────────────────────────────
     const s1 = pick([
-      `${totalMatches} matches deep and the ${new Date().getFullYear()} ladder is starting to show its personality.`,
-      `We've got ${totalMatches} matches in the books and ${totalPlayers - playersWithMatches} people still sitting on the sidelines like they're waiting for a formal invitation.`,
-      `${playersWithMatches} of ${totalPlayers} players have actually shown up to play — the rest are apparently still warming up.`,
-      `The ${new Date().getFullYear()} season has ${totalMatches} matches played and approximately zero boring ones.`,
-      `${totalMatches} matches played — the ladder is doing what ladders do, separating the people who talk about playing from the people who actually play.`,
-      `${totalMatches} matches played. ${totalPlayers - playersWithMatches} people registered and still waiting for the right moment. The right moment was April 17th.`,
-      `The season has ${totalMatches} matches on the board and things are getting interesting.`,
-      `${playersWithMatches} players have stepped on court. ${totalPlayers - playersWithMatches} have not. This is noted.`,
+      `${totalMatches} matches played, ${totalPoints} points on the board${timesLeadChanged > 1 ? `, and the men's top spot has changed hands ${timesLeadChanged} times` : ""} — the ${new Date().getFullYear()} ladder is well underway.`,
+      `The ladder has ${totalMatches} matches in the books and ${totalPoints} total points awarded — and things are just getting started.`,
+      `${totalPoints} points distributed across ${totalMatches} matches. The ${new Date().getFullYear()} season is finding its shape.`,
+      `${totalMatches} matches played and ${totalPoints} points earned so far this season${timesLeadChanged > 2 ? ` — the men's lead has already flipped ${timesLeadChanged} times` : ""}.`,
+      `Through ${totalMatches} matches and ${totalPoints} points, the ${new Date().getFullYear()} ladder has enough data to start telling a real story.`,
     ], 1);
 
-    // ── SENTENCE 2: Men's ladder situation ───────────────────────────────────
+    // ── SENTENCE 2: Men's top 3 ───────────────────────────────────────────────
     let s2 = "";
-    if (mensLeader && mensSecond && mensGap !== null) {
-      const ml    = fn(mensLeader.name);
-      const ml2   = fn(mensSecond.name);
-      const mlPts  = mensLeader.ladder_points ?? 0;
-      const ml2Pts = mensSecond.ladder_points ?? 0;
-      if (rivalryExists) {
-        s2 = pick([
-          `${ml} leads the men with ${mlPts} points but ${ml2} is ${mensGap} back and absolutely not going away.`,
-          `${ml} and ${ml2} are separated by ${mensGap} points at the top of the men's ladder — close enough that one bad match changes everything.`,
-          `The men's race is ${ml} at ${mlPts} and ${ml2} breathing down their neck at ${ml2Pts}. This one's going to the wire.`,
-          `${mensGap} points. That's the gap between ${ml} and ${ml2} in the men's ladder. Someone is sleeping poorly.`,
-          `${ml} holds the men's top spot by ${mensGap} over ${ml2}, which sounds comfortable until you remember how fast this ladder moves.`,
-        ], 2);
-      } else {
-        s2 = pick([
-          `${ml} is running away with the men's ladder at ${mlPts} points — ${mensGap} clear of ${ml2} — and nobody has really tested them yet.`,
-          `On the men's side, ${ml} has ${mlPts} points and ${mensGap} on the field. Either they're very good or everyone else is being polite.`,
-          `${ml} leads the men with ${mlPts} points and a ${mensGap}-point cushion that's starting to look like a statement.`,
-          `The men's ladder belongs to ${ml} right now — ${mlPts} points, ${mensGap} ahead of ${ml2}, acting accordingly.`,
-          `${ml} is at ${mlPts} points on the men's side and the closest competition is ${mensGap} points back. Comfortable — maybe too comfortable.`,
-        ], 2);
-      }
-    } else if (mensLeader) {
-      const ml    = fn(mensLeader.name);
-      const mlPts = mensLeader.ladder_points ?? 0;
-      s2 = `${ml} leads the men's ladder with ${mlPts} points so far.`;
+    if (mensTop3.length >= 3) {
+      const gap12 = mensTop3[0].points - mensTop3[1].points;
+      const gap23 = mensTop3[1].points - mensTop3[2].points;
+      s2 = pick([
+        `${mensTop3[0].name} leads the men with ${mensTop3[0].points} points, ${gap12} ahead of ${mensTop3[1].name}, with ${mensTop3[2].name} another ${gap23} back in third.`,
+        `On the men's side: ${mensTop3[0].name} at ${mensTop3[0].points}, ${mensTop3[1].name} ${gap12} back, ${mensTop3[2].name} ${gap23} further behind — ${gap12 <= 8 ? "tight at the top" : "some separation starting to form"}.`,
+        `${mensTop3[0].name} holds the men's top spot at ${mensTop3[0].points} points with ${gap12 <= 5 ? `${mensTop3[1].name} right behind at ${mensTop3[1].points}` : `a ${gap12}-point edge over ${mensTop3[1].name}`}. ${mensTop3[2].name} is third at ${mensTop3[2].points}.`,
+        `Men's ladder: ${mensTop3[0].name} (${mensTop3[0].points}), ${mensTop3[1].name} (${mensTop3[1].points}, -${gap12}), ${mensTop3[2].name} (${mensTop3[2].points}, -${gap12 + gap23}). ${gap12 <= 8 ? "Nobody has run away with it yet." : "The gap is starting to matter."}`,
+        `${gap12 <= 5 ? `${mensTop3[0].name} and ${mensTop3[1].name} are ${gap12} points apart at the top of the men's ladder` : `${mensTop3[0].name} leads the men by ${gap12} over ${mensTop3[1].name}`} — ${mensTop3[2].name} sits third at ${mensTop3[2].points}.`,
+      ], 2);
+    } else if (mensTop3.length === 2) {
+      const g = mensTop3[0].points - mensTop3[1].points;
+      s2 = `${mensTop3[0].name} leads the men at ${mensTop3[0].points} points, ${g} ahead of ${mensTop3[1].name}.`;
+    } else if (mensTop3.length === 1) {
+      s2 = `${mensTop3[0].name} leads the men's ladder at ${mensTop3[0].points} points.`;
     }
 
-    // ── SENTENCE 3: The interesting story ────────────────────────────────────
-    // Build available story types then pick one daily
-    const storyTypes = [];
-    if (biggestUpset) storyTypes.push("upset");
-    if (bestHotStreak) storyTypes.push("streak");
-    if ((biggestRatingRiser && riserGain > 0.05) || (biggestRatingFaller && fallerDrop > 0.05))
-      storyTypes.push("rating");
-
+    // ── SENTENCE 3: Women's top 3 ─────────────────────────────────────────────
     let s3 = "";
-    if (storyTypes.length > 0) {
-      const storyType = pick(storyTypes, 3);
+    if (womensTop3.length >= 3) {
+      const gap12w = womensTop3[0].points - womensTop3[1].points;
+      const gap23w = womensTop3[1].points - womensTop3[2].points;
+      s3 = pick([
+        `${womensTop3[0].name} leads the women at ${womensTop3[0].points} points, ${gap12w <= 3 ? `with ${womensTop3[1].name} just ${gap12w} back in what has been a tight race all season` : `${gap12w} ahead of ${womensTop3[1].name}`}. ${womensTop3[2].name} is third.`,
+        `Women's side: ${womensTop3[0].name} on top at ${womensTop3[0].points}, ${womensTop3[1].name} at ${womensTop3[1].points}, ${womensTop3[2].name} at ${womensTop3[2].points}. ${gap12w <= 5 ? "One match separates first from second." : "Some distance opening up at the top."}`,
+        `${womensTop3[0].name} leads the women's ladder with ${womensTop3[0].points} points — ${gap12w} clear of ${womensTop3[1].name}, with ${womensTop3[2].name} rounding out the top three.`,
+        `On the women's side, ${womensTop3[0].name} holds first at ${womensTop3[0].points}, ${gap12w} ahead of ${womensTop3[1].name}. ${womensTop3[2].name} is in third at ${womensTop3[2].points}.`,
+        `${womensTop3[0].name} (${womensTop3[0].points} pts) leads ${womensTop3[1].name} (${womensTop3[1].points} pts) by ${gap12w} on the women's side. ${womensTop3[2].name} is third at ${womensTop3[2].points}.`,
+      ], 3);
+    } else if (womensTop3.length === 2) {
+      const gw = womensTop3[0].points - womensTop3[1].points;
+      s3 = `${womensTop3[0].name} leads the women at ${womensTop3[0].points} points, ${gw} ahead of ${womensTop3[1].name}.`;
+    } else if (womensTop3.length === 1) {
+      s3 = `${womensTop3[0].name} leads the women's ladder at ${womensTop3[0].points} points.`;
+    }
 
-      if (storyType === "upset") {
-        s3 = pick([
-          `The match of the season so far is ${biggestUpset.winner} beating ${biggestUpset.loser} as a ${biggestUpset.prob}% underdog — not close, not lucky, just better on the day.`,
-          `${biggestUpset.winner} walked onto the court against ${biggestUpset.loser} with a ${biggestUpset.prob}% chance of winning. That number was wrong.`,
-          `Someone needs to explain to the algorithm that ${biggestUpset.winner} did not read the ${biggestUpset.prob}% win probability before beating ${biggestUpset.loser}.`,
-          `The biggest upset of the season is ${biggestUpset.winner} over ${biggestUpset.loser} — the system gave them ${biggestUpset.prob}% and they did not care.`,
-          `${biggestUpset.prob}% was the number. ${biggestUpset.winner} beating ${biggestUpset.loser} was the result. Math is hard sometimes.`,
-        ], 4);
+    // ── SENTENCE 4: Season clock ──────────────────────────────────────────────
+    const s4 = pick([
+      `We're in week ${seasonWeek} of ${totalSeasonWeeks} — ${weeksLeft} weeks left to play.`,
+      `${seasonWeek} weeks in, ${weeksLeft} to go. The season is ${Math.round((seasonWeek / totalSeasonWeeks) * 100)}% complete.`,
+      `The finish line is November 1st. That's ${weeksLeft} more weeks of tennis.`,
+      `Week ${seasonWeek} of ${totalSeasonWeeks}. Enough time left for everything to change.`,
+      `${weeksLeft} weeks remain in the ${new Date().getFullYear()} season. There is still plenty of ladder left to climb.`,
+    ], 4);
 
-      } else if (storyType === "streak") {
-        const sn = fn(bestHotStreak.name);
-        s3 = pick([
-          `${sn} has won ${bestHotStreak.count} in a row and is quietly becoming the most dangerous player nobody is talking about.`,
-          `Keep an eye on ${sn} — ${bestHotStreak.count} consecutive wins and a rating that's been climbing ever since the season started.`,
-          `${sn} has ${bestHotStreak.count} straight wins. At some point that stops being a hot streak and starts being a pattern.`,
-        ], 4);
-
+    // ── SENTENCE 5: Biggest mover last 10 days ────────────────────────────────
+    let s5 = "The standings have been fairly locked in this week — which means anyone who plays next has a real chance to shake things up.";
+    if (biggestMover && biggestMover.spots >= 2) {
+      if (biggestMover.direction === "up") {
+        s5 = pick([
+          `${biggestMover.name} is the story of the last 10 days — up ${biggestMover.spots} spots after ${biggestMover.recentWins > 0 ? `going ${biggestMover.recentWins}-${biggestMover.recentLosses}` : "a strong showing"}.`,
+          `Keep an eye on ${biggestMover.name}, who climbed ${biggestMover.spots} places in the standings over the past 10 days.`,
+          `${biggestMover.name} has moved up ${biggestMover.spots} spots in the last 10 days and is starting to make some noise.`,
+          `The biggest mover recently is ${biggestMover.name} — up ${biggestMover.spots} in the standings and trending the right direction.`,
+        ], 5);
       } else {
-        // Rating mover — build available sentences from riser and faller data
-        const ratingPool = [
-          ...(biggestRatingRiser && riserGain > 0.05 ? [
-            `${fn(biggestRatingRiser.name)} self-rated at ${fmtR(biggestRatingRiser.initial_rating)} and is now at ${fmtR(biggestRatingRiser.dynamic_rating)} — the system is figuring out who they actually are.`,
-            `The most interesting rating story is ${fn(biggestRatingRiser.name)} — started at ${fmtR(biggestRatingRiser.initial_rating)}, now at ${fmtR(biggestRatingRiser.dynamic_rating)}. Self-ratings are just guesses.`,
-          ] : []),
-          ...(biggestRatingFaller && fallerDrop > 0.05 ? [
-            `${fn(biggestRatingFaller.name)} came in rated ${fmtR(biggestRatingFaller.initial_rating)} and has settled at ${fmtR(biggestRatingFaller.dynamic_rating)}. The ladder does not lie.`,
-          ] : []),
-        ];
-        if (ratingPool.length) s3 = pick(ratingPool, 4);
+        s5 = pick([
+          `${biggestMover.name} has slipped ${biggestMover.spots} spots in the last 10 days — a stretch worth reversing.`,
+          `On the other side, ${biggestMover.name} has dropped ${biggestMover.spots} places recently and will want to get back on court.`,
+          `${biggestMover.name} has fallen ${biggestMover.spots} spots in the standings over the past 10 days.`,
+          `${biggestMover.name} is down ${biggestMover.spots} in the last 10 days — the ladder moves fast.`,
+        ], 5);
       }
     }
 
-    // ── SENTENCE 4: Forward-looking closer ───────────────────────────────────
-    const wl    = womensLeader  ? fn(womensLeader.name)  : null;
-    const wl2   = womensSecond  ? fn(womensSecond.name)  : null;
-    const wlPts = womensLeader  ? (womensLeader.ladder_points ?? 0) : 0;
-    const mpName  = mostActivePlayer ? fn(mostActivePlayer.name) : null;
-    const mpCount = mostActivePlayer ? (mostActivePlayer.matches_played ?? 0) : 0;
-    const unName  = unplayedHighRated ? fn(unplayedHighRated.name) : null;
-    const unRating = unplayedHighRated ? Number(unplayedHighRated.dynamic_rating ?? 0).toFixed(1) : null;
+    // ── SENTENCE 6: Match highlight 1 ────────────────────────────────────────
+    let s6 = "";
+    if (hl1) {
+      const h1s     = hl1.score ? ` ${hl1.score}` : "";
+      const h1upset = hl1.winProb !== null && hl1.winProb < 40;
+      s6 = pick([
+        `${h1upset ? `The result of the week: ${escapeHtml(hl1.winner)} over ${escapeHtml(hl1.loser)} at ${hl1.winProb}% odds` : `${escapeHtml(hl1.winner)} over ${escapeHtml(hl1.loser)}`}${h1s}${h1upset ? ", which nobody saw coming" : ", a result that mattered"}.`,
+        `${escapeHtml(hl1.winner)} beat ${escapeHtml(hl1.loser)}${h1s}${h1upset ? ` as a ${hl1.winProb}% underdog — the upset of the recent stretch` : " in a match worth noting"}.`,
+        `${h1upset ? `${hl1.winProb}% — that's what the system gave ${escapeHtml(hl1.winner)} before they beat ${escapeHtml(hl1.loser)}${h1s}` : `${escapeHtml(hl1.winner)} over ${escapeHtml(hl1.loser)}${h1s} — a result that moved the needle`}.`,
+        `Recent highlight: ${escapeHtml(hl1.winner)} def. ${escapeHtml(hl1.loser)}${h1s}${h1upset ? ". The ladder did not predict that one." : "."}`,
+      ], 6);
+    }
 
-    const s4pool = [
-      wl && wl2 ? `The women's ladder has ${wl} on top but ${wl2} is within reach — and there are still a lot of matches left to play.` : null,
-      unplayedHighRated
-        ? `${unName} is rated ${unRating} and has yet to play a single match. The ladder is waiting.`
-        : `Most of the ladder still hasn't played — when they do, everything changes.`,
-      `The season runs through November 1st. Right now it feels like the first chapter.`,
-      wl && wl2 ? `${wl} leads the women with ${wlPts} points and ${wl2} is the one to watch. The women's race might end up being the better story.` : null,
-      `A lot of this ladder hasn't played yet. When they do, the standings are going to look very different.`,
-      `November 1st is the finish line. There's a lot of tennis left between here and there.`,
-      `The most interesting matches haven't been played yet. They're just being scheduled.`,
-      mpName && mpCount > 1 ? `${mpName} has played ${mpCount} matches — more than anyone else. That kind of activity tends to pay off by season end.` : null,
-    ].filter(Boolean);
+    // ── SENTENCE 7: Match highlight 2 ────────────────────────────────────────
+    let s7 = "";
+    if (hl2) {
+      const h2s = hl2.score ? ` ${hl2.score}` : "";
+      s7 = pick([
+        `${escapeHtml(hl2.winner)} and ${escapeHtml(hl2.loser)} also played recently —${h2s}, ${hl2.totalGames} standard games, ${hl2.matchType.toLowerCase()}.`,
+        `Also worth noting: ${escapeHtml(hl2.winner)} over ${escapeHtml(hl2.loser)}${h2s}.`,
+        `${escapeHtml(hl2.winner)} beat ${escapeHtml(hl2.loser)}${h2s} in a ${hl2.matchType.toLowerCase()} that earned both sides meaningful points.`,
+        `${hl2.matchType === "Doubles" ? "On the doubles side" : "Also"}, ${escapeHtml(hl2.winner)} over ${escapeHtml(hl2.loser)}${h2s}.`,
+      ], 7);
+    }
 
-    const s4 = pick(s4pool, 5);
+    // ── SENTENCE 8: Participation ─────────────────────────────────────────────
+    const s8 = pick([
+      `${playersWithMatches} of ${totalPlayers} registered players have now competed — ${totalPlayers - playersWithMatches} are still waiting for the right moment.`,
+      `${playersWithMatches} players have stepped on court this season out of ${totalPlayers} registered.`,
+      `The ladder has ${totalPlayers} players signed up. ${playersWithMatches} have played. The other ${totalPlayers - playersWithMatches} are still on deck.`,
+      `${totalPlayers - playersWithMatches} registered players haven't played yet. The standings are going to look different when they do.`,
+    ], 8);
 
-    // ── Assemble ─────────────────────────────────────────────────────────────
-    const parts = [s1, s2, s3, s4].filter(Boolean);
+    // ── Assemble — filter null/empty, join into paragraph ─────────────────────
+    const parts = [s1, s2, s3, s4, s5, s6, s7, s8].filter(Boolean);
 
     container.innerHTML = `
       <h2>📖 Season Story So Far</h2>
