@@ -352,12 +352,37 @@ function lastName(name) {
   return p[p.length - 1] || name;
 }
 
-function teamTitle(players) {
-  if (players.length === 1) return firstName(players[0].name);
+// Returns {id -> displayName}: unique first names stay as first name, shared ones get "First L."
+function disambiguateNames(playerObjects) {
+  const firstNames = {};
+  playerObjects.forEach(p => {
+    if (!p || !p.name) return;
+    const first = p.name.trim().split(/\s+/)[0];
+    if (!firstNames[first]) firstNames[first] = [];
+    firstNames[first].push(p);
+  });
+  const displayNames = {};
+  playerObjects.forEach(p => {
+    if (!p || !p.name) return;
+    const parts = p.name.trim().split(/\s+/);
+    const first = parts[0];
+    const lastInitial = parts[parts.length - 1]?.[0] || '';
+    if (firstNames[first].length > 1) {
+      displayNames[p.id] = lastInitial ? `${first} ${lastInitial}.` : p.name;
+    } else {
+      displayNames[p.id] = first;
+    }
+  });
+  return displayNames;
+}
+
+function teamTitle(players, dispNames) {
+  const d = p => (dispNames && dispNames[p.id]) || firstName(p.name);
+  if (players.length === 1) return d(players[0]);
   const last0 = lastName(players[0].name);
   const last1 = lastName(players[1].name);
   if (last0 === last1) return last0 + 's';
-  return `${firstName(players[0].name)} & ${firstName(players[1].name)}`;
+  return `${d(players[0])} & ${d(players[1])}`;
 }
 
 function teamShortName(players) {
@@ -393,6 +418,9 @@ function render(data) {
   } else {
     typeLabel = "Women's Doubles";
   }
+
+  /* Per-match name disambiguation — shared first names get "First L." */
+  const matchDispNames = disambiguateNames([...team1, ...team2].filter(Boolean));
 
   /* Team adjusted ratings */
   const r1 = adjTeamRating(team1, isMixed);
@@ -501,10 +529,10 @@ function render(data) {
   }
 
   // Labels based on gap magnitude and scenario index
-  const favTitleName = teamTitle(favTeam);
-  const undTitleName = teamTitle(undTeam);
-  const t1TitleName  = teamTitle(team1);
-  const t2TitleName  = teamTitle(team2);
+  const favTitleName = teamTitle(favTeam, matchDispNames);
+  const undTitleName = teamTitle(undTeam, matchDispNames);
+  const t1TitleName  = teamTitle(team1,   matchDispNames);
+  const t2TitleName  = teamTitle(team2,   matchDispNames);
 
   const labelsByGap = gapMag >= 0.35
     ? [
@@ -533,8 +561,8 @@ function render(data) {
   });
 
   /* Title line */
-  const t1Title = teamTitle(team1);
-  const t2Title = teamTitle(team2);
+  const t1Title = teamTitle(team1, matchDispNames);
+  const t2Title = teamTitle(team2, matchDispNames);
   // Edge case: both doubles teams share the same last name — fall back to first names
   const bothSameLast = isDoubles
     && team1.length > 1 && team2.length > 1

@@ -264,6 +264,32 @@ function abbreviateName(fullName) {
   return `${parts[0]} ${parts[parts.length - 1][0]}.`;
 }
 
+// Returns a map of id -> displayName for a set of players in the same match context.
+// Unique first names show as "First"; shared first names show as "First L."
+// The last initial is taken from the LAST word of the full name (handles middle names correctly).
+function disambiguateNames(playerObjects) {
+  const firstNames = {};
+  playerObjects.forEach(p => {
+    if (!p || !p.name) return;
+    const first = p.name.trim().split(/\s+/)[0];
+    if (!firstNames[first]) firstNames[first] = [];
+    firstNames[first].push(p);
+  });
+  const displayNames = {};
+  playerObjects.forEach(p => {
+    if (!p || !p.name) return;
+    const parts  = p.name.trim().split(/\s+/);
+    const first  = parts[0];
+    const lastInitial = parts[parts.length - 1]?.[0] || "";
+    if (firstNames[first].length > 1) {
+      displayNames[p.id] = lastInitial ? `${first} ${lastInitial}.` : p.name;
+    } else {
+      displayNames[p.id] = first;
+    }
+  });
+  return displayNames;
+}
+
 function sortPlayersForStandings(players) {
   return [...players].sort((a, b) => {
     const byPoints = compareValues(a.ladder_points ?? 0, b.ladder_points ?? 0, "desc");
@@ -1048,11 +1074,18 @@ async function loadActivityFeed() {
         ? [match.team2_player1_id, match.team2_player2_id]
         : [match.team1_player1_id, match.team1_player2_id];
 
+      const feedPlayerObjs = [
+        match.team1_player1_id, match.team1_player2_id,
+        match.team2_player1_id, match.team2_player2_id,
+      ].filter(Boolean).map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+      const feedNameMap = disambiguateNames(feedPlayerObjs);
+      const feedName = id => id ? (feedNameMap[id] || abbreviateName(playerMap[id])) : "";
+
       const winnerLinks = winnerIds.filter(Boolean)
-        .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(abbreviateName(playerMap[id]))}</a>`)
+        .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`)
         .join(" &amp; ");
       const loserLinks = loserIds.filter(Boolean)
-        .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(abbreviateName(playerMap[id]))}</a>`)
+        .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`)
         .join(" &amp; ");
       const timeAgo = relativeTime(match.date_played || match.created_at);
       const score = match.score_text ? ` · ${escapeHtml(winnerFirstScore(match.score_text, match.winner_team))}` : "";
@@ -1219,9 +1252,13 @@ async function loadSeasonStory() {
       }
     }
 
-    // Top 3 men and women (from already-sorted menPlayers / womenPlayers)
-    const mensTop3    = menPlayers.slice(0, 3).map(p => ({ name: fn(p.name), points: p.ladder_points ?? 0 }));
-    const womensTop3  = womenPlayers.slice(0, 3).map(p => ({ name: fn(p.name), points: p.ladder_points ?? 0 }));
+    // Top 3 men and women — disambiguate within each top-3 group
+    const mensTop3Objs   = menPlayers.slice(0, 3).map(p => ({ id: p.id, name: p.name }));
+    const womensTop3Objs = womenPlayers.slice(0, 3).map(p => ({ id: p.id, name: p.name }));
+    const mensTop3Names   = disambiguateNames(mensTop3Objs);
+    const womensTop3Names = disambiguateNames(womensTop3Objs);
+    const mensTop3    = menPlayers.slice(0, 3).map(p => ({ name: mensTop3Names[p.id] || fn(p.name), points: p.ladder_points ?? 0 }));
+    const womensTop3  = womenPlayers.slice(0, 3).map(p => ({ name: womensTop3Names[p.id] || fn(p.name), points: p.ladder_points ?? 0 }));
 
     // Season clock
     const seasonStart     = new Date("2026-04-17");
@@ -1266,12 +1303,16 @@ async function loadSeasonStory() {
       }
     }
 
-    // Last 4 matches, newest first — with all highlight data
-    const fnIds = ids => ids.map(id => fn(playerMap[id] || "")).filter(Boolean).join(" & ");
+    // Last 4 matches, newest first — with per-match disambiguated first names
     const recentFour = [...matches]
       .sort((a, b) => b.date_played.localeCompare(a.date_played))
       .slice(0, 4)
       .map(m => {
+        const allMIds = [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id].filter(Boolean);
+        const mObjs   = allMIds.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+        const mNames  = disambiguateNames(mObjs);
+        const dispN   = id => id ? (mNames[id] || fn(playerMap[id] || "")) : "";
+
         const wIds = (m.winner_team === 1
           ? [m.team1_player1_id, m.team1_player2_id]
           : [m.team2_player1_id, m.team2_player2_id]).filter(Boolean);
@@ -1285,8 +1326,8 @@ async function loadSeasonStory() {
           winProb = Math.round(100 / (1 + Math.pow(10, (lA - wA) / 0.45)));
         }
         return {
-          winner:     fnIds(wIds),
-          loser:      fnIds(lIds),
+          winner:     wIds.map(dispN).filter(Boolean).join(" & "),
+          loser:      lIds.map(dispN).filter(Boolean).join(" & "),
           score:      m.score_text ? winnerFirstScore(m.score_text, m.winner_team) : "",
           winProb,
           totalGames: (Number(m.team1_total_games) || 0) + (Number(m.team2_total_games) || 0),
@@ -1488,9 +1529,15 @@ async function loadMatchOfWeek() {
       ? new Date(featured.date_played).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : "";
 
-    // Build linked team names for winner and loser
+    // Build linked team names for winner and loser (disambiguated first names)
+    const motwAllIds = [
+      featured.team1_player1_id, featured.team1_player2_id,
+      featured.team2_player1_id, featured.team2_player2_id,
+    ].filter(Boolean);
+    const motwObjs = motwAllIds.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+    const motwNames = disambiguateNames(motwObjs);
     const linkedTeam = (ids) => ids.filter(Boolean)
-      .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(playerMap[id] || "?")}</a>`)
+      .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(motwNames[id] || playerMap[id] || "?")}</a>`)
       .join(" / ");
     const winnerIds = featured.winner_team === 1
       ? [featured.team1_player1_id, featured.team1_player2_id]
@@ -1771,12 +1818,17 @@ async function setupReportForm() {
     const sideAText = t1p1Name ? (t1p2Name ? `${t1p1Name} & ${t1p2Name}` : t1p1Name) : "Side A";
     const sideBText = t2p1Name ? (t2p2Name ? `${t2p1Name} & ${t2p2Name}` : t2p1Name) : "Side B";
 
-    // Compact first-name labels for score inputs
+    // Compact disambiguated first-name labels for score inputs
+    const scoreFormObjs = [t1p1Name, isDoubles ? t1p2Name : null, t2p1Name, isDoubles ? t2p2Name : null]
+      .filter(Boolean).map((name, i) => ({ id: `f${i}`, name }));
+    const scoreFormNames = disambiguateNames(scoreFormObjs);
+    const scoreDisp = name => name ? (scoreFormNames[scoreFormObjs.find(o => o.name === name)?.id] || shortName(name)) : "";
+
     const scoreAText = t1p1Name
-      ? (t1p2Name ? `${shortName(t1p1Name)} & ${shortName(t1p2Name)}` : shortName(t1p1Name))
+      ? (t1p2Name ? `${scoreDisp(t1p1Name)} & ${scoreDisp(t1p2Name)}` : scoreDisp(t1p1Name))
       : "Side A";
     const scoreBText = t2p1Name
-      ? (t2p2Name ? `${shortName(t2p1Name)} & ${shortName(t2p2Name)}` : shortName(t2p1Name))
+      ? (t2p2Name ? `${scoreDisp(t2p1Name)} & ${scoreDisp(t2p2Name)}` : scoreDisp(t2p1Name))
       : "Side B";
 
     if (sideALabel) sideALabel.textContent = sideAText;
@@ -3013,20 +3065,26 @@ function isMatchUpset(match) {
 }
 
 function buildMatchDisplay(match, playerMap) {
-  const team1Names = [
-    playerMap[match.team1_player1_id],
-    playerMap[match.team1_player2_id]
+  const allIds = [
+    match.team1_player1_id, match.team1_player2_id,
+    match.team2_player1_id, match.team2_player2_id,
   ].filter(Boolean);
+  const playerObjs = allIds.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+  const nameMap = disambiguateNames(playerObjs);
+  const dispFor = id => (id && nameMap[id]) || "";
+  const fullFor = id => (id && playerMap[id]) || "";
 
-  const team2Names = [
-    playerMap[match.team2_player1_id],
-    playerMap[match.team2_player2_id]
-  ].filter(Boolean);
+  const t1Display = [dispFor(match.team1_player1_id), dispFor(match.team1_player2_id)].filter(Boolean);
+  const t2Display = [dispFor(match.team2_player1_id), dispFor(match.team2_player2_id)].filter(Boolean);
+  const t1Full    = [fullFor(match.team1_player1_id), fullFor(match.team1_player2_id)].filter(Boolean);
+  const t2Full    = [fullFor(match.team2_player1_id), fullFor(match.team2_player2_id)].filter(Boolean);
 
   return {
-    team1Text: team1Names.join(" / "),
-    team2Text: team2Names.join(" / "),
-    playersText: `${team1Names.join(" / ")} vs ${team2Names.join(" / ")}`
+    team1Text:   t1Display.join(" / "),
+    team2Text:   t2Display.join(" / "),
+    playersText: `${t1Display.join(" / ")} vs ${t2Display.join(" / ")}`,
+    searchText:  `${t1Full.join(" / ")} vs ${t2Full.join(" / ")}`,
+    nameMap,
   };
 }
 
@@ -3039,6 +3097,13 @@ function renderMatchExtras(match, playerMap, sexMap = {}, selfId = null) {
   const t1Display = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
   const t2Display = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
 
+  // Disambiguate names within this match's context
+  const extrasPlayerObjs = [
+    match.team1_player1_id, match.team1_player2_id,
+    match.team2_player1_id, match.team2_player2_id,
+  ].filter(Boolean).map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+  const extrasNameMap = disambiguateNames(extrasPlayerObjs);
+
   function addRow(playerId, ratingChange, ladderPoints, ratingAtMatch) {
     if (!playerId) return;
     const ratingLine = ratingAtMatch != null
@@ -3047,7 +3112,7 @@ function renderMatchExtras(match, playerMap, sexMap = {}, selfId = null) {
           : `Rating at match: ${Number(ratingAtMatch).toFixed(2)}`
         }</span>`
       : "";
-    const escapedName = escapeHtml(playerMap[playerId] || "Player");
+    const escapedName = escapeHtml(extrasNameMap[playerId] || playerMap[playerId] || "Player");
     const isSelf = selfId && Number(playerId) === Number(selfId);
     const nameHtml = isSelf
       ? escapedName
@@ -3136,7 +3201,7 @@ async function loadMatchHistory() {
     const filteredMatches = playerFilterValue
       ? baseMatches.filter((match) => {
           const display = buildMatchDisplay(match, playerMap);
-          return display.playersText.toLowerCase().includes(playerFilterValue);
+          return (display.searchText || display.playersText).toLowerCase().includes(playerFilterValue);
         })
       : baseMatches;
 
@@ -3621,7 +3686,7 @@ function mpHandleGenerate() {
    THE GAUNTLET
 ========================= */
 
-function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPts, isChaser }) {
+function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPts, isChaser, displayName }) {
   const probClass = winProbPct >= 40
     ? "gauntlet-prob-green"
     : winProbPct >= 20
@@ -3643,7 +3708,7 @@ function renderGauntletStep({ stepNum, label, player, winProbPct, lowPts, highPt
       </div>
       <div class="gauntlet-step-body">
         <div class="gauntlet-step-top">
-          <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>
+          <a class="gauntlet-name player-link" href="player.html?id=${player.id}">${escapeHtml(displayName || player.name || "")}</a>
           <span class="gauntlet-opp-pts">${player.ladder_points ?? 0} pts</span>
           <span class="gauntlet-prob ${probClass}" title="Your chance of winning this match">${winProbPct}% chance</span>
         </div>
@@ -3678,6 +3743,10 @@ async function loadGauntlet() {
     const genderPlayers = sortPlayersForStandings(players.filter(p => p.sex === gender));
     const viewedRank    = genderPlayers.findIndex(p => String(p.id) === String(playerId)) + 1;
     if (viewedRank === 0) { section.style.display = "none"; return; }
+
+    // Name disambiguation across all same-gender players so opponents are always legible
+    const gauntletNameMap = disambiguateNames(genderPlayers.map(p => ({ id: p.id, name: p.name })));
+    const gDisp = id => gauntletNameMap[id] || "";
 
     const leader    = genderPlayers[0];
     const viewedPts = Number(viewed.ladder_points ?? 0);
@@ -3731,7 +3800,8 @@ async function loadGauntlet() {
           player:  opp,
           winProbPct: probPct,
           lowPts, highPts,
-          isChaser: true
+          isChaser: true,
+          displayName: gDisp(opp.id),
         });
       });
 
@@ -3814,19 +3884,20 @@ async function loadGauntlet() {
     const total          = topPicks.length;
 
     let html = `<h2>The Gauntlet 🗡️</h2>
-      <p class="small-text gauntlet-subtitle">You're ${pointsGap} point${pointsGap === 1 ? "" : "s"} behind ${escapeHtml(leader.name)}. Here's your path.</p>
+      <p class="small-text gauntlet-subtitle">You're ${pointsGap} point${pointsGap === 1 ? "" : "s"} behind ${escapeHtml(gDisp(leader.id) || leader.name)}. Here's your path.</p>
       ${showUpsetNote ? `<p class="gauntlet-upset-warning">These won't be easy — but every upset starts somewhere.</p>` : ""}
       <div class="gauntlet-list">`;
 
     topPicks.forEach((c, i) => {
       html += renderGauntletStep({
-        stepNum:    i + 1,
-        label:      stepLabels[i] || "The stretch",
-        player:     c.opp,
-        winProbPct: c.probPct,
-        lowPts:     c.lowPts,
-        highPts:    c.highPts,
-        isChaser:   false
+        stepNum:     i + 1,
+        label:       stepLabels[i] || "The stretch",
+        player:      c.opp,
+        winProbPct:  c.probPct,
+        lowPts:      c.lowPts,
+        highPts:     c.highPts,
+        isChaser:    false,
+        displayName: gDisp(c.opp.id),
       });
     });
 
