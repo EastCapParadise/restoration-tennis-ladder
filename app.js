@@ -282,9 +282,11 @@ function disambiguateNames(playerObjects) {
     const first  = parts[0];
     const lastInitial = parts[parts.length - 1]?.[0] || "";
     if (firstNames[first].length > 1) {
+      // Shared first name — use "First L." to disambiguate
       displayNames[p.id] = lastInitial ? `${first} ${lastInitial}.` : p.name;
     } else {
-      displayNames[p.id] = first;
+      // Unique first name — use full name
+      displayNames[p.id] = p.name;
     }
   });
   return displayNames;
@@ -1818,17 +1820,12 @@ async function setupReportForm() {
     const sideAText = t1p1Name ? (t1p2Name ? `${t1p1Name} & ${t1p2Name}` : t1p1Name) : "Side A";
     const sideBText = t2p1Name ? (t2p2Name ? `${t2p1Name} & ${t2p2Name}` : t2p1Name) : "Side B";
 
-    // Compact disambiguated first-name labels for score inputs
-    const scoreFormObjs = [t1p1Name, isDoubles ? t1p2Name : null, t2p1Name, isDoubles ? t2p2Name : null]
-      .filter(Boolean).map((name, i) => ({ id: `f${i}`, name }));
-    const scoreFormNames = disambiguateNames(scoreFormObjs);
-    const scoreDisp = name => name ? (scoreFormNames[scoreFormObjs.find(o => o.name === name)?.id] || shortName(name)) : "";
-
+    // Compact first-name labels for score inputs (always short — full names don't fit)
     const scoreAText = t1p1Name
-      ? (t1p2Name ? `${scoreDisp(t1p1Name)} & ${scoreDisp(t1p2Name)}` : scoreDisp(t1p1Name))
+      ? (t1p2Name ? `${shortName(t1p1Name)} & ${shortName(t1p2Name)}` : shortName(t1p1Name))
       : "Side A";
     const scoreBText = t2p1Name
-      ? (t2p2Name ? `${scoreDisp(t2p1Name)} & ${scoreDisp(t2p2Name)}` : scoreDisp(t2p1Name))
+      ? (t2p2Name ? `${shortName(t2p1Name)} & ${shortName(t2p2Name)}` : shortName(t2p1Name))
       : "Side B";
 
     if (sideALabel) sideALabel.textContent = sideAText;

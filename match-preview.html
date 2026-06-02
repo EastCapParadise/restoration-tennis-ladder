@@ -368,9 +368,11 @@ function disambiguateNames(playerObjects) {
     const first = parts[0];
     const lastInitial = parts[parts.length - 1]?.[0] || '';
     if (firstNames[first].length > 1) {
+      // Shared first name — use "First L." to disambiguate
       displayNames[p.id] = lastInitial ? `${first} ${lastInitial}.` : p.name;
     } else {
-      displayNames[p.id] = first;
+      // Unique first name — use full name
+      displayNames[p.id] = p.name;
     }
   });
   return displayNames;
