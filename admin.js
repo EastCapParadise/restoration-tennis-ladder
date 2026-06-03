@@ -226,8 +226,10 @@ async function runRecalculation(log) {
 
   log('ok', `Loaded ${matches.length} matches to replay.`);
 
-  // Replay each match
+  // Replay each match — skip mini-games (they don't affect ratings)
   for (const m of matches) {
+    if (m.match_type === 'mini') continue;
+
     const gP = id => id ? state[id] ?? null : null;
     const t1 = [gP(m.team1_player1_id), gP(m.team1_player2_id)];
     const t2 = [gP(m.team2_player1_id), gP(m.team2_player2_id)];

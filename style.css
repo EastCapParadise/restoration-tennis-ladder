@@ -4325,6 +4325,29 @@ th[data-sort]:hover {
 }
 
 /* =========================
+   MINI-GAME (DROP-IN) MATCH CARDS
+========================= */
+
+.mini-match {
+  border-left: 4px solid #10b981;
+}
+
+.match-badge.mini-badge {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #6ee7b7;
+}
+
+/* DI W / DI L columns (14th and 15th) */
+.ladder-table th:nth-child(14),
+.ladder-table td:nth-child(14),
+.ladder-table th:nth-child(15),
+.ladder-table td:nth-child(15) {
+  min-width: 56px;
+  text-align: right;
+}
+
+/* =========================
    MATCH PHOTOS
 ========================= */
 

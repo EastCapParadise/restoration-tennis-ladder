@@ -17,7 +17,7 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>Report Match | Restoration Tennis Ladder</title>
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
   <header class="site-header">
@@ -76,6 +76,7 @@
                 <option value="">Select match type</option>
                 <option value="Singles">Singles</option>
                 <option value="Doubles">Doubles</option>
+                <option value="mini">Mini-Game (Drop-In)</option>
               </select>
             </div>
 
@@ -135,7 +136,7 @@
         </div>
 
         <!-- Winner -->
-        <div class="form-section">
+        <div class="form-section" id="winner-section">
           <div class="section-heading">
             <h3>Match Result</h3>
           </div>
@@ -153,7 +154,7 @@
         </div>
 
         <!-- Scores -->
-        <div class="form-section">
+        <div class="form-section" id="score-section">
           <div class="section-heading">
             <h3>Score</h3>
             <p class="section-helper">
@@ -216,6 +217,26 @@
           </div>
         </div>
 
+        <!-- Mini-Game (Drop-In) inputs — shown only when Mini-Game is selected -->
+        <div class="form-section" id="mini-game-section" style="display:none;">
+          <div class="section-heading">
+            <h3>Drop-In Games</h3>
+            <p class="section-helper">Enter your results from one 4-game rotation.</p>
+          </div>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="mini-games-won">Your Games Won</label>
+              <input type="number" id="mini-games-won" min="0" max="4" step="1" placeholder="0"
+                style="font-size:22px;text-align:center;padding:14px 8px;touch-action:manipulation;">
+            </div>
+            <div class="form-group">
+              <label for="mini-games-played">Games Played Total</label>
+              <input type="number" id="mini-games-played" min="1" max="4" step="1" value="4"
+                style="font-size:22px;text-align:center;padding:14px 8px;touch-action:manipulation;">
+            </div>
+          </div>
+        </div>
+
         <!-- Notes -->
         <div class="form-section">
           <div class="form-group">
@@ -254,7 +275,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

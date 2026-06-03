@@ -449,7 +449,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
-  return state.ladder.showMoreStats ? 13 : 9;
+  return state.ladder.showMoreStats ? 15 : 9;
 }
 
 function getLadderSearchEl() {
@@ -533,7 +533,9 @@ async function fetchPlayers() {
       games_won,
       games_lost,
       matches_played,
-      previous_rank
+      previous_rank,
+      mini_games_won,
+      mini_games_lost
     `);
 
   if (error) throw error;
@@ -545,6 +547,7 @@ async function fetchRecentMatchesForStatus() {
     .from("matches")
     .select(`
       id,
+      match_type,
       date_played,
       created_at,
       winner_team,
@@ -610,6 +613,7 @@ function getPlayerStatus(playerId, matches) {
 
   const playerMatches = matches
     .filter((match) =>
+      match.match_type !== "mini" &&
       [
         match.team1_player1_id,
         match.team1_player2_id,
@@ -881,6 +885,8 @@ function renderLadder(players) {
             ? '<span class="ladder-badge badge-men">M</span>'
             : '<span class="ladder-badge badge-women">W</span>'}
         </td>
+        <td class="num">${player.mini_games_won ?? 0}</td>
+        <td class="num">${player.mini_games_lost ?? 0}</td>
       </tr>
     `;
   }).join("");
@@ -1143,7 +1149,7 @@ async function loadSeasonStory() {
     const menPlayers   = sortPlayersForStandings(players.filter(p => p.sex === "Man"));
     const womenPlayers = sortPlayersForStandings(players.filter(p => p.sex === "Woman"));
 
-    const totalMatches   = matches.length;
+    const totalMatches   = matches.filter(m => m.match_type !== "mini").length;
     const activePlayers  = players.filter(p => (p.matches_played ?? 0) > 0);
     const inactivePlayers = players.length - activePlayers.length;
     const totalPlayers   = players.length;
@@ -1156,6 +1162,9 @@ async function loadSeasonStory() {
     const pointsGap = (overallLeader && overallSecond)
       ? (overallLeader.ladder_points ?? 0) - (overallSecond.ladder_points ?? 0)
       : 0;
+
+    // Split matches: real ladder matches vs mini-game (drop-in) matches
+    const realMatches = matches.filter(m => m.match_type !== "mini");
 
     // Most improved: biggest dynamic_rating gain from initial_rating
     const playerMap = {};
@@ -1171,13 +1180,13 @@ async function loadSeasonStory() {
       ? roundToTwo((mostImproved.dynamic_rating ?? 0) - (mostImproved.initial_rating ?? 0))
       : 0;
 
-    // Biggest upset: match where winner had lowest pre-match win probability
+    // Biggest upset: match where winner had lowest pre-match win probability (real matches only)
     let biggestUpsetMatch   = null;
     let biggestUpsetWinner  = "";
     let biggestUpsetLoser   = "";
     let biggestUpsetProb    = 1;
 
-    for (const match of matches) {
+    for (const match of realMatches) {
       const t1avg = Number(match.team1_avg_rating);
       const t2avg = Number(match.team2_avg_rating);
       if (!t1avg || !t2avg) continue;
@@ -1225,12 +1234,12 @@ async function loadSeasonStory() {
 
     // ── New data computations ─────────────────────────────────────────────────
 
-    // Total ladder points awarded across all matches
-    const totalPoints = matches.reduce((sum, m) =>
+    // Total points from real ladder matches only (mini points shown separately in rankings)
+    const totalPoints = realMatches.reduce((sum, m) =>
       sum + (Number(m.ladder_points_p1) || 0) + (Number(m.ladder_points_p2) || 0) +
             (Number(m.ladder_points_p3) || 0) + (Number(m.ladder_points_p4) || 0), 0);
 
-    // Times men's #1 changed hands — replay matches in date order
+    // Times men's #1 changed hands — replay all matches (mini included, they add to ladder_points)
     const chromoMatches = [...matches].sort((a, b) => a.date_played.localeCompare(b.date_played));
     const rPts = {};
     let curMensLead = null;
@@ -1276,7 +1285,7 @@ async function loadSeasonStory() {
     const curRankMap = {};
     standings.forEach((p, i) => { curRankMap[p.id] = i + 1; });
     const recentPids = new Set();
-    for (const m of matches) {
+    for (const m of realMatches) { // only real matches count for rank movement
       if (m.date_played >= tenDaysAgoStr) {
         [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
           .filter(Boolean).forEach(pid => recentPids.add(String(pid)));
@@ -1305,8 +1314,8 @@ async function loadSeasonStory() {
       }
     }
 
-    // Last 4 matches, newest first — with per-match disambiguated first names
-    const recentFour = [...matches]
+    // Last 4 real (non-mini) matches, newest first — with per-match disambiguated first names
+    const recentFour = [...realMatches]
       .sort((a, b) => b.date_played.localeCompare(a.date_played))
       .slice(0, 4)
       .map(m => {
@@ -1597,6 +1606,7 @@ async function loadPlayerH2H() {
     const h2h = {};
 
     for (const match of matches) {
+      if (match.match_type === "mini") continue; // mini-games excluded from H2H records
       const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
       const won = onTeam1 ? match.winner_team === 1 : match.winner_team === 2;
       const opponentIds = onTeam1
@@ -1781,14 +1791,44 @@ async function setupReportForm() {
 
   function toggleDoublesFields() {
     const isDoubles = matchTypeSelect?.value === "Doubles";
+    const isMini    = matchTypeSelect?.value === "mini";
+
+    // Partner slots — only for Doubles
     if (team1Player2Wrap) team1Player2Wrap.style.display = isDoubles ? "block" : "none";
     if (team2Player2Wrap) team2Player2Wrap.style.display = isDoubles ? "block" : "none";
     if (team1Player2) team1Player2.required = isDoubles;
     if (team2Player2) team2Player2.required = isDoubles;
-
     if (!isDoubles) {
       if (team1Player2) team1Player2.value = "";
       if (team2Player2) team2Player2.value = "";
+    }
+
+    // Score inputs and winner selector — hidden for mini-games
+    const scoreSection  = document.getElementById("score-section");
+    const winnerSection = document.getElementById("winner-section");
+    const miniSection   = document.getElementById("mini-game-section");
+    if (scoreSection)  scoreSection.style.display  = isMini ? "none" : "";
+    if (winnerSection) winnerSection.style.display  = isMini ? "none" : "";
+    if (miniSection)   miniSection.style.display    = isMini ? ""     : "none";
+
+    // Set required on score inputs only for non-mini
+    ["set1-team1-games","set1-team2-games","set2-team1-games","set2-team2-games"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.required = !isMini;
+    });
+    const winnerTeamEl = document.getElementById("winner-team");
+    if (winnerTeamEl) winnerTeamEl.required = !isMini;
+
+    // Submit button label
+    const submitBtn = form?.querySelector('[type="submit"]');
+    if (submitBtn) submitBtn.textContent = isMini ? "Report Mini-Game" : "Submit Match";
+
+    // Side label updates for mini
+    const sideALabel = document.getElementById("side-a-label");
+    const sideBLabel = document.getElementById("side-b-label");
+    if (isMini) {
+      if (sideALabel) sideALabel.textContent = "You";
+      if (sideBLabel) sideBLabel.textContent = "Opponent";
     }
   }
 
@@ -1849,6 +1889,12 @@ async function setupReportForm() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     message.innerHTML = '<p class="small-text">Submitting match…</p>';
+
+    // Mini-game has a completely separate, simpler submission path
+    if (matchTypeSelect?.value === "mini") {
+      await handleMiniGameSubmit(form, message, showReportError);
+      return;
+    }
 
     try {
       const formData = readMatchForm();
@@ -1943,6 +1989,107 @@ async function setupReportForm() {
       showReportError("Something went wrong — please try again or text Michael at 832-833-1990.");
     }
   });
+}
+
+async function handleMiniGameSubmit(form, message, showReportError) {
+  const p1Id = Number(document.getElementById("team1-player1")?.value);
+  const p2Id = Number(document.getElementById("team2-player1")?.value);
+  const gamesWon    = parseInt(document.getElementById("mini-games-won")?.value, 10);
+  const gamesPlayed = parseInt(document.getElementById("mini-games-played")?.value, 10) || 4;
+  const datePlayed  = document.getElementById("date-played")?.value || "";
+  const submittedBy = document.getElementById("submitted-by")?.value?.trim() || "";
+  const matchNotes  = document.getElementById("match-notes")?.value?.trim() || null;
+
+  if (!p1Id || !p2Id)        { showReportError("Please select both players."); return; }
+  if (p1Id === p2Id)          { showReportError("A player cannot play against themselves."); return; }
+  if (isNaN(gamesWon) || gamesWon < 0) { showReportError("Please enter your games won (0–4)."); return; }
+  if (gamesWon > gamesPlayed) { showReportError("Games won cannot exceed games played."); return; }
+  if (gamesPlayed < 1 || gamesPlayed > 4) { showReportError("Games played must be between 1 and 4."); return; }
+  if (!datePlayed)             { showReportError("Please enter the date played."); return; }
+
+  const gamesLost  = gamesPlayed - gamesWon;
+  const winnerTeam = gamesWon > gamesLost ? 1 : gamesLost > gamesWon ? 2 : null;
+
+  const { data: players, error: fetchErr } = await supabaseClient
+    .from("players")
+    .select("id, name, ladder_points, mini_games_won, mini_games_lost, mini_points")
+    .in("id", [p1Id, p2Id]);
+
+  if (fetchErr) { showReportError(`Error loading players: ${fetchErr.message}`); return; }
+
+  const p1 = (players || []).find(p => p.id === p1Id);
+  const p2 = (players || []).find(p => p.id === p2Id);
+  if (!p1 || !p2) { showReportError("Could not find player data. Try again."); return; }
+
+  const payload = {
+    match_type:        "mini",
+    date_played:       datePlayed,
+    submitted_by_name: submittedBy || null,
+    match_notes:       matchNotes,
+    season_year:       new Date(datePlayed).getFullYear(),
+    team1_player1_id:  p1Id,
+    team1_player2_id:  null,
+    team2_player1_id:  p2Id,
+    team2_player2_id:  null,
+    winner_team:       winnerTeam,
+    score_text:        `${gamesWon}-${gamesLost}`,
+    mini_games_won_p1: gamesWon,
+    mini_games_won_p3: gamesLost,
+    ladder_points_p1:  gamesWon,
+    ladder_points_p2:  null,
+    ladder_points_p3:  gamesLost,
+    ladder_points_p4:  null,
+    rating_change_p1:  0,
+    rating_change_p2:  null,
+    rating_change_p3:  0,
+    rating_change_p4:  null,
+    team1_avg_rating:  null,
+    team2_avg_rating:  null,
+    team1_total_games: gamesWon,
+    team2_total_games: gamesLost,
+  };
+
+  const { data: inserted, error: insertErr } = await supabaseClient
+    .from("matches").insert([payload]).select("id").single();
+
+  if (insertErr) { showReportError(`Error saving match: ${insertErr.message}`); return; }
+
+  const [u1Err, u2Err] = await Promise.all([
+    supabaseClient.from("players").update({
+      ladder_points:   (p1.ladder_points   || 0) + gamesWon,
+      mini_games_won:  (p1.mini_games_won  || 0) + gamesWon,
+      mini_games_lost: (p1.mini_games_lost || 0) + gamesLost,
+      mini_points:     (p1.mini_points     || 0) + gamesWon,
+    }).eq("id", p1Id).then(r => r.error),
+    supabaseClient.from("players").update({
+      ladder_points:   (p2.ladder_points   || 0) + gamesLost,
+      mini_games_won:  (p2.mini_games_won  || 0) + gamesLost,
+      mini_games_lost: (p2.mini_games_lost || 0) + gamesWon,
+      mini_points:     (p2.mini_points     || 0) + gamesLost,
+    }).eq("id", p2Id).then(r => r.error),
+  ]);
+
+  if (u1Err || u2Err) {
+    showReportError("Match saved but player stats update failed. Contact the commissioner.");
+    return;
+  }
+
+  form.style.display = "none";
+  message.innerHTML = `
+    <div class="form-confirmation">
+      <div class="confirmation-icon">✓</div>
+      <h3>Mini-game reported! 🎾</h3>
+      <p>You won ${gamesWon} of ${gamesPlayed} games — <strong>${gamesWon} point${gamesWon === 1 ? "" : "s"}</strong> added to your total.</p>
+      <div class="confirmation-links">
+        <a href="history.html" class="button">View Match History</a>
+        <a href="report.html" class="button-secondary">Report Another</a>
+      </div>
+    </div>
+  `;
+
+  if (inserted?.id) setupPhotoUploadSection(inserted.id, message);
+  if (getLadderBodyEl()) await loadLadder();
+  if (document.getElementById("history-list")) await loadMatchHistory();
 }
 
 async function populatePlayerDropdowns() {
@@ -2925,6 +3072,7 @@ function setupHistoryFilterButtons() {
       if (rawFilter.toLowerCase() === "all") state.history.filterType = "All";
       else if (rawFilter.toLowerCase() === "singles") state.history.filterType = "Singles";
       else if (rawFilter.toLowerCase() === "doubles") state.history.filterType = "Doubles";
+      else if (rawFilter.toLowerCase() === "drop-in" || rawFilter.toLowerCase() === "mini") state.history.filterType = "mini";
       else state.history.filterType = "All";
 
       loadMatchHistory();
@@ -2970,13 +3118,15 @@ async function fetchMatches() {
       set2_team1_games,
       set2_team2_games,
       match_notes,
-      photo_url
+      photo_url,
+      mini_games_won_p1,
+      mini_games_won_p3
     `)
     .order("date_played", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (state.history.filterType === "Singles" || state.history.filterType === "Doubles") {
+  if (state.history.filterType === "Singles" || state.history.filterType === "Doubles" || state.history.filterType === "mini") {
     query = query.eq("match_type", state.history.filterType);
   }
 
@@ -3094,6 +3244,34 @@ function buildMatchDisplay(match, playerMap) {
 
 
 // selfId: when viewing a player profile, pass their ID so their own name renders as plain text.
+function renderMiniMatchExtras(match, playerMap, selfId = null) {
+  const ids = [match.team1_player1_id, match.team2_player1_id].filter(Boolean);
+  const playerObjs = ids.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+  const nameMap = disambiguateNames(playerObjs);
+  const rows = [];
+
+  const addRow = (playerId, pts) => {
+    if (!playerId) return;
+    const dn = nameMap[playerId] || playerMap[playerId] || "Player";
+    const isSelf = selfId && Number(playerId) === Number(selfId);
+    const nameHtml = isSelf
+      ? escapeHtml(dn)
+      : `<a href="player.html?id=${playerId}" class="player-link">${escapeHtml(dn)}</a>`;
+    rows.push(`
+      <div class="match-extra-row">
+        <span class="match-extra-name">${nameHtml}</span>
+        <span class="match-extra-stat">Games Won: ${pts ?? 0}</span>
+        <span class="match-extra-stat">Points: +${pts ?? 0}</span>
+      </div>
+    `);
+  };
+
+  addRow(match.team1_player1_id, match.ladder_points_p1);
+  addRow(match.team2_player1_id, match.ladder_points_p3);
+
+  return rows.length ? `<div class="match-extras">${rows.join("")}</div>` : "";
+}
+
 function renderMatchExtras(match, playerMap, sexMap = {}, selfId = null) {
   const rows = [];
   const isDoubles = match.match_type === "Doubles";
@@ -3379,6 +3557,39 @@ async function loadMatchHistory() {
         loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
       });
 
+      // Mini-game (Drop-In) cards use a distinct teal-bordered layout
+      if (match.match_type === "mini") {
+        return `
+          <div class="history-item fade-in-card premium-match-card mini-match" data-match-id="${match.id}">
+            <div class="history-top-row">
+              <div class="history-title-group">
+                <span class="match-badge mini-badge">🎾 Drop-In</span>
+              </div>
+              <div class="history-top-right">
+                ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+                <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
+              </div>
+            </div>
+            <div class="history-meta">
+              <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
+              ${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}
+            </div>
+            <div class="history-matchup">
+              <strong>Players:</strong> ${escapeHtml(display.playersText)}
+            </div>
+            <div class="history-score">
+              <strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)
+            </div>
+            ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
+            ${renderMiniMatchExtras(match, playerMap)}
+            <div class="history-card-actions">
+              <button class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
+              ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
       const upset = isMatchUpset(match);
 
       return `
@@ -3480,7 +3691,9 @@ async function fetchPlayerById(playerId) {
       losses,
       games_won,
       games_lost,
-      matches_played
+      matches_played,
+      mini_games_won,
+      mini_games_lost
     `)
     .eq("id", playerId)
     .maybeSingle();
@@ -3520,7 +3733,9 @@ async function fetchMatchesForPlayer(playerId) {
       set2_team1_games,
       set2_team2_games,
       match_notes,
-      photo_url
+      photo_url,
+      mini_games_won_p1,
+      mini_games_won_p3
     `)
     .order("date_played", { ascending: true })
     .order("created_at", { ascending: true });
@@ -3612,6 +3827,12 @@ async function loadPlayerProfile() {
           <div class="profile-stat-label">Games Lost</div>
           <div class="profile-stat-value">${player.games_lost ?? 0}</div>
         </div>
+        ${(player.mini_games_won || 0) + (player.mini_games_lost || 0) > 0 ? `
+        <div class="profile-stat">
+          <div class="profile-stat-label">Drop-In</div>
+          <div class="profile-stat-value">${player.mini_games_won ?? 0}W – ${player.mini_games_lost ?? 0}L</div>
+        </div>
+        ` : ""}
       </div>
 
       <div class="profile-actions">
@@ -4120,11 +4341,6 @@ async function loadPlayerMatchHistory() {
 
     container.innerHTML = reversed.map((match) => {
       const display = buildMatchDisplay(match, playerMap);
-      const perspective = getPlayerMatchPerspective(match, playerId, sexMap);
-      const resultClass = perspective?.won ? "win" : "loss";
-      const resultText = perspective?.won ? "Win" : "Loss";
-      const upset = isMatchUpset(match);
-
       const _wt = match.winner_team;
       const _winnerText = _wt === 1 ? display.team1Text : display.team2Text;
       const _loserText  = _wt === 1 ? display.team2Text : display.team1Text;
@@ -4143,6 +4359,43 @@ async function loadPlayerMatchHistory() {
         winnerRc:  _wt === 1 ? match.rating_change_p1 : match.rating_change_p3,
         loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
       });
+
+      // Mini-game card
+      if (match.match_type === "mini") {
+        const pid = Number(playerId);
+        const onTeam1 = match.team1_player1_id === pid;
+        const myPts   = onTeam1 ? (match.ladder_points_p1 ?? 0) : (match.ladder_points_p3 ?? 0);
+        const oppPts  = onTeam1 ? (match.ladder_points_p3 ?? 0) : (match.ladder_points_p1 ?? 0);
+        const miniResult = myPts > oppPts ? "Win" : myPts < oppPts ? "Loss" : "Tie";
+        const miniClass  = myPts > oppPts ? "win" : myPts < oppPts ? "loss" : "";
+        return `
+          <div class="history-item fade-in-card premium-match-card mini-match" data-match-id="${match.id}">
+            <div class="history-top-row">
+              <div class="history-title-group">
+                <span class="match-badge mini-badge">🎾 Drop-In</span>
+              </div>
+              <div class="history-top-right">
+                ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+                <span class="winner-pill ${miniClass}">${miniResult}</span>
+              </div>
+            </div>
+            <div class="history-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}</div>
+            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(display.playersText)}</div>
+            <div class="history-score"><strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)</div>
+            ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
+            ${renderMiniMatchExtras(match, playerMap, playerId)}
+            <div class="history-card-actions">
+              <button class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
+              ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
+      const perspective = getPlayerMatchPerspective(match, playerId, sexMap);
+      const resultClass = perspective?.won ? "win" : "loss";
+      const resultText = perspective?.won ? "Win" : "Loss";
+      const upset = isMatchUpset(match);
 
       return `
         <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}" data-match-id="${match.id}">
@@ -4628,6 +4881,7 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRa
     const matches = await fetchMatchesForPlayer(playerId);
 
     const perspectives = matches
+      .filter((match) => match.match_type !== "mini") // mini-games don't affect ratings
       .map((match) => ({
         match,
         perspective: getPlayerMatchPerspective(match, playerId)
