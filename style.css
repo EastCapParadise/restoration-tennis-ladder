@@ -878,6 +878,38 @@ hr {
   color: #444;
 }
 
+/* Combined stat pill — hidden on desktop, shown on mobile */
+.match-extra-combined {
+  display: none;
+  color: var(--green-dark);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .match-extra-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .match-extra-name {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .match-extra-combined {
+    display: inline;
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .match-extra-stat {
+    display: none;
+  }
+}
+
 .filter-btn {
   border: 1.5px solid rgba(0, 0, 0, 0.15);
   background: #fff;
@@ -4128,6 +4160,74 @@ th[data-sort]:hover {
   padding: 8px 10px;
 }
 
+/* Admin photo library */
+.adm-photo-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.adm-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.adm-photo-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f4f7f4;
+  border: 1px solid var(--border);
+}
+
+.adm-photo-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+
+.adm-photo-item-caption {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 5px 7px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-photo-item-meta {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 7px 6px;
+}
+
+.adm-photo-item-delete {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(220,38,38,0.85);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.adm-photo-item:hover .adm-photo-item-delete {
+  opacity: 1;
+}
+
 /* =========================
    MATCH PREVIEW BUTTON + DRAWER
 ========================= */
@@ -4391,8 +4491,6 @@ th[data-sort]:hover {
 
 /* Thumbnail in match history cards */
 .match-photo-thumb {
-  width: 72px;
-  height: 72px;
   object-fit: cover;
   border-radius: 8px;
   cursor: pointer;
@@ -4402,6 +4500,41 @@ th[data-sort]:hover {
   display: block;
 }
 .match-photo-thumb:hover { opacity: 0.82; }
+
+/* Mobile photo — 56×56, in top-right next to winner pill */
+.match-photo-mobile {
+  width: 56px;
+  height: 56px;
+}
+
+/* Desktop photo — 96×96, alongside per-player stat rows */
+.match-photo-desktop {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  display: none;
+}
+
+/* Wrapper that holds stats + desktop photo side by side */
+.match-bottom-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.match-bottom-section .match-extras {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 600px) {
+  .match-photo-mobile {
+    display: none;
+  }
+  .match-photo-desktop {
+    display: block;
+  }
+}
 
 .history-top-right {
   display: flex;
@@ -4417,26 +4550,38 @@ th[data-sort]:hover {
   flex-wrap: wrap;
 }
 
-/* "Add Photo" button — low visual weight */
+@media (max-width: 600px) {
+  .history-card-actions {
+    gap: 8px;
+  }
+  .history-card-actions .btn-share-match,
+  .history-card-actions .btn-add-photo {
+    flex: 1;
+    justify-content: center;
+    margin-top: 4px;
+  }
+}
+
+/* "Add Photo" button — matches Share button size, teal outline style */
 .btn-add-photo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 6px 13px;
   background: none;
-  border: 1.5px solid rgba(0,0,0,0.18);
-  color: #374151;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
+  border: 1px solid #10b981;
+  color: #10b981;
   border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: none;
-  transition: all 0.15s;
-  min-height: 44px;
+  font-family: inherit;
+  transition: background 0.2s;
   white-space: nowrap;
 }
 .btn-add-photo:hover {
-  border-color: #1f4d3a;
-  color: #1f4d3a;
-  background: rgba(31,77,58,0.05);
-  transform: none;
+  background: rgba(16,185,129,0.08);
 }
 
 /* Full-screen photo lightbox */
@@ -4611,6 +4756,7 @@ th[data-sort]:hover {
 }
 .photo-grid-score { font-size: 12px; font-weight: 700; color: #1f4d3a; }
 .photo-grid-date  { font-size: 11px; color: #66736c; margin-top: 2px; }
+.photo-event-badge { color: #10b981; }
 
 /* Skeleton loading for photos page */
 .photos-skeleton {

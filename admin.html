@@ -13,7 +13,7 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>Admin Dashboard | Restoration Tennis Ladder</title>
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -297,7 +297,35 @@
         <div id="recent-signups-content">Loading…</div>
       </div>
 
-      <!-- Section 4: Season Tools -->
+      <!-- Section 5: Photo Library -->
+      <div class="card">
+        <div class="adm-section-header">
+          <h2>📷 Photo Library</h2>
+          <button id="refresh-photos-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p class="small-text" style="margin-bottom:16px;">Upload standalone photos (drop-in nights, events, etc.) to the public gallery. These appear on the Photos page alongside match photos.</p>
+
+        <h3 style="font-size:15px;margin:0 0 12px;color:var(--green-dark);">Upload Photo</h3>
+        <div class="adm-photo-upload-row">
+          <input type="file" id="lib-photo-file" accept="image/*" class="adm-input" style="flex:1;">
+          <select id="lib-photo-type" class="adm-input" style="max-width:180px;">
+            <option value="drop-in">Drop-In Night</option>
+            <option value="event">Event</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="date" id="lib-photo-date" class="adm-input" style="max-width:160px;">
+          <input type="text" id="lib-photo-caption" class="adm-input" placeholder="Caption (optional)" style="flex:2;">
+          <button id="lib-photo-upload-btn" class="adm-btn adm-btn-primary">Upload</button>
+        </div>
+        <p id="lib-photo-status" class="adm-status-text" style="margin-top:8px;"></p>
+
+        <h3 style="font-size:15px;margin:20px 0 12px;color:var(--green-dark);">Library Photos</h3>
+        <div id="admin-photo-grid" class="adm-photo-grid">
+          <p class="small-text">Loading…</p>
+        </div>
+      </div>
+
+      <!-- Section 6: Season Tools -->
       <div class="card">
         <h2>Season Tools</h2>
         <p class="small-text">Resets all player stats to initial ratings and replays every match in chronological order. Use this to correct standings after any manual data changes.</p>

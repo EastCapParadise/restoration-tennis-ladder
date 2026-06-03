@@ -898,6 +898,98 @@ async function runAndShowRecalc(statusElId) {
   }
 }
 
+// ─── Photo Library ───────────────────────────────────────────────────────────
+
+async function loadPhotoLibrary() {
+  const grid = document.getElementById('admin-photo-grid');
+  if (!grid) return;
+  grid.innerHTML = '<p class="small-text">Loading…</p>';
+
+  const { data: photos, error } = await db
+    .from('photos')
+    .select('id, photo_url, caption, event_type, taken_at')
+    .order('uploaded_at', { ascending: false });
+
+  if (error) { grid.innerHTML = `<p style="color:#dc2626">Error: ${esc(error.message)}</p>`; return; }
+  if (!photos || !photos.length) { grid.innerHTML = '<p class="small-text">No library photos yet.</p>'; return; }
+
+  grid.innerHTML = photos.map(p => `
+    <div class="adm-photo-item" data-photo-id="${esc(String(p.id))}">
+      <img src="${esc(p.photo_url)}" alt="${esc(p.caption || 'Photo')}" loading="lazy">
+      ${p.caption ? `<div class="adm-photo-item-caption">${esc(p.caption)}</div>` : ''}
+      <div class="adm-photo-item-meta">${esc(p.event_type || '')}${p.taken_at ? ' · ' + esc(p.taken_at) : ''}</div>
+      <button class="adm-photo-item-delete" title="Delete photo" data-photo-id="${esc(String(p.id))}" data-photo-url="${esc(p.photo_url)}">✕</button>
+    </div>
+  `).join('');
+
+  grid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.adm-photo-item-delete');
+    if (!btn) return;
+    if (!confirm('Delete this photo permanently?')) return;
+    await deleteLibraryPhoto(btn.dataset.photoId, btn.dataset.photoUrl);
+  }, { once: true });
+}
+
+async function uploadLibraryPhoto() {
+  const fileInput  = document.getElementById('lib-photo-file');
+  const typeSelect = document.getElementById('lib-photo-type');
+  const dateInput  = document.getElementById('lib-photo-date');
+  const captionEl  = document.getElementById('lib-photo-caption');
+  const status     = document.getElementById('lib-photo-status');
+  const btn        = document.getElementById('lib-photo-upload-btn');
+
+  const file = fileInput?.files?.[0];
+  if (!file) { setStatus('lib-photo-status', 'Please choose a file.', 'error'); return; }
+  if (file.size > 8 * 1024 * 1024) { setStatus('lib-photo-status', 'Photo must be under 8MB.', 'error'); return; }
+
+  btn.disabled = true;
+  setStatus('lib-photo-status', 'Uploading…');
+
+  try {
+    const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `standalone/${Date.now()}.${ext}`;
+    const { error: upErr } = await db.storage
+      .from('match-photos')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (upErr) throw upErr;
+
+    const { data: urlData } = db.storage.from('match-photos').getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+
+    const { error: dbErr } = await db.from('photos').insert({
+      photo_url:  publicUrl,
+      caption:    captionEl?.value.trim() || null,
+      event_type: typeSelect?.value || 'other',
+      taken_at:   dateInput?.value || null,
+    });
+    if (dbErr) throw dbErr;
+
+    setStatus('lib-photo-status', 'Photo uploaded!', 'success');
+    fileInput.value = '';
+    if (captionEl) captionEl.value = '';
+    await loadPhotoLibrary();
+  } catch (err) {
+    setStatus('lib-photo-status', `Error: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteLibraryPhoto(photoId, photoUrl) {
+  try {
+    const urlObj = new URL(photoUrl);
+    const pathMatch = urlObj.pathname.match(/\/object\/public\/match-photos\/(.*)/);
+    if (pathMatch) {
+      await db.storage.from('match-photos').remove([decodeURIComponent(pathMatch[1])]);
+    }
+    const { error } = await db.from('photos').delete().eq('id', photoId);
+    if (error) throw error;
+    await loadPhotoLibrary();
+  } catch (err) {
+    alert(`Failed to delete: ${err.message}`);
+  }
+}
+
 // ─── Wire up all events ───────────────────────────────────────────────────────
 
 function wireEvents() {
@@ -926,6 +1018,10 @@ function wireEvents() {
   // Event management
   document.getElementById('add-event-form')?.addEventListener('submit', submitAddEvent);
 
+  // Photo library
+  document.getElementById('lib-photo-upload-btn')?.addEventListener('click', uploadLibraryPhoto);
+  document.getElementById('refresh-photos-btn')?.addEventListener('click', loadPhotoLibrary);
+
   // Season tools
   document.getElementById('force-recalc-btn')?.addEventListener('click', async () => {
     const btn = document.getElementById('force-recalc-btn');
@@ -942,7 +1038,7 @@ function wireEvents() {
 // ─── Load everything ──────────────────────────────────────────────────────────
 
 async function loadAll() {
-  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents()]);
+  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary()]);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────

@@ -1972,13 +1972,13 @@ async function setupReportForm() {
             <a href="report.html" class="button-secondary">Report Another Match</a>
           </div>
           <div style="margin-top:12px;">
-            <button class="btn-share-match" id="confirm-share-btn">⬆ Share Result</button>
+            <button type="button" class="btn-share-match" id="confirm-share-btn">⬆ Share Result</button>
           </div>
         </div>
       `;
 
-      document.getElementById("confirm-share-btn")?.addEventListener("click", () => {
-        showMatchCardModal(confirmMatchData);
+      document.getElementById("confirm-share-btn")?.addEventListener("click", (e) => {
+        shareMatchResult(confirmMatchData, e.currentTarget);
       });
 
       if (insertedMatch?.id) {
@@ -3396,11 +3396,13 @@ function renderMatchExtras(match, playerMap, sexMap = {}, selfId = null) {
     const nameHtml = isSelf
       ? escapedName
       : `<a href="player.html?id=${playerId}" class="player-link">${escapedName}</a>`;
+    const combinedStat = `${formatSignedNumber(ratingChange)} · ${ladderPoints ?? "—"} pts`;
     rows.push(`
       <div class="match-extra-row">
         <span class="match-extra-name">${nameHtml}${ratingLine}</span>
         <span class="match-extra-stat">Rating: ${escapeHtml(formatSignedNumber(ratingChange))}</span>
         <span class="match-extra-stat">Points: ${escapeHtml(String(ladderPoints ?? "—"))}</span>
+        <span class="match-extra-combined">${escapeHtml(combinedStat)}</span>
       </div>
     `);
   }
@@ -3663,7 +3665,7 @@ async function loadMatchHistory() {
                 <span class="match-badge mini-badge">🎾 Drop-In</span>
               </div>
               <div class="history-top-right">
-                ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+                ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
                 <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
               </div>
             </div>
@@ -3678,10 +3680,13 @@ async function loadMatchHistory() {
               <strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)
             </div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
-            ${renderMiniMatchExtras(match, playerMap)}
+            <div class="match-bottom-section">
+              ${renderMiniMatchExtras(match, playerMap)}
+              ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+            </div>
             <div class="history-card-actions">
-              <button class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
-              ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+              <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
+              ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
             </div>
           </div>
         `;
@@ -3697,7 +3702,7 @@ async function loadMatchHistory() {
               ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
             </div>
             <div class="history-top-right">
-              ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
               <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
             </div>
           </div>
@@ -3723,11 +3728,14 @@ async function loadMatchHistory() {
             </div>
           ` : ""}
 
-          ${renderMatchExtras(match, playerMap, sexMap)}
+          <div class="match-bottom-section">
+            ${renderMatchExtras(match, playerMap, sexMap)}
+            ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+          </div>
 
           <div class="history-card-actions">
-            <button class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
-            ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+            <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
+            ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
           </div>
         </div>
       `;
@@ -3752,10 +3760,17 @@ async function loadMatchHistory() {
             if (!card) return;
             const topRight = card.querySelector(".history-top-right");
             if (topRight) {
-              const img = document.createElement("img");
-              img.className = "match-photo-thumb";
-              img.src = url; img.alt = "Match photo"; img.dataset.photoUrl = url;
-              topRight.prepend(img);
+              const mobileImg = document.createElement("img");
+              mobileImg.className = "match-photo-thumb match-photo-mobile";
+              mobileImg.src = url; mobileImg.alt = "Match photo"; mobileImg.dataset.photoUrl = url;
+              topRight.prepend(mobileImg);
+            }
+            const bottomSection = card.querySelector(".match-bottom-section");
+            if (bottomSection) {
+              const desktopImg = document.createElement("img");
+              desktopImg.className = "match-photo-thumb match-photo-desktop";
+              desktopImg.src = url; desktopImg.alt = "Match photo"; desktopImg.dataset.photoUrl = url;
+              bottomSection.appendChild(desktopImg);
             }
             addBtn.remove();
           });
@@ -4472,7 +4487,7 @@ async function loadPlayerMatchHistory() {
                 <span class="match-badge mini-badge">🎾 Drop-In</span>
               </div>
               <div class="history-top-right">
-                ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+                ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
                 <span class="winner-pill ${miniClass}">${miniResult}</span>
               </div>
             </div>
@@ -4480,10 +4495,13 @@ async function loadPlayerMatchHistory() {
             <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(display.playersText)}</div>
             <div class="history-score"><strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)</div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
-            ${renderMiniMatchExtras(match, playerMap, playerId)}
+            <div class="match-bottom-section">
+              ${renderMiniMatchExtras(match, playerMap, playerId)}
+              ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+            </div>
             <div class="history-card-actions">
-              <button class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
-              ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+              <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
+              ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
             </div>
           </div>
         `;
@@ -4502,7 +4520,7 @@ async function loadPlayerMatchHistory() {
               ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
             </div>
             <div class="history-top-right">
-              ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
               <span class="winner-pill ${resultClass}">${resultText}</span>
             </div>
           </div>
@@ -4527,11 +4545,14 @@ async function loadPlayerMatchHistory() {
             </div>
           ` : ""}
 
-          ${renderMatchExtras(match, playerMap, sexMap, playerId)}
+          <div class="match-bottom-section">
+            ${renderMatchExtras(match, playerMap, sexMap, playerId)}
+            ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+          </div>
 
           <div class="history-card-actions">
-            <button class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
-            ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+            <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
+            ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
           </div>
         </div>
       `;
@@ -4555,10 +4576,17 @@ async function loadPlayerMatchHistory() {
             if (!card) return;
             const topRight = card.querySelector(".history-top-right");
             if (topRight) {
-              const img = document.createElement("img");
-              img.className = "match-photo-thumb";
-              img.src = url; img.alt = "Match photo"; img.dataset.photoUrl = url;
-              topRight.prepend(img);
+              const mobileImg = document.createElement("img");
+              mobileImg.className = "match-photo-thumb match-photo-mobile";
+              mobileImg.src = url; mobileImg.alt = "Match photo"; mobileImg.dataset.photoUrl = url;
+              topRight.prepend(mobileImg);
+            }
+            const bottomSection = card.querySelector(".match-bottom-section");
+            if (bottomSection) {
+              const desktopImg = document.createElement("img");
+              desktopImg.className = "match-photo-thumb match-photo-desktop";
+              desktopImg.src = url; desktopImg.alt = "Match photo"; desktopImg.dataset.photoUrl = url;
+              bottomSection.appendChild(desktopImg);
             }
             addBtn.remove();
           });
@@ -4919,20 +4947,31 @@ async function sharePlayerProfile(playerId, player, btn) {
 }
 
 async function shareMatchResult(matchData, btn) {
-  if (btn) {
-    btn.dataset.origLabel = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "Generating…";
-  }
+  const shareText = matchData.winner && matchData.loser
+    ? `${matchData.winner} def. ${matchData.loser}${matchData.score ? " " + matchData.score : ""} — restotennis.com`
+    : "restotennis.com";
+  const shareUrl = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}history.html`;
+
+  if (btn) { btn.disabled = true; }
 
   try {
-    const cardEl    = buildMatchShareCard(matchData);
-    const shareText = `${matchData.winner} def. ${matchData.loser} ${matchData.score} — restotennis.com`;
-    await captureAndShare(cardEl, shareText, btn);
+    if (navigator.share) {
+      await navigator.share({ title: "Restoration Tennis Ladder", text: shareText, url: shareUrl });
+    } else {
+      await navigator.clipboard.writeText(shareText);
+      showShareToast("Copied to clipboard!");
+    }
   } catch (err) {
-    console.error("shareMatchResult error:", err);
-    showShareToast("Something went wrong");
-    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origLabel || "⬆ Share"; }
+    if (err.name !== "AbortError") {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        showShareToast("Copied to clipboard!");
+      } catch (_) {
+        showShareToast("Could not share");
+      }
+    }
+  } finally {
+    if (btn) { btn.disabled = false; }
   }
 }
 

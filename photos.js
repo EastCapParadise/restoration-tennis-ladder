@@ -73,21 +73,27 @@ async function loadPhotos() {
   container.innerHTML = renderSkeleton();
 
   try {
-    // Fetch matches that have a photo
-    const { data: matches, error: mErr } = await sb
-      .from('matches')
-      .select(`id, date_played, match_type, winner_team, score_text,
-        team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
-        photo_url`)
-      .not('photo_url', 'is', null)
-      .order('date_played', { ascending: false })
-      .order('created_at', { ascending: false });
+    // Fetch match photos and standalone library photos in parallel
+    const [matchRes, libRes] = await Promise.all([
+      sb.from('matches')
+        .select(`id, date_played, match_type, winner_team, score_text,
+          team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
+          photo_url`)
+        .not('photo_url', 'is', null)
+        .order('date_played', { ascending: false })
+        .order('created_at', { ascending: false }),
+      sb.from('photos')
+        .select('id, photo_url, caption, event_type, taken_at')
+        .order('taken_at', { ascending: false, nullsFirst: false })
+        .order('uploaded_at', { ascending: false }),
+    ]);
 
-    if (mErr) throw mErr;
+    if (matchRes.error) throw matchRes.error;
 
-    const photosMatches = (matches || []).filter(m => m.photo_url);
+    const photosMatches = (matchRes.data || []).filter(m => m.photo_url);
+    const libPhotos     = libRes.error ? [] : (libRes.data || []);
 
-    if (!photosMatches.length) {
+    if (!photosMatches.length && !libPhotos.length) {
       if (meta) meta.textContent = '';
       container.innerHTML = `
         <div style="text-align:center;padding:40px 20px;color:#66736c;">
@@ -99,7 +105,7 @@ async function loadPhotos() {
       return;
     }
 
-    // Collect all player IDs to resolve names
+    // Resolve player names for match photos
     const playerIds = new Set();
     photosMatches.forEach(m => {
       [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
@@ -118,11 +124,13 @@ async function loadPhotos() {
     const pName = id => playerMap[id] || '';
     const teamLabel = (ids) => ids.filter(Boolean).map(id => firstName(pName(id))).filter(Boolean).join(' & ');
 
+    const totalCount = photosMatches.length + libPhotos.length;
     if (meta) {
-      meta.textContent = `${photosMatches.length} photo${photosMatches.length === 1 ? '' : 's'} from ${photosMatches.length} match${photosMatches.length === 1 ? '' : 'es'}`;
+      meta.textContent = `${totalCount} photo${totalCount === 1 ? '' : 's'}`;
     }
 
-    const cards = photosMatches.map(m => {
+    // Build match photo cards
+    const matchCards = photosMatches.map(m => {
       const wIds = (m.winner_team === 1
         ? [m.team1_player1_id, m.team1_player2_id]
         : [m.team2_player1_id, m.team2_player2_id]).filter(Boolean);
@@ -134,7 +142,6 @@ async function loadPhotos() {
       const loserLabel  = teamLabel(lIds);
       const playersLine = [winnerLabel, loserLabel].filter(Boolean).join(' def. ');
 
-      // Show score from winner's perspective
       let scoreText = '';
       if (m.score_text) {
         const sets = m.score_text.split(/,?\s+/);
@@ -155,9 +162,26 @@ async function loadPhotos() {
           </div>
         </div>
       `;
-    }).join('');
+    });
 
-    container.innerHTML = `<div class="photos-grid">${cards}</div>`;
+    // Build standalone library photo cards
+    const libCards = libPhotos.map(p => {
+      const eventLabel = p.event_type
+        ? p.event_type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        : null;
+      return `
+        <div class="photo-grid-card" data-photo-url="${esc(p.photo_url)}">
+          <img class="photo-grid-img" src="${esc(p.photo_url)}" alt="${esc(p.caption || 'Photo')}" loading="lazy">
+          <div class="photo-grid-caption">
+            ${p.caption ? `<div class="photo-grid-players">${esc(p.caption)}</div>` : ''}
+            ${eventLabel ? `<div class="photo-grid-score photo-event-badge">${esc(eventLabel)}</div>` : ''}
+            ${p.taken_at ? `<div class="photo-grid-date">${esc(safeDateText(p.taken_at))}</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = `<div class="photos-grid">${[...matchCards, ...libCards].join('')}</div>`;
 
     // Lightbox delegation
     container.addEventListener('click', (e) => {
