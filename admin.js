@@ -367,7 +367,7 @@ async function loadMatches() {
         team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
         ladder_points_p1, ladder_points_p2, ladder_points_p3, ladder_points_p4,
         set1_team1_games, set1_team2_games, set2_team1_games, set2_team2_games,
-        set3_team1_games, set3_team2_games`)
+        set3_team1_games, set3_team2_games, photo_url`)
       .order('date_played', { ascending: false })
       .order('created_at', { ascending: false }),
     db.from('players').select('id, name'),
@@ -401,8 +401,10 @@ async function loadMatches() {
       <td style="white-space:nowrap"><strong>${wPts}</strong> / ${lPts}</td>
       <td>
         <div class="adm-action-group">
+          ${m.photo_url ? `<img src="${esc(m.photo_url)}" alt="Photo" style="width:40px;height:40px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid #dde6e0;">` : ''}
           <button class="adm-btn adm-btn-sm adm-btn-warning edit-score-btn" data-id="${m.id}">Edit Score</button>
           <button class="adm-btn adm-btn-sm adm-btn-danger void-btn" data-id="${m.id}">Void</button>
+          ${m.photo_url ? `<button class="adm-btn adm-btn-sm adm-btn-secondary remove-photo-btn" data-id="${m.id}">🗑️ Photo</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -417,6 +419,38 @@ async function loadMatches() {
   tbody.querySelectorAll('.edit-score-btn').forEach(btn => {
     btn.addEventListener('click', () => openEditScore(Number(btn.dataset.id)));
   });
+  tbody.querySelectorAll('.remove-photo-btn').forEach(btn => {
+    btn.addEventListener('click', () => removeMatchPhoto(Number(btn.dataset.id)));
+  });
+}
+
+async function removeMatchPhoto(matchId) {
+  const match = allMatches.find(m => m.id === matchId);
+  if (!match || !match.photo_url) return;
+
+  const confirmed = await showConfirm(
+    'Remove Photo',
+    'Remove this photo? The match result will remain.'
+  );
+  if (!confirmed) return;
+
+  setStatus('match-mgmt-status', 'Removing photo…');
+  try {
+    // Extract path within the bucket from the public URL
+    const url  = new URL(match.photo_url);
+    const pfx  = '/storage/v1/object/public/match-photos/';
+    const path = url.pathname.startsWith(pfx) ? url.pathname.slice(pfx.length) : null;
+    if (path) {
+      const { error: stErr } = await db.storage.from('match-photos').remove([path]);
+      if (stErr) console.warn('Storage remove error:', stErr.message);
+    }
+    const { error: dbErr } = await db.from('matches').update({ photo_url: null }).eq('id', matchId);
+    if (dbErr) throw dbErr;
+    setStatus('match-mgmt-status', 'Photo removed.');
+    await loadMatches();
+  } catch (err) {
+    setStatus('match-mgmt-status', `Error: ${err.message}`, 'error');
+  }
 }
 
 async function voidMatch(matchId) {

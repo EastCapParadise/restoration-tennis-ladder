@@ -16,7 +16,7 @@
     gtag('js', new Date());
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
-  <title>Rankings | Restoration Tennis Ladder</title>
+  <title>Match Photos | Restoration Tennis Ladder</title>
   <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
@@ -43,78 +43,44 @@
       <a href="index.html">Home</a>
       <a href="rules.html">About</a>
       <a href="join.html">Join</a>
-      <a href="ladder.html" class="active">Rankings</a>
+      <a href="ladder.html">Rankings</a>
       <a href="report.html">Report Match</a>
       <a href="history.html">Match History</a>
       <a href="events.html">Events</a>
-      <a href="photos.html">Photos</a>
+      <a href="photos.html" class="active">Photos</a>
       <a href="contacts.html">Directory</a>
     </div>
   </header>
 
   <main>
     <section class="card">
-      <h2>Current Rankings</h2>
-      <p class="small-text">Season standings for Restoration Tennis Ladder.</p>
-
-      <div class="ladder-filters-row">
-        <div class="button-group ladder-filters">
-          <button type="button" class="filter-btn active" data-filter="All">All Players</button>
-          <button type="button" class="filter-btn" data-filter="Man">Men's Ladder</button>
-          <button type="button" class="filter-btn" data-filter="Woman">Women's Ladder</button>
-        </div>
-        <button type="button" id="show-more-stats-btn" class="toggle-stats-link">Show More Stats ▾</button>
-      </div>
-
-      <p class="scoring-disclaimer">⚙️ Scoring system note — We're actively refining how points and ratings work in the early stages of this ladder. Expect the scoring system to continue evolving as we gather real match data and test it against the principles of this ladder. See the About page for more details on scoring.</p>
-
-      <div style="margin-bottom: 16px;">
-        <input
-          type="text"
-          id="ladder-search"
-          placeholder="Search players by name, area, or ladder..."
-          style="width: 100%; max-width: 360px;"
-        >
-      </div>
-
-      <div class="table-wrap">
-        <table class="ladder-table">
-          <thead>
-            <tr>
-              <th data-sort="season_rank">Rank</th>
-              <th data-sort="name">Name</th>
-              <th data-sort="area">Area</th>
-              <th class="num" data-sort="ladder_points">Points</th>
-              <th class="num" data-sort="wins">W</th>
-              <th class="num" data-sort="losses">L</th>
-              <th class="num" data-sort="dynamic_rating">Rating</th>
-              <th data-sort="status">Status</th>
-              <th class="num" data-sort="sos" title="Average rating of opponents faced">SOS</th>
-              <th class="num" data-sort="games_won">Games W</th>
-              <th class="num" data-sort="games_lost">Games L</th>
-              <th class="num" data-sort="matches_played">Played</th>
-              <th data-sort="sex">Ladder</th>
-            </tr>
-          </thead>
-          <tbody id="ladder-body">
-            <tr>
-              <td colspan="7">Loading rankings...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
+      <h2>📷 Match Photos</h2>
+      <p class="small-text">From the courts of the Restoration Tennis Ladder.</p>
+      <p class="photos-page-meta" id="photos-meta"></p>
+      <div id="photos-container"></div>
     </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=13"></script>
+  <script src="photos.js?v=1"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';
     document.querySelectorAll('.desktop-nav a').forEach(function(a) {
       if (a.getAttribute('href').split('/').pop() === p) a.classList.add('nav-active');
     });
+    // Mobile hamburger
+    var header = document.querySelector('.site-header');
+    var btn = document.querySelector('.hamburger-btn');
+    if (header && btn) {
+      btn.addEventListener('click', function() {
+        var open = header.classList.toggle('menu-open');
+        btn.textContent = open ? '✕' : '☰';
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        var menu = header.querySelector('.mobile-nav-menu');
+        if (menu) menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+      });
+    }
   }());
 </script>
 </body>

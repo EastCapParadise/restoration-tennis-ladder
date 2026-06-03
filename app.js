@@ -1871,9 +1871,11 @@ async function setupReportForm() {
       const scoringResult = calculateMatchScoring(scoringContext);
       const finalMatchPayload = buildMatchPayload({ formData, hydrated, scoringResult });
 
-      const { error: matchError } = await supabaseClient
+      const { data: insertedMatch, error: matchError } = await supabaseClient
         .from("matches")
-        .insert([finalMatchPayload]);
+        .insert([finalMatchPayload])
+        .select("id")
+        .single();
 
       if (matchError) {
         showReportError(`Error saving match: ${matchError.message}`);
@@ -1927,6 +1929,10 @@ async function setupReportForm() {
       document.getElementById("confirm-share-btn")?.addEventListener("click", () => {
         showMatchCardModal(confirmMatchData);
       });
+
+      if (insertedMatch?.id) {
+        setupPhotoUploadSection(insertedMatch.id, message);
+      }
 
       if (getLadderBodyEl()) await loadLadder();
       if (document.getElementById("history-list")) await loadMatchHistory();
@@ -2963,7 +2969,8 @@ async function fetchMatches() {
       set1_team2_games,
       set2_team1_games,
       set2_team2_games,
-      match_notes
+      match_notes,
+      photo_url
     `)
     .order("date_played", { ascending: false })
     .order("created_at", { ascending: false })
@@ -3168,6 +3175,149 @@ function getDeltaClass(value) {
   return "neutral";
 }
 
+/* =========================
+   PHOTO FEATURES
+========================= */
+
+function openPhotoLightbox(url) {
+  const old = document.getElementById("photo-lightbox");
+  if (old) old.remove();
+
+  const box = document.createElement("div");
+  box.id = "photo-lightbox";
+  box.className = "photo-lightbox";
+  box.innerHTML = `
+    <button class="photo-lightbox-close" aria-label="Close photo">✕</button>
+    <img class="photo-lightbox-img" src="${escapeHtml(url)}" alt="Match photo">
+  `;
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.classList.add("visible"));
+
+  const close = () => {
+    box.classList.remove("visible");
+    setTimeout(() => box.remove(), 200);
+  };
+  box.querySelector(".photo-lightbox-close").addEventListener("click", (e) => { e.stopPropagation(); close(); });
+  box.addEventListener("click", (e) => { if (e.target === box) close(); });
+  const onKey = (e) => { if (e.key === "Escape") { close(); document.removeEventListener("keydown", onKey); } };
+  document.addEventListener("keydown", onKey);
+}
+
+async function uploadMatchPhoto(matchId, file) {
+  if (file.size > 8 * 1024 * 1024) throw new Error("Photo must be under 8MB");
+  const ext  = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `match-photos/${matchId}/${Date.now()}.${ext}`;
+  const { error: upErr } = await supabaseClient.storage
+    .from("match-photos")
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr) throw upErr;
+  const { data: urlData } = supabaseClient.storage.from("match-photos").getPublicUrl(path);
+  const publicUrl = urlData.publicUrl;
+  const { error: dbErr } = await supabaseClient
+    .from("matches").update({ photo_url: publicUrl }).eq("id", matchId);
+  if (dbErr) throw dbErr;
+  return publicUrl;
+}
+
+function buildPhotoUploadUI(matchId, onSuccess, onSkip) {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <label class="photo-upload-area" for="pup-file-${matchId}">
+      <span class="photo-upload-icon">📷</span>
+      <span class="photo-upload-label">Tap to choose a photo</span>
+      <span class="photo-upload-sublabel">8MB max · JPEG, PNG, HEIC</span>
+      <input type="file" id="pup-file-${matchId}" accept="image/*" style="display:none">
+    </label>
+    <img class="photo-preview-img" id="pup-preview-${matchId}" alt="Preview">
+    <p class="photo-upload-error" id="pup-err-${matchId}"></p>
+    <button class="primary-btn photo-upload-btn" id="pup-btn-${matchId}" disabled style="width:100%;margin-top:4px">Upload Photo</button>
+    <button class="photo-skip-link" id="pup-skip-${matchId}" type="button">Skip</button>
+  `;
+  const fileInput = wrap.querySelector(`#pup-file-${matchId}`);
+  const preview   = wrap.querySelector(`#pup-preview-${matchId}`);
+  const errEl     = wrap.querySelector(`#pup-err-${matchId}`);
+  const uploadBtn = wrap.querySelector(`#pup-btn-${matchId}`);
+  const skipBtn   = wrap.querySelector(`#pup-skip-${matchId}`);
+
+  const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = "block"; };
+  const clearErr = () => { errEl.style.display = "none"; };
+
+  fileInput.addEventListener("change", () => {
+    clearErr();
+    const file = fileInput.files[0];
+    if (!file) { uploadBtn.disabled = true; preview.style.display = "none"; return; }
+    if (file.size > 8 * 1024 * 1024) {
+      showErr("Photo must be under 8MB"); uploadBtn.disabled = true; preview.style.display = "none"; return;
+    }
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+    uploadBtn.disabled = false;
+  });
+
+  uploadBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "Uploading…";
+    clearErr();
+    try {
+      const url = await uploadMatchPhoto(matchId, file);
+      if (onSuccess) onSuccess(url);
+    } catch (err) {
+      showErr(err.message || "Upload failed — please try again.");
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = "Upload Photo";
+    }
+  });
+
+  if (skipBtn && onSkip) skipBtn.addEventListener("click", onSkip);
+  return wrap;
+}
+
+function setupPhotoUploadSection(matchId, parentEl) {
+  const section = document.createElement("div");
+  section.className = "photo-upload-section";
+  section.innerHTML = `
+    <h3>📷 Add a Match Photo <span style="font-weight:400;font-size:14px;color:var(--muted)">(optional)</span></h3>
+    <p class="section-hint">Show everyone you actually played.</p>
+  `;
+  const ui = buildPhotoUploadUI(matchId, (url) => {
+    section.innerHTML = `
+      <div style="text-align:center;padding:12px 0;">
+        <p style="font-weight:700;font-size:16px;margin-bottom:10px;">Photo added! 🎾</p>
+        <img src="${escapeHtml(url)}" alt="Match photo" style="width:100%;max-height:240px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.08);">
+      </div>
+    `;
+  }, () => { section.remove(); });
+  section.appendChild(ui);
+  parentEl.appendChild(section);
+}
+
+function showPhotoUploadModal(matchId, onSuccess) {
+  const overlay = document.createElement("div");
+  overlay.className = "photo-modal-overlay";
+  overlay.innerHTML = `
+    <div class="photo-modal">
+      <div class="photo-modal-header">
+        <h3>Add a photo to this match</h3>
+        <button class="photo-modal-close" aria-label="Close">✕</button>
+      </div>
+    </div>
+  `;
+  const modal = overlay.querySelector(".photo-modal");
+  const closeBtn = overlay.querySelector(".photo-modal-close");
+
+  const close = () => overlay.remove();
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+  const ui = buildPhotoUploadUI(matchId, (url) => {
+    close();
+    if (onSuccess) onSuccess(url);
+  }, close);
+  modal.appendChild(ui);
+  document.body.appendChild(overlay);
+}
 
 async function loadMatchHistory() { 
   const container = document.getElementById("history-list");
@@ -3232,13 +3382,16 @@ async function loadMatchHistory() {
       const upset = isMatchUpset(match);
 
       return `
-        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}">
+        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}" data-match-id="${match.id}">
           <div class="history-top-row">
             <div class="history-title-group">
               <h3>${escapeHtml(match.match_type || "Match")}</h3>
               ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
             </div>
-            <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
+            <div class="history-top-right">
+              ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
+            </div>
           </div>
 
           <div class="history-meta">
@@ -3264,23 +3417,41 @@ async function loadMatchHistory() {
 
           ${renderMatchExtras(match, playerMap, sexMap)}
 
-          <div>
+          <div class="history-card-actions">
             <button class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
+            ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
           </div>
         </div>
       `;
     }).join("");
 
-    // Set up share-button delegation once (guard prevents duplicate listeners)
+    // Event delegation for share, lightbox, and add-photo
     if (!container.dataset.shareListenerAttached) {
       container.dataset.shareListenerAttached = "1";
       container.addEventListener("click", (e) => {
-        const btn = e.target.closest(".history-share-btn");
-        if (!btn) return;
-        try {
-          const matchData = JSON.parse(btn.getAttribute("data-match") || "{}");
-          shareMatchResult(matchData, btn);
-        } catch (_) {}
+        const shareBtn = e.target.closest(".history-share-btn");
+        if (shareBtn) {
+          try { shareMatchResult(JSON.parse(shareBtn.getAttribute("data-match") || "{}"), shareBtn); } catch (_) {}
+          return;
+        }
+        const thumb = e.target.closest(".match-photo-thumb");
+        if (thumb) { openPhotoLightbox(thumb.dataset.photoUrl); return; }
+        const addBtn = e.target.closest(".history-add-photo-btn");
+        if (addBtn) {
+          const mid = addBtn.dataset.matchId;
+          showPhotoUploadModal(mid, (url) => {
+            const card = container.querySelector(`[data-match-id="${mid}"]`);
+            if (!card) return;
+            const topRight = card.querySelector(".history-top-right");
+            if (topRight) {
+              const img = document.createElement("img");
+              img.className = "match-photo-thumb";
+              img.src = url; img.alt = "Match photo"; img.dataset.photoUrl = url;
+              topRight.prepend(img);
+            }
+            addBtn.remove();
+          });
+        }
       });
     }
   } catch (error) {
@@ -3348,7 +3519,8 @@ async function fetchMatchesForPlayer(playerId) {
       set1_team2_games,
       set2_team1_games,
       set2_team2_games,
-      match_notes
+      match_notes,
+      photo_url
     `)
     .order("date_played", { ascending: true })
     .order("created_at", { ascending: true });
@@ -3973,13 +4145,16 @@ async function loadPlayerMatchHistory() {
       });
 
       return `
-        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}">
+        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}" data-match-id="${match.id}">
           <div class="history-top-row">
             <div class="history-title-group">
               <h3>${escapeHtml(match.match_type || "Match")}</h3>
               ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
             </div>
-            <span class="winner-pill ${resultClass}">${resultText}</span>
+            <div class="history-top-right">
+              ${match.photo_url ? `<img class="match-photo-thumb" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              <span class="winner-pill ${resultClass}">${resultText}</span>
+            </div>
           </div>
 
           <div class="history-meta">
@@ -4004,8 +4179,9 @@ async function loadPlayerMatchHistory() {
 
           ${renderMatchExtras(match, playerMap, sexMap, playerId)}
 
-          <div>
+          <div class="history-card-actions">
             <button class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
+            ${!match.photo_url ? `<button class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
           </div>
         </div>
       `;
@@ -4014,12 +4190,29 @@ async function loadPlayerMatchHistory() {
     if (!container.dataset.shareListenerAttached) {
       container.dataset.shareListenerAttached = "1";
       container.addEventListener("click", (e) => {
-        const btn = e.target.closest(".history-share-btn");
-        if (!btn) return;
-        try {
-          const matchData = JSON.parse(btn.getAttribute("data-match") || "{}");
-          shareMatchResult(matchData, btn);
-        } catch (_) {}
+        const shareBtn = e.target.closest(".history-share-btn");
+        if (shareBtn) {
+          try { shareMatchResult(JSON.parse(shareBtn.getAttribute("data-match") || "{}"), shareBtn); } catch (_) {}
+          return;
+        }
+        const thumb = e.target.closest(".match-photo-thumb");
+        if (thumb) { openPhotoLightbox(thumb.dataset.photoUrl); return; }
+        const addBtn = e.target.closest(".history-add-photo-btn");
+        if (addBtn) {
+          const mid = addBtn.dataset.matchId;
+          showPhotoUploadModal(mid, (url) => {
+            const card = container.querySelector(`[data-match-id="${mid}"]`);
+            if (!card) return;
+            const topRight = card.querySelector(".history-top-right");
+            if (topRight) {
+              const img = document.createElement("img");
+              img.className = "match-photo-thumb";
+              img.src = url; img.alt = "Match photo"; img.dataset.photoUrl = url;
+              topRight.prepend(img);
+            }
+            addBtn.remove();
+          });
+        }
       });
     }
   } catch (error) {
