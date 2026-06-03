@@ -1882,6 +1882,9 @@ async function setupReportForm() {
   matchTypeSelect?.addEventListener("change", updateSideLabels);
   updateSideLabels();
 
+  // Mini-game Singles/Doubles toggle and dynamic player exclusion
+  setupMiniFormatToggle();
+
   function showReportError(text) {
     message.innerHTML = `<p class="form-error">${text}</p>`;
   }
@@ -1991,35 +1994,115 @@ async function setupReportForm() {
   });
 }
 
+function setupMiniFormatToggle() {
+  const singlesBtn = document.getElementById("mini-singles-btn");
+  const doublesBtn = document.getElementById("mini-doubles-btn");
+  const partnerWrap  = document.getElementById("mini-partner-wrap");
+  const opp2Wrap     = document.getElementById("mini-opponent2-wrap");
+  const gamesLabel   = document.getElementById("mini-games-won-label");
+  if (!singlesBtn || !doublesBtn) return;
+
+  function isMiniDoubles() {
+    return doublesBtn.classList.contains("active");
+  }
+
+  function applyFormat(doubles) {
+    singlesBtn.classList.toggle("active", !doubles);
+    doublesBtn.classList.toggle("active",  doubles);
+    if (partnerWrap) partnerWrap.style.display = doubles ? "" : "none";
+    if (opp2Wrap)    opp2Wrap.style.display    = doubles ? "" : "none";
+    if (gamesLabel)  gamesLabel.textContent = doubles
+      ? "Your Team's Games Won"
+      : "Your Games Won";
+    // Clear fields being hidden so they don't smuggle stale values
+    if (!doubles) {
+      const partner = document.getElementById("mini-partner");
+      const opp2    = document.getElementById("mini-opponent2");
+      if (partner) partner.value = "";
+      if (opp2)    opp2.value    = "";
+    }
+    updateMiniExclusions();
+  }
+
+  singlesBtn.addEventListener("click", () => applyFormat(false));
+  doublesBtn.addEventListener("click", () => applyFormat(true));
+
+  // Dynamic option exclusion: grey-out already-chosen players across all four mini selects
+  function updateMiniExclusions() {
+    const ids = {
+      reporter: document.getElementById("team1-player1")?.value  || "",
+      partner:  document.getElementById("mini-partner")?.value   || "",
+      opp1:     document.getElementById("team2-player1")?.value  || "",
+      opp2:     document.getElementById("mini-opponent2")?.value || "",
+    };
+
+    const targets = [
+      { el: document.getElementById("team1-player1"),  own: "reporter" },
+      { el: document.getElementById("mini-partner"),   own: "partner"  },
+      { el: document.getElementById("team2-player1"),  own: "opp1"     },
+      { el: document.getElementById("mini-opponent2"), own: "opp2"     },
+    ];
+
+    targets.forEach(({ el, own }) => {
+      if (!el) return;
+      const myValue = ids[own];
+      Array.from(el.options).forEach(opt => {
+        if (!opt.value) return;
+        const takenByOther = Object.entries(ids).some(([k, v]) => k !== own && v === opt.value);
+        opt.disabled = takenByOther && opt.value !== myValue;
+      });
+    });
+  }
+
+  // Re-run exclusions whenever any of the four mini selects changes
+  ["team1-player1", "mini-partner", "team2-player1", "mini-opponent2"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", updateMiniExclusions);
+  });
+}
+
 async function handleMiniGameSubmit(form, message, showReportError) {
-  const p1Id = Number(document.getElementById("team1-player1")?.value);
-  const p2Id = Number(document.getElementById("team2-player1")?.value);
+  const isMiniDoubles = document.getElementById("mini-doubles-btn")?.classList.contains("active");
+  const p1Id  = Number(document.getElementById("team1-player1")?.value);
+  const p2Id  = Number(document.getElementById("mini-partner")?.value)   || null; // partner (doubles)
+  const p3Id  = Number(document.getElementById("team2-player1")?.value);
+  const p4Id  = Number(document.getElementById("mini-opponent2")?.value) || null; // opp2 (doubles)
   const gamesWon    = parseInt(document.getElementById("mini-games-won")?.value, 10);
   const gamesPlayed = parseInt(document.getElementById("mini-games-played")?.value, 10) || 4;
   const datePlayed  = document.getElementById("date-played")?.value || "";
   const submittedBy = document.getElementById("submitted-by")?.value?.trim() || "";
   const matchNotes  = document.getElementById("match-notes")?.value?.trim() || null;
 
-  if (!p1Id || !p2Id)        { showReportError("Please select both players."); return; }
-  if (p1Id === p2Id)          { showReportError("A player cannot play against themselves."); return; }
-  if (isNaN(gamesWon) || gamesWon < 0) { showReportError("Please enter your games won (0–4)."); return; }
+  // Validate
+  if (!p1Id)  { showReportError("Please select yourself as Player 1."); return; }
+  if (!p3Id)  { showReportError("Please select an opponent."); return; }
+  if (isMiniDoubles && !p2Id) { showReportError("Please select your partner."); return; }
+  if (isMiniDoubles && !p4Id) { showReportError("Please select Opponent 2."); return; }
+
+  const selectedIds = [p1Id, p2Id, p3Id, p4Id].filter(Boolean);
+  if (new Set(selectedIds).size !== selectedIds.length) {
+    showReportError("All players must be different."); return;
+  }
+  if (isNaN(gamesWon) || gamesWon < 0) { showReportError("Please enter your team's games won (0–4)."); return; }
   if (gamesWon > gamesPlayed) { showReportError("Games won cannot exceed games played."); return; }
   if (gamesPlayed < 1 || gamesPlayed > 4) { showReportError("Games played must be between 1 and 4."); return; }
-  if (!datePlayed)             { showReportError("Please enter the date played."); return; }
+  if (!datePlayed) { showReportError("Please enter the date played."); return; }
 
   const gamesLost  = gamesPlayed - gamesWon;
   const winnerTeam = gamesWon > gamesLost ? 1 : gamesLost > gamesWon ? 2 : null;
 
+  // Fetch all participating players
   const { data: players, error: fetchErr } = await supabaseClient
     .from("players")
     .select("id, name, ladder_points, mini_games_won, mini_games_lost, mini_points")
-    .in("id", [p1Id, p2Id]);
+    .in("id", selectedIds);
 
   if (fetchErr) { showReportError(`Error loading players: ${fetchErr.message}`); return; }
 
-  const p1 = (players || []).find(p => p.id === p1Id);
-  const p2 = (players || []).find(p => p.id === p2Id);
-  if (!p1 || !p2) { showReportError("Could not find player data. Try again."); return; }
+  const find = id => id ? (players || []).find(p => p.id === id) : null;
+  const pl1 = find(p1Id), pl2 = find(p2Id), pl3 = find(p3Id), pl4 = find(p4Id);
+  if (!pl1 || !pl3 || (isMiniDoubles && (!pl2 || !pl4))) {
+    showReportError("Could not find player data. Try again."); return;
+  }
 
   const payload = {
     match_type:        "mini",
@@ -2028,21 +2111,21 @@ async function handleMiniGameSubmit(form, message, showReportError) {
     match_notes:       matchNotes,
     season_year:       new Date(datePlayed).getFullYear(),
     team1_player1_id:  p1Id,
-    team1_player2_id:  null,
-    team2_player1_id:  p2Id,
-    team2_player2_id:  null,
+    team1_player2_id:  isMiniDoubles ? p2Id : null,
+    team2_player1_id:  p3Id,
+    team2_player2_id:  isMiniDoubles ? p4Id : null,
     winner_team:       winnerTeam,
     score_text:        `${gamesWon}-${gamesLost}`,
     mini_games_won_p1: gamesWon,
     mini_games_won_p3: gamesLost,
     ladder_points_p1:  gamesWon,
-    ladder_points_p2:  null,
+    ladder_points_p2:  isMiniDoubles ? gamesWon  : null,
     ladder_points_p3:  gamesLost,
-    ladder_points_p4:  null,
+    ladder_points_p4:  isMiniDoubles ? gamesLost : null,
     rating_change_p1:  0,
-    rating_change_p2:  null,
+    rating_change_p2:  isMiniDoubles ? 0 : null,
     rating_change_p3:  0,
-    rating_change_p4:  null,
+    rating_change_p4:  isMiniDoubles ? 0 : null,
     team1_avg_rating:  null,
     team2_avg_rating:  null,
     team1_total_games: gamesWon,
@@ -2054,32 +2137,42 @@ async function handleMiniGameSubmit(form, message, showReportError) {
 
   if (insertErr) { showReportError(`Error saving match: ${insertErr.message}`); return; }
 
-  const [u1Err, u2Err] = await Promise.all([
-    supabaseClient.from("players").update({
-      ladder_points:   (p1.ladder_points   || 0) + gamesWon,
-      mini_games_won:  (p1.mini_games_won  || 0) + gamesWon,
-      mini_games_lost: (p1.mini_games_lost || 0) + gamesLost,
-      mini_points:     (p1.mini_points     || 0) + gamesWon,
-    }).eq("id", p1Id).then(r => r.error),
-    supabaseClient.from("players").update({
-      ladder_points:   (p2.ladder_points   || 0) + gamesLost,
-      mini_games_won:  (p2.mini_games_won  || 0) + gamesLost,
-      mini_games_lost: (p2.mini_games_lost || 0) + gamesWon,
-      mini_points:     (p2.mini_points     || 0) + gamesLost,
-    }).eq("id", p2Id).then(r => r.error),
-  ]);
+  // Build player updates: team 1 earned gamesWon, team 2 earned gamesLost
+  const teamUpdates = [
+    { player: pl1, pts: gamesWon,  won: gamesWon,  lost: gamesLost },
+    ...(isMiniDoubles && pl2 ? [{ player: pl2, pts: gamesWon,  won: gamesWon,  lost: gamesLost }] : []),
+    { player: pl3, pts: gamesLost, won: gamesLost, lost: gamesWon  },
+    ...(isMiniDoubles && pl4 ? [{ player: pl4, pts: gamesLost, won: gamesLost, lost: gamesWon  }] : []),
+  ];
 
-  if (u1Err || u2Err) {
-    showReportError("Match saved but player stats update failed. Contact the commissioner.");
+  const updateErrors = await Promise.all(
+    teamUpdates.map(({ player, pts, won, lost }) =>
+      supabaseClient.from("players").update({
+        ladder_points:   (player.ladder_points   || 0) + pts,
+        mini_games_won:  (player.mini_games_won  || 0) + won,
+        mini_games_lost: (player.mini_games_lost || 0) + lost,
+        mini_points:     (player.mini_points     || 0) + pts,
+      }).eq("id", player.id).then(r => r.error)
+    )
+  );
+
+  if (updateErrors.some(Boolean)) {
+    showReportError("Match saved but some player stats failed to update. Contact the commissioner.");
     return;
   }
+
+  // Confirmation message
+  const partnerName = pl2 ? pl2.name.split(" ")[0] : "";
+  const confirmBody = isMiniDoubles
+    ? `Your team won ${gamesWon} of ${gamesPlayed} games — <strong>${gamesWon} point${gamesWon === 1 ? "" : "s"}</strong> added for you and ${escapeHtml(partnerName)}.`
+    : `You won ${gamesWon} of ${gamesPlayed} games — <strong>${gamesWon} point${gamesWon === 1 ? "" : "s"}</strong> added to your total.`;
 
   form.style.display = "none";
   message.innerHTML = `
     <div class="form-confirmation">
       <div class="confirmation-icon">✓</div>
       <h3>Mini-game reported! 🎾</h3>
-      <p>You won ${gamesWon} of ${gamesPlayed} games — <strong>${gamesWon} point${gamesWon === 1 ? "" : "s"}</strong> added to your total.</p>
+      <p>${confirmBody}</p>
       <div class="confirmation-links">
         <a href="history.html" class="button">View Match History</a>
         <a href="report.html" class="button-secondary">Report Another</a>
@@ -2097,7 +2190,9 @@ async function populatePlayerDropdowns() {
     document.getElementById("team1-player1"),
     document.getElementById("team1-player2"),
     document.getElementById("team2-player1"),
-    document.getElementById("team2-player2")
+    document.getElementById("team2-player2"),
+    document.getElementById("mini-partner"),
+    document.getElementById("mini-opponent2"),
   ].filter(Boolean);
 
   if (!selects.length) return;

@@ -4325,6 +4325,44 @@ th[data-sort]:hover {
 }
 
 /* =========================
+   MINI-GAME FORM — Singles/Doubles toggle
+========================= */
+
+.mini-format-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mini-format-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1.5px solid rgba(0,0,0,0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: none;
+}
+
+.mini-format-btn:hover {
+  border-color: #10b981;
+  color: #065f46;
+  background: #f0fdf8;
+  transform: none;
+}
+
+.mini-format-btn.active {
+  background: #10b981;
+  color: #fff;
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.28);
+}
+
+/* =========================
    MINI-GAME (DROP-IN) MATCH CARDS
 ========================= */
 

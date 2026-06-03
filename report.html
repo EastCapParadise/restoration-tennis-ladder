@@ -223,9 +223,32 @@
             <h3>Drop-In Games</h3>
             <p class="section-helper">Enter your results from one 4-game rotation.</p>
           </div>
+
+          <!-- Singles / Doubles toggle for drop-in format -->
+          <div class="mini-format-row">
+            <button type="button" class="mini-format-btn active" id="mini-singles-btn">Singles</button>
+            <button type="button" class="mini-format-btn" id="mini-doubles-btn">Doubles</button>
+          </div>
+
+          <!-- Partner — shown for doubles drop-in only -->
+          <div class="form-group" id="mini-partner-wrap" style="display:none;">
+            <label for="mini-partner">Your Partner</label>
+            <select id="mini-partner">
+              <option value="">Select partner</option>
+            </select>
+          </div>
+
+          <!-- Opponent 2 — shown for doubles drop-in only -->
+          <div class="form-group" id="mini-opponent2-wrap" style="display:none;">
+            <label for="mini-opponent2">Opponent 2</label>
+            <select id="mini-opponent2">
+              <option value="">Select opponent</option>
+            </select>
+          </div>
+
           <div class="form-grid two-col">
             <div class="form-group">
-              <label for="mini-games-won">Your Games Won</label>
+              <label for="mini-games-won" id="mini-games-won-label">Your Games Won</label>
               <input type="number" id="mini-games-won" min="0" max="4" step="1" placeholder="0"
                 style="font-size:22px;text-align:center;padding:14px 8px;touch-action:manipulation;">
             </div>
