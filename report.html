@@ -87,6 +87,17 @@
           </div>
         </div>
 
+        <!-- Mini-Game format toggle — appears before Players when Mini-Game is selected -->
+        <div class="form-section" id="mini-format-section" style="display:none;">
+          <div class="section-heading">
+            <h3>Drop-In Format</h3>
+          </div>
+          <div class="mini-format-row">
+            <button type="button" class="mini-format-btn active" id="mini-singles-btn">Singles</button>
+            <button type="button" class="mini-format-btn" id="mini-doubles-btn">Doubles</button>
+          </div>
+        </div>
+
         <!-- Players -->
         <div class="form-section">
           <div class="section-heading">
@@ -113,6 +124,14 @@
                   <option value="">Select player</option>
                 </select>
               </div>
+
+              <!-- Mini-game partner (doubles drop-in only) -->
+              <div id="mini-partner-wrap" class="form-group" style="display:none;">
+                <label for="mini-partner">Your Partner</label>
+                <select id="mini-partner">
+                  <option value="">Select partner</option>
+                </select>
+              </div>
             </div>
 
             <div class="team-card">
@@ -129,6 +148,14 @@
                 <label for="team2-player2">Partner</label>
                 <select id="team2-player2">
                   <option value="">Select player</option>
+                </select>
+              </div>
+
+              <!-- Mini-game opponent 2 (doubles drop-in only) -->
+              <div id="mini-opponent2-wrap" class="form-group" style="display:none;">
+                <label for="mini-opponent2">Opponent 2</label>
+                <select id="mini-opponent2">
+                  <option value="">Select opponent</option>
                 </select>
               </div>
             </div>
@@ -217,35 +244,12 @@
           </div>
         </div>
 
-        <!-- Mini-Game (Drop-In) inputs — shown only when Mini-Game is selected -->
+        <!-- Mini-Game score inputs — shown only when Mini-Game is selected -->
         <div class="form-section" id="mini-game-section" style="display:none;">
           <div class="section-heading">
-            <h3>Drop-In Games</h3>
-            <p class="section-helper">Enter your results from one 4-game rotation.</p>
+            <h3>Drop-In Score</h3>
+            <p class="section-helper">Enter your team's results from one 4-game rotation.</p>
           </div>
-
-          <!-- Singles / Doubles toggle for drop-in format -->
-          <div class="mini-format-row">
-            <button type="button" class="mini-format-btn active" id="mini-singles-btn">Singles</button>
-            <button type="button" class="mini-format-btn" id="mini-doubles-btn">Doubles</button>
-          </div>
-
-          <!-- Partner — shown for doubles drop-in only -->
-          <div class="form-group" id="mini-partner-wrap" style="display:none;">
-            <label for="mini-partner">Your Partner</label>
-            <select id="mini-partner">
-              <option value="">Select partner</option>
-            </select>
-          </div>
-
-          <!-- Opponent 2 — shown for doubles drop-in only -->
-          <div class="form-group" id="mini-opponent2-wrap" style="display:none;">
-            <label for="mini-opponent2">Opponent 2</label>
-            <select id="mini-opponent2">
-              <option value="">Select opponent</option>
-            </select>
-          </div>
-
           <div class="form-grid two-col">
             <div class="form-group">
               <label for="mini-games-won" id="mini-games-won-label">Your Games Won</label>

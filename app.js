@@ -1804,12 +1804,14 @@ async function setupReportForm() {
     }
 
     // Score inputs and winner selector — hidden for mini-games
-    const scoreSection  = document.getElementById("score-section");
-    const winnerSection = document.getElementById("winner-section");
-    const miniSection   = document.getElementById("mini-game-section");
-    if (scoreSection)  scoreSection.style.display  = isMini ? "none" : "";
-    if (winnerSection) winnerSection.style.display  = isMini ? "none" : "";
-    if (miniSection)   miniSection.style.display    = isMini ? ""     : "none";
+    const scoreSection       = document.getElementById("score-section");
+    const winnerSection      = document.getElementById("winner-section");
+    const miniSection        = document.getElementById("mini-game-section");
+    const miniFormatSection  = document.getElementById("mini-format-section");
+    if (scoreSection)      scoreSection.style.display      = isMini ? "none" : "";
+    if (winnerSection)     winnerSection.style.display     = isMini ? "none" : "";
+    if (miniFormatSection) miniFormatSection.style.display = isMini ? ""     : "none";
+    if (miniSection)       miniSection.style.display       = isMini ? ""     : "none";
 
     // Set required on score inputs only for non-mini
     ["set1-team1-games","set1-team2-games","set2-team1-games","set2-team2-games"].forEach(id => {
