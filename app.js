@@ -3417,22 +3417,32 @@ function renderMatchExtras(match, playerMap, sexMap = {}, selfId = null) {
 }
 
 // Returns a pre-match odds line using stored avg ratings (already gender-adjusted).
-// Favorite (higher probability) always appears on the left.
+// Shows only the favorite with abbreviated "First L." names.
 function buildOddsLine(match, display) {
   const t1avg = Number(match.team1_avg_rating);
   const t2avg = Number(match.team2_avg_rating);
   if (!match.team1_avg_rating || !match.team2_avg_rating) return "";
 
   const prob1 = 1 / (1 + Math.pow(10, (t2avg - t1avg) / 0.45));
-  const prob2 = 1 - prob1;
   const pct1 = Math.round(prob1 * 100);
   const pct2 = 100 - pct1;
 
-  const [favName, favPct, undName, undPct] = pct1 >= pct2
-    ? [display.team1Text, pct1, display.team2Text, pct2]
-    : [display.team2Text, pct2, display.team1Text, pct1];
+  if (pct1 === pct2) return `<div class="history-meta">Odds: Even match</div>`;
 
-  return `<div class="history-meta">Odds: ${escapeHtml(favName)} ${favPct}% · ${escapeHtml(undName)} ${undPct}%</div>`;
+  const favTeamText = pct1 > pct2 ? display.team1Text : display.team2Text;
+  const favPct      = pct1 > pct2 ? pct1 : pct2;
+
+  // Abbreviate each player name to "First L." — always, regardless of conflicts
+  const abbrevName = (name) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length < 2) return parts[0] || name;
+    const last = parts[parts.length - 1];
+    if (last.length <= 2 && last.endsWith(".")) return name.trim(); // already "S."
+    return `${parts[0]} ${last[0]}.`;
+  };
+  const abbrevTeam = favTeamText.split(" / ").map(abbrevName).join(" / ");
+
+  return `<div class="history-meta">Odds: ${escapeHtml(abbrevTeam)} ${favPct}%</div>`;
 }
 
 function formatRatingChange(value) {
