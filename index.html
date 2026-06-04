@@ -65,15 +65,20 @@
       </div>
     </section>
 
-    <!-- Community photo -->
-    <section id="community-photo" class="card community-photo-card">
-      <h2 class="community-photo-heading">📸 Drop-In Night — May 8th, 2026</h2>
-      <img
-        src="images/drop-in-may2026.webp"
-        alt="Drop-in night at Marcey Park, May 8th 2026"
-        class="community-photo-img"
-      >
+    <!-- Drop-In Night callout (auto-hides after June 5 2026) -->
+    <section id="dropin-callout" class="card" style="border-left:4px solid #f59e0b;background:rgba(254,243,199,0.55);padding:14px 18px;">
+      <p style="margin:0;font-size:15px;font-weight:700;color:#92400e;">📅 Drop-In Night — Friday June 5th</p>
+      <p style="margin:4px 0 0;font-size:13px;color:#78350f;">Marcey Road Park · 7:30 PM</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#78350f;">All skill levels welcome. Come hit, meet other ladder players, and get some games in.</p>
     </section>
+    <script>
+      (function() {
+        if (new Date() > new Date('2026-06-05T23:59:59')) {
+          var el = document.getElementById('dropin-callout');
+          if (el) el.style.display = 'none';
+        }
+      }());
+    </script>
 
     <!-- Live stat cards -->
     <div id="home-stats" class="home-stat-row">
@@ -141,7 +146,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=19"></script>
+  <script src="app.js?v=20"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

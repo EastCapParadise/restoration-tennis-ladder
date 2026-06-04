@@ -6008,8 +6008,7 @@ async function loadMyLadderCard() {
     </div>
   `;
 
-  const photoSection = document.getElementById("community-photo");
-  homeStats.parentNode.insertBefore(card, photoSection || homeStats);
+  homeStats.parentNode.insertBefore(card, homeStats);
 }
 
 // ── My Matches filter chip on history page ─────────────────────────────────
