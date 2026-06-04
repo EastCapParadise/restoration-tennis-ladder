@@ -1019,18 +1019,38 @@ async function loadWeatherWidget() {
     const temp = Math.round(tempRaw);
     const wind = Math.round(windRaw);
 
-    // Determine tennis condition message and accent color
+    // Step 1 — severe/unplayable conditions override everything
     let message, accent;
-    if (code <= 1) {
-      if (wind < 15)      { message = "⛅ Good conditions for tennis today";            accent = "green"; }
-      else if (wind <= 25){ message = "🌬️ Windy but playable — factor in the wind";     accent = "amber"; }
-      else                { message = "💨 Very windy — tough conditions today";          accent = "amber"; }
-    } else if (code <= 3) { message = "☁️ Overcast — playable, bring layers";            accent = "amber"; }
-    else if (code <= 48)  { message = "🌫️ Foggy — check conditions before heading out"; accent = "amber"; }
-    else if (code <= 67)  { message = "🌧️ Rain today — courts likely wet";              accent = "red";   }
-    else if (code <= 77)  { message = "❄️ Snow — courts closed";                        accent = "red";   }
-    else if (code <= 82)  { message = "🌦️ Showers expected — check before you go";     accent = "red";   }
-    else                  { message = "⛈️ Thunderstorms — do not play";                 accent = "red";   }
+    if (code >= 95) {
+      message = "⛈️ Thunderstorms — do not play";                        accent = "red";
+    } else if (code >= 80) {
+      message = "🌦️ Showers expected — check before you go";             accent = "red";
+    } else if (code >= 51 && code <= 67) {
+      message = "🌧️ Rain today — courts likely wet";                     accent = "red";
+    } else if (code >= 71 && code <= 77) {
+      message = "❄️ Snow — courts closed";                               accent = "red";
+    } else if (code >= 45 && code <= 48) {
+      message = "🌫️ Foggy — check conditions before heading out";        accent = "amber";
+    } else {
+      // Step 2 — temperature is the primary driver for playable conditions
+      let base;
+      if      (temp >= 95) { base = "🌡️ Very hot — stay hydrated and take breaks";              accent = "amber"; }
+      else if (temp >= 88) { base = "☀️ Hot day — bring water and sunscreen";                   accent = "amber"; }
+      else if (temp >= 78) { base = "☀️ Great conditions — ideal tennis weather";               accent = "green"; }
+      else if (temp >= 68) { base = "🌤️ Perfect conditions for tennis";                        accent = "green"; }
+      else if (temp >= 58) { base = "⛅ Comfortable — a light layer might help between games"; accent = "amber"; }
+      else if (temp >= 48) { base = "🧥 Cool out — dress in layers and warm up well";           accent = "amber"; }
+      else                 { base = "🥶 Cold — bundle up if you're heading out";               accent = "amber"; }
+
+      // Step 3 — append wind modifier when significant
+      let wind_note = "";
+      if      (wind > 35) wind_note = " · 💨 Dangerously windy — consider rescheduling";
+      else if (wind > 25) wind_note = " · 💨 Very windy — tough conditions today";
+      else if (wind > 15) wind_note = " · 🌬️ Windy — expect the ball to move";
+      else if (wind >= 10) wind_note = " · Light breeze — factor it into your serve";
+
+      message = base + wind_note;
+    }
 
     container.innerHTML = `
       <div class="weather-card weather-${escapeHtml(accent)}">
