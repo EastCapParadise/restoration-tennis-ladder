@@ -226,9 +226,9 @@ async function runRecalculation(log) {
 
   log('ok', `Loaded ${matches.length} matches to replay.`);
 
-  // Replay each match — skip mini-games (they don't affect ratings)
+  // Replay each match — skip mini-games and retired matches (they don't affect ratings)
   for (const m of matches) {
-    if (m.match_type === 'mini') continue;
+    if (m.match_type === 'mini' || m.match_type === 'retired') continue;
 
     const gP = id => id ? state[id] ?? null : null;
     const t1 = [gP(m.team1_player1_id), gP(m.team1_player2_id)];
@@ -390,21 +390,26 @@ async function loadMatches() {
       ? `${pName(m.team2_player1_id)} &amp; ${pName(m.team2_player2_id)}`
       : esc(pName(m.team2_player1_id));
 
-    const winnerText = m.winner_team === 1 ? t1 : t2;
-    const wPts = m.winner_team === 1 ? (m.ladder_points_p1 ?? '—') : (m.ladder_points_p3 ?? '—');
-    const lPts = m.winner_team === 1 ? (m.ladder_points_p3 ?? '—') : (m.ladder_points_p1 ?? '—');
+    const isRetired = m.match_type === 'retired';
+    const winnerText = isRetired ? '—' : (m.winner_team === 1 ? t1 : t2);
+    const wPts = isRetired ? `+5 each` : (m.winner_team === 1 ? (m.ladder_points_p1 ?? '—') : (m.ladder_points_p3 ?? '—'));
+    const lPts = isRetired ? '' : (m.winner_team === 1 ? (m.ladder_points_p3 ?? '—') : (m.ladder_points_p1 ?? '—'));
+    const typeBadge = isRetired
+      ? `<span style="background:#f1f5f9;color:#475569;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600">🏳️ Incomplete</span>`
+      : esc(m.match_type);
 
     return `<tr data-id="${m.id}">
       <td style="white-space:nowrap">${esc(m.date_played)}</td>
       <td>${t1} <span style="color:var(--muted)">vs</span> ${t2}</td>
       <td style="white-space:nowrap">${esc(m.score_text || '—')}</td>
-      <td>${esc(m.match_type)}</td>
+      <td>${typeBadge}</td>
       <td>${winnerText}</td>
-      <td style="white-space:nowrap"><strong>${wPts}</strong> / ${lPts}</td>
+      <td style="white-space:nowrap"><strong>${wPts}</strong>${lPts ? ` / ${lPts}` : ''}</td>
       <td>
         <div class="adm-action-group">
           ${m.photo_url ? `<img src="${esc(m.photo_url)}" alt="Photo" style="width:40px;height:40px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid #dde6e0;">` : ''}
-          <button class="adm-btn adm-btn-sm adm-btn-warning edit-score-btn" data-id="${m.id}">Edit Score</button>
+          ${!isRetired ? `<button class="adm-btn adm-btn-sm adm-btn-warning edit-score-btn" data-id="${m.id}">Edit Score</button>` : ''}
+          ${isRetired ? `<button class="adm-btn adm-btn-sm adm-btn-primary complete-retired-btn" data-id="${m.id}">✅ Complete</button>` : ''}
           <button class="adm-btn adm-btn-sm adm-btn-danger void-btn" data-id="${m.id}">Void</button>
           ${m.photo_url ? `<button class="adm-btn adm-btn-sm adm-btn-secondary remove-photo-btn" data-id="${m.id}">🗑️ Photo</button>` : ''}
         </div>
@@ -423,6 +428,9 @@ async function loadMatches() {
   });
   tbody.querySelectorAll('.remove-photo-btn').forEach(btn => {
     btn.addEventListener('click', () => removeMatchPhoto(Number(btn.dataset.id)));
+  });
+  tbody.querySelectorAll('.complete-retired-btn').forEach(btn => {
+    btn.addEventListener('click', () => adminCompleteRetiredMatch(Number(btn.dataset.id)));
   });
 }
 
@@ -461,6 +469,35 @@ async function voidMatch(matchId) {
 
   const n1 = playerNameMap[match.team1_player1_id] || '?';
   const n3 = playerNameMap[match.team2_player1_id] || '?';
+
+  // Retired matches: void without recalculation — just reverse participation points
+  if (match.match_type === 'retired') {
+    const confirmed = await showConfirm(
+      'Void Incomplete Match',
+      `Void the incomplete match: ${n1} vs ${n3} (${match.date_played})?\n\nThis removes the 5 participation points from each player and deletes the record. No recalculation needed.`
+    );
+    if (!confirmed) return;
+    setStatus('match-mgmt-status', 'Voiding incomplete match…');
+
+    const playerIds = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
+    const { data: players } = await db.from('players').select('id, ladder_points, incomplete_matches').in('id', playerIds);
+
+    const { error: delErr } = await db.from('matches').delete().eq('id', matchId);
+    if (delErr) { setStatus('match-mgmt-status', `Delete failed: ${delErr.message}`, 'error'); return; }
+
+    for (const p of (players || [])) {
+      await db.from('players').update({
+        ladder_points:      Math.max(0, (p.ladder_points || 0) - 5),
+        incomplete_matches: Math.max(0, (p.incomplete_matches || 0) - 1),
+      }).eq('id', p.id);
+    }
+
+    setStatus('match-mgmt-status', 'Incomplete match voided and participation points removed.');
+    await loadMatches();
+    await loadPlayers();
+    return;
+  }
+
   const confirmed = await showConfirm(
     'Void Match',
     `Void the match: ${n1} vs ${n3} (${match.date_played}, ${match.score_text})?\n\nThis will delete it permanently and trigger a full recalculation.`
@@ -479,6 +516,28 @@ async function voidMatch(matchId) {
   await runAndShowRecalc('match-mgmt-status');
   await loadMatches();
   await loadPlayers();
+}
+
+async function adminCompleteRetiredMatch(matchId) {
+  const match = allMatches.find(m => m.id === matchId);
+  if (!match || match.match_type !== 'retired') return;
+
+  const retiredData = {
+    id: match.id,
+    team1_player1_id: match.team1_player1_id,
+    team1_player2_id: match.team1_player2_id,
+    team2_player1_id: match.team2_player1_id,
+    team2_player2_id: match.team2_player2_id,
+    submitted_by_name: match.submitted_by_name,
+    match_notes: match.match_notes,
+  };
+
+  // Inject the app.js modal if we're on the same page context
+  if (typeof openCompleteMatchModal === 'function') {
+    openCompleteMatchModal(matchId, retiredData);
+  } else {
+    alert('Please use the Match History page to complete this match.');
+  }
 }
 
 // ─── Edit Score Modal ─────────────────────────────────────────────────────────

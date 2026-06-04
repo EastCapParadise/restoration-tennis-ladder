@@ -17,7 +17,7 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>Rankings | Restoration Tennis Ladder</title>
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
   <header class="site-header">
@@ -96,6 +96,7 @@
               <th data-sort="sex">Ladder</th>
               <th class="num" data-sort="mini_games_won" title="Drop-in games won">DI W</th>
               <th class="num" data-sort="mini_games_lost" title="Drop-in games lost">DI L</th>
+              <th class="num" data-sort="incomplete_matches" title="Incomplete matches — started but not yet finished">Inc.</th>
             </tr>
           </thead>
           <tbody id="ladder-body">
@@ -110,7 +111,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

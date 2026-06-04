@@ -4476,6 +4476,52 @@ th[data-sort]:hover {
   border-color: #6ee7b7;
 }
 
+/* =========================
+   RETIRED / INCOMPLETE MATCH CARDS
+========================= */
+
+.retired-match {
+  border-left: 4px solid #94a3b8;
+}
+
+.retired-badge,
+.match-type-chip.retired-chip {
+  color: #64748b;
+}
+
+.match-badge.retired-badge {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+/* Complete Match button */
+.btn-complete-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+  margin-top: 8px;
+}
+.btn-complete-match:hover { background: var(--green-dark); }
+.btn-complete-match:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* Inc. column (16th) in rankings table */
+.ladder-table th:nth-child(16),
+.ladder-table td:nth-child(16) {
+  min-width: 50px;
+  text-align: right;
+}
+
 /* DI W / DI L columns (14th and 15th) */
 .ladder-table th:nth-child(14),
 .ladder-table td:nth-child(14),

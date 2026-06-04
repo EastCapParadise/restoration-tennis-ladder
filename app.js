@@ -449,7 +449,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
-  return state.ladder.showMoreStats ? 15 : 9;
+  return state.ladder.showMoreStats ? 16 : 9;
 }
 
 function getLadderSearchEl() {
@@ -535,7 +535,8 @@ async function fetchPlayers() {
       matches_played,
       previous_rank,
       mini_games_won,
-      mini_games_lost
+      mini_games_lost,
+      incomplete_matches
     `);
 
   if (error) throw error;
@@ -614,6 +615,7 @@ function getPlayerStatus(playerId, matches) {
   const playerMatches = matches
     .filter((match) =>
       match.match_type !== "mini" &&
+      match.match_type !== "retired" &&
       [
         match.team1_player1_id,
         match.team1_player2_id,
@@ -887,6 +889,7 @@ function renderLadder(players) {
         </td>
         <td class="num">${player.mini_games_won ?? 0}</td>
         <td class="num">${player.mini_games_lost ?? 0}</td>
+        <td class="num">${player.incomplete_matches > 0 ? player.incomplete_matches : "—"}</td>
       </tr>
     `;
   }).join("");
@@ -1075,6 +1078,23 @@ async function loadActivityFeed() {
     const playerMap = await fetchPlayerNamesForMatches(matches);
 
     const items = matches.map((match, i) => {
+      const feedPlayerObjs = [
+        match.team1_player1_id, match.team1_player2_id,
+        match.team2_player1_id, match.team2_player2_id,
+      ].filter(Boolean).map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+      const feedNameMap = disambiguateNames(feedPlayerObjs);
+      const feedName = id => id ? (feedNameMap[id] || abbreviateName(playerMap[id])) : "";
+      const timeAgo = relativeTime(match.date_played || match.created_at);
+
+      // Retired / incomplete match: show as pending
+      if (match.match_type === "retired") {
+        const allIds = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
+        const playerLinks = allIds.map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`).join(" &amp; ");
+        return `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
+          🏳️ <strong>${playerLinks}</strong> have an incomplete match pending · ${escapeHtml(timeAgo)}
+        </li>`;
+      }
+
       const winnerIds = match.winner_team === 1
         ? [match.team1_player1_id, match.team1_player2_id]
         : [match.team2_player1_id, match.team2_player2_id];
@@ -1082,20 +1102,12 @@ async function loadActivityFeed() {
         ? [match.team2_player1_id, match.team2_player2_id]
         : [match.team1_player1_id, match.team1_player2_id];
 
-      const feedPlayerObjs = [
-        match.team1_player1_id, match.team1_player2_id,
-        match.team2_player1_id, match.team2_player2_id,
-      ].filter(Boolean).map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
-      const feedNameMap = disambiguateNames(feedPlayerObjs);
-      const feedName = id => id ? (feedNameMap[id] || abbreviateName(playerMap[id])) : "";
-
       const winnerLinks = winnerIds.filter(Boolean)
         .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`)
         .join(" &amp; ");
       const loserLinks = loserIds.filter(Boolean)
         .map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`)
         .join(" &amp; ");
-      const timeAgo = relativeTime(match.date_played || match.created_at);
       const score = match.score_text ? ` · ${escapeHtml(winnerFirstScore(match.score_text, match.winner_team))}` : "";
       const type  = match.match_type || "Match";
 
@@ -1149,7 +1161,7 @@ async function loadSeasonStory() {
     const menPlayers   = sortPlayersForStandings(players.filter(p => p.sex === "Man"));
     const womenPlayers = sortPlayersForStandings(players.filter(p => p.sex === "Woman"));
 
-    const totalMatches   = matches.filter(m => m.match_type !== "mini").length;
+    const totalMatches   = matches.filter(m => m.match_type !== "mini" && m.match_type !== "retired").length;
     const activePlayers  = players.filter(p => (p.matches_played ?? 0) > 0);
     const inactivePlayers = players.length - activePlayers.length;
     const totalPlayers   = players.length;
@@ -1163,8 +1175,8 @@ async function loadSeasonStory() {
       ? (overallLeader.ladder_points ?? 0) - (overallSecond.ladder_points ?? 0)
       : 0;
 
-    // Split matches: real ladder matches vs mini-game (drop-in) matches
-    const realMatches = matches.filter(m => m.match_type !== "mini");
+    // Split matches: real ladder matches (excludes mini and retired)
+    const realMatches = matches.filter(m => m.match_type !== "mini" && m.match_type !== "retired");
 
     // Most improved: biggest dynamic_rating gain from initial_rating
     const playerMap = {};
@@ -1505,7 +1517,7 @@ async function loadMatchOfWeek() {
 
     if (error) throw error;
 
-    const matches = data || [];
+    const matches = (data || []).filter(m => m.match_type !== "mini" && m.match_type !== "retired");
     if (!matches.length) {
       container.style.display = "none";
       return;
@@ -1606,7 +1618,7 @@ async function loadPlayerH2H() {
     const h2h = {};
 
     for (const match of matches) {
-      if (match.match_type === "mini") continue; // mini-games excluded from H2H records
+      if (match.match_type === "mini" || match.match_type === "retired") continue; // excluded from H2H
       const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
       const won = onTeam1 ? match.winner_team === 1 : match.winner_team === 2;
       const opponentIds = onTeam1
@@ -1789,48 +1801,74 @@ async function setupReportForm() {
     if (team2P1) team2P1.value = opponentId;
   }
 
-  function toggleDoublesFields() {
-    const isDoubles = matchTypeSelect?.value === "Doubles";
-    const isMini    = matchTypeSelect?.value === "mini";
+  function retiredIsDoubles() {
+    return document.getElementById("retired-doubles-btn")?.classList.contains("active") ?? false;
+  }
 
-    // Partner slots — only for Doubles
-    if (team1Player2Wrap) team1Player2Wrap.style.display = isDoubles ? "block" : "none";
-    if (team2Player2Wrap) team2Player2Wrap.style.display = isDoubles ? "block" : "none";
-    if (team1Player2) team1Player2.required = isDoubles;
-    if (team2Player2) team2Player2.required = isDoubles;
-    if (!isDoubles) {
+  function toggleDoublesFields() {
+    const isDoubles  = matchTypeSelect?.value === "Doubles";
+    const isMini     = matchTypeSelect?.value === "mini";
+    const isRetired  = matchTypeSelect?.value === "retired";
+
+    // Partner slots — shown for Doubles, or retired-doubles
+    const showDoubles = isDoubles || (isRetired && retiredIsDoubles());
+    if (team1Player2Wrap) team1Player2Wrap.style.display = showDoubles ? "block" : "none";
+    if (team2Player2Wrap) team2Player2Wrap.style.display = showDoubles ? "block" : "none";
+    if (team1Player2) team1Player2.required = showDoubles;
+    if (team2Player2) team2Player2.required = showDoubles;
+    if (!showDoubles) {
       if (team1Player2) team1Player2.value = "";
       if (team2Player2) team2Player2.value = "";
     }
 
-    // Score inputs and winner selector — hidden for mini-games
-    const scoreSection       = document.getElementById("score-section");
-    const winnerSection      = document.getElementById("winner-section");
-    const miniSection        = document.getElementById("mini-game-section");
-    const miniFormatSection  = document.getElementById("mini-format-section");
-    if (scoreSection)      scoreSection.style.display      = isMini ? "none" : "";
-    if (winnerSection)     winnerSection.style.display     = isMini ? "none" : "";
-    if (miniFormatSection) miniFormatSection.style.display = isMini ? ""     : "none";
-    if (miniSection)       miniSection.style.display       = isMini ? ""     : "none";
+    // Score / winner / mini / retired sections
+    const scoreSection         = document.getElementById("score-section");
+    const winnerSection        = document.getElementById("winner-section");
+    const miniSection          = document.getElementById("mini-game-section");
+    const miniFormatSection    = document.getElementById("mini-format-section");
+    const retiredFormatSection = document.getElementById("retired-format-section");
+    const retiredHelperNote    = document.getElementById("retired-helper-note");
 
-    // Set required on score inputs only for non-mini
+    if (scoreSection)         scoreSection.style.display         = isMini ? "none" : "";
+    if (winnerSection)        winnerSection.style.display        = (isMini || isRetired) ? "none" : "";
+    if (miniFormatSection)    miniFormatSection.style.display    = isMini    ? "" : "none";
+    if (miniSection)          miniSection.style.display          = isMini    ? "" : "none";
+    if (retiredFormatSection) retiredFormatSection.style.display = isRetired ? "" : "none";
+    if (retiredHelperNote)    retiredHelperNote.style.display    = isRetired ? "" : "none";
+
+    // Score helper text for retired
+    const scoreHelper = scoreSection?.querySelector(".section-helper");
+    if (scoreHelper) {
+      scoreHelper.textContent = isRetired
+        ? "Enter the score at the point the match stopped (optional)."
+        : "Enter each set score. The third set is a match tiebreak to 10 if played.";
+    }
+
+    // Required — not required for mini or retired
     ["set1-team1-games","set1-team2-games","set2-team1-games","set2-team2-games"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.required = !isMini;
+      if (el) el.required = (!isMini && !isRetired);
     });
     const winnerTeamEl = document.getElementById("winner-team");
-    if (winnerTeamEl) winnerTeamEl.required = !isMini;
+    if (winnerTeamEl) winnerTeamEl.required = (!isMini && !isRetired);
 
     // Submit button label
     const submitBtn = form?.querySelector('[type="submit"]');
-    if (submitBtn) submitBtn.textContent = isMini ? "Report Mini-Game" : "Submit Match";
+    if (submitBtn) {
+      if (isMini)          submitBtn.textContent = "Report Mini-Game";
+      else if (isRetired)  submitBtn.textContent = "Log Incomplete Match";
+      else                 submitBtn.textContent = "Submit Match";
+    }
 
-    // Side label updates for mini
+    // Side labels
     const sideALabel = document.getElementById("side-a-label");
     const sideBLabel = document.getElementById("side-b-label");
     if (isMini) {
       if (sideALabel) sideALabel.textContent = "You";
       if (sideBLabel) sideBLabel.textContent = "Opponent";
+    } else if (!isRetired) {
+      if (sideALabel) sideALabel.textContent = "Side A";
+      if (sideBLabel) sideBLabel.textContent = "Side B";
     }
   }
 
@@ -1886,6 +1924,8 @@ async function setupReportForm() {
 
   // Mini-game Singles/Doubles toggle and dynamic player exclusion
   setupMiniFormatToggle();
+  // Retired match Singles/Doubles toggle
+  setupRetiredFormatToggle(toggleDoublesFields);
 
   function showReportError(text) {
     message.innerHTML = `<p class="form-error">${text}</p>`;
@@ -1898,6 +1938,11 @@ async function setupReportForm() {
     // Mini-game has a completely separate, simpler submission path
     if (matchTypeSelect?.value === "mini") {
       await handleMiniGameSubmit(form, message, showReportError);
+      return;
+    }
+    // Retired / incomplete match submission path
+    if (matchTypeSelect?.value === "retired") {
+      await handleRetiredMatchSubmit(form, message, showReportError);
       return;
     }
 
@@ -2060,6 +2105,115 @@ function setupMiniFormatToggle() {
   ["team1-player1", "mini-partner", "team2-player1", "mini-opponent2"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", updateMiniExclusions);
   });
+}
+
+function setupRetiredFormatToggle(onFormatChange) {
+  const singlesBtn = document.getElementById("retired-singles-btn");
+  const doublesBtn = document.getElementById("retired-doubles-btn");
+  if (!singlesBtn || !doublesBtn) return;
+
+  singlesBtn.addEventListener("click", () => {
+    singlesBtn.classList.add("active");
+    doublesBtn.classList.remove("active");
+    if (onFormatChange) onFormatChange();
+  });
+  doublesBtn.addEventListener("click", () => {
+    doublesBtn.classList.add("active");
+    singlesBtn.classList.remove("active");
+    if (onFormatChange) onFormatChange();
+  });
+}
+
+async function handleRetiredMatchSubmit(form, message, showReportError) {
+  const isDoubles  = document.getElementById("retired-doubles-btn")?.classList.contains("active") ?? false;
+  const t1p1Id     = document.getElementById("team1-player1")?.value;
+  const t1p2Id     = isDoubles ? document.getElementById("team1-player2")?.value : null;
+  const t2p1Id     = document.getElementById("team2-player1")?.value;
+  const t2p2Id     = isDoubles ? document.getElementById("team2-player2")?.value : null;
+  const datePlayed = document.getElementById("date-played")?.value;
+  const submittedBy = document.getElementById("submitted-by")?.value?.trim() || null;
+  const matchNotes  = document.getElementById("match-notes")?.value?.trim() || null;
+
+  if (!t1p1Id || !t2p1Id) return showReportError("Please select both players.");
+  if (isDoubles && (!t1p2Id || !t2p2Id)) return showReportError("Please select all four players for doubles.");
+  if (!datePlayed) return showReportError("Please enter the date played.");
+
+  const selectedIds = [t1p1Id, t1p2Id, t2p1Id, t2p2Id].filter(Boolean);
+  if (new Set(selectedIds).size !== selectedIds.length) return showReportError("A player cannot appear twice in the same match.");
+
+  // Build optional score text
+  const s1t1 = toNumberOrNull(document.getElementById("set1-team1-games")?.value);
+  const s1t2 = toNumberOrNull(document.getElementById("set1-team2-games")?.value);
+  const s2t1 = toNumberOrNull(document.getElementById("set2-team1-games")?.value);
+  const s2t2 = toNumberOrNull(document.getElementById("set2-team2-games")?.value);
+  const scoreText = (s1t1 != null && s1t2 != null)
+    ? buildScoreText(s1t1, s1t2, s2t1 ?? 0, s2t2 ?? 0, null, null)
+    : "Incomplete";
+
+  message.innerHTML = '<p class="small-text">Logging incomplete match…</p>';
+
+  try {
+    const ids = selectedIds.map(Number);
+    const { data: players, error: fetchErr } = await supabaseClient
+      .from("players")
+      .select("id, name, ladder_points, incomplete_matches")
+      .in("id", ids);
+    if (fetchErr) throw fetchErr;
+
+    const playerMap = {};
+    (players || []).forEach(p => { playerMap[p.id] = p; });
+
+    const retiredPayload = {
+      match_type:         "retired",
+      is_completed:       false,
+      winner_team:        null,
+      score_text:         scoreText,
+      date_played:        datePlayed,
+      submitted_by_name:  submittedBy,
+      match_notes:        matchNotes,
+      season_year:        new Date(datePlayed).getFullYear(),
+      team1_player1_id:   Number(t1p1Id),
+      team1_player2_id:   t1p2Id ? Number(t1p2Id) : null,
+      team2_player1_id:   Number(t2p1Id),
+      team2_player2_id:   t2p2Id ? Number(t2p2Id) : null,
+      ladder_points_p1:   5,
+      ladder_points_p2:   t1p2Id ? 5 : null,
+      ladder_points_p3:   5,
+      ladder_points_p4:   t2p2Id ? 5 : null,
+      rating_change_p1:   0,
+      rating_change_p2:   0,
+      rating_change_p3:   0,
+      rating_change_p4:   0,
+    };
+
+    const { error: insertErr } = await supabaseClient.from("matches").insert([retiredPayload]);
+    if (insertErr) throw insertErr;
+
+    await Promise.all(ids.map(id => {
+      const p = playerMap[id];
+      if (!p) return Promise.resolve();
+      return supabaseClient.from("players").update({
+        ladder_points:      (p.ladder_points || 0) + 5,
+        incomplete_matches: (p.incomplete_matches || 0) + 1,
+      }).eq("id", id);
+    }));
+
+    form.style.display = "none";
+    message.innerHTML = `
+      <div class="form-confirmation">
+        <div class="confirmation-icon">🏳️</div>
+        <h3>Match logged as incomplete</h3>
+        <p>Both players receive 5 points for making the effort. Come back and complete it when you reschedule — the full match points will replace these when you do.</p>
+        <div class="confirmation-links">
+          <a href="history.html" class="button">View Match History</a>
+          <a href="report.html" class="button-secondary">Report Another Match</a>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error("Retired match submit error:", err);
+    showReportError("Something went wrong — please try again or text Michael at 832-833-1990.");
+  }
 }
 
 async function handleMiniGameSubmit(form, message, showReportError) {
@@ -3170,6 +3324,7 @@ function setupHistoryFilterButtons() {
       else if (rawFilter.toLowerCase() === "singles") state.history.filterType = "Singles";
       else if (rawFilter.toLowerCase() === "doubles") state.history.filterType = "Doubles";
       else if (rawFilter.toLowerCase() === "drop-in" || rawFilter.toLowerCase() === "mini") state.history.filterType = "mini";
+      else if (rawFilter.toLowerCase() === "retired") state.history.filterType = "retired";
       else state.history.filterType = "All";
 
       loadMatchHistory();
@@ -3223,7 +3378,7 @@ async function fetchMatches() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (state.history.filterType === "Singles" || state.history.filterType === "Doubles" || state.history.filterType === "mini") {
+  if (["Singles", "Doubles", "mini", "retired"].includes(state.history.filterType)) {
     query = query.eq("match_type", state.history.filterType);
   }
 
@@ -3666,6 +3821,64 @@ async function loadMatchHistory() {
         loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
       });
 
+      // Retired / incomplete match card
+      if (match.match_type === "retired") {
+        const allRetiredIds = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
+        const retiredObjs = allRetiredIds.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+        const retiredNm = disambiguateNames(retiredObjs);
+        const rName = id => id ? (retiredNm[id] || playerMap[id] || "?") : null;
+        const t1Str = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName).filter(Boolean).join(" / ");
+        const t2Str = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName).filter(Boolean).join(" / ");
+        const matchFmt = match.team1_player2_id ? "Doubles" : "Singles";
+        const ptsByPlayer = {
+          [match.team1_player1_id]: match.ladder_points_p1 ?? 5,
+          [match.team1_player2_id]: match.ladder_points_p2 ?? 5,
+          [match.team2_player1_id]: match.ladder_points_p3 ?? 5,
+          [match.team2_player2_id]: match.ladder_points_p4 ?? 5,
+        };
+        const partRows = allRetiredIds.map(id => {
+          const dn = escapeHtml(retiredNm[id] || playerMap[id] || "?");
+          const pts = ptsByPlayer[id] ?? 5;
+          return `<div class="match-extra-row">
+            <span class="match-extra-name"><a href="player.html?id=${id}" class="player-link">${dn}</a></span>
+            <span class="match-extra-stat">Points: +${pts}</span>
+            <span class="match-extra-combined">+${pts} pts</span>
+          </div>`;
+        }).join("");
+        const retiredCardJson = escapeHtml(JSON.stringify({
+          id: match.id, team1_player1_id: match.team1_player1_id, team1_player2_id: match.team1_player2_id,
+          team2_player1_id: match.team2_player1_id, team2_player2_id: match.team2_player2_id,
+          submitted_by_name: match.submitted_by_name, match_notes: match.match_notes,
+        }));
+        return `
+          <div class="history-item fade-in-card premium-match-card retired-match history-list-card" data-match-id="${match.id}">
+            <div class="card-badge-row">
+              <span class="match-type-chip retired-chip">🏳️ Incomplete</span>
+              <div class="card-badge-right">
+                <span class="match-badge retired-badge">${escapeHtml(matchFmt)}</span>
+              </div>
+            </div>
+            <div class="card-photo-date-row">
+              ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              <div class="card-date-info">
+                <div class="history-meta">
+                  <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
+                  ${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}
+                </div>
+              </div>
+            </div>
+            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(t1Str)} vs ${escapeHtml(t2Str)}</div>
+            <div class="history-score"><strong>Score at stoppage:</strong> ${escapeHtml(match.score_text || "Incomplete")}</div>
+            ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
+            <div class="match-extras">${partRows}</div>
+            <div class="history-card-actions history-card-actions-full">
+              <button type="button" class="btn-complete-match history-complete-btn" data-match-id="${match.id}" data-retired-match="${retiredCardJson}">✅ Complete Match</button>
+              ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
       // Mini-game (Drop-In) cards use a distinct teal-bordered layout
       if (match.match_type === "mini") {
         return `
@@ -3745,7 +3958,7 @@ async function loadMatchHistory() {
       `;
     }).join("");
 
-    // Event delegation for share, lightbox, and add-photo
+    // Event delegation for share, lightbox, add-photo, and complete-match
     if (!container.dataset.shareListenerAttached) {
       container.dataset.shareListenerAttached = "1";
       container.addEventListener("click", (e) => {
@@ -3756,6 +3969,11 @@ async function loadMatchHistory() {
         }
         const thumb = e.target.closest(".match-photo-thumb, .card-photo");
         if (thumb) { openPhotoLightbox(thumb.dataset.photoUrl); return; }
+        const completeBtn = e.target.closest(".history-complete-btn");
+        if (completeBtn) {
+          try { openCompleteMatchModal(completeBtn.dataset.matchId, JSON.parse(completeBtn.dataset.retiredMatch || "{}")); } catch (_) {}
+          return;
+        }
         const addBtn = e.target.closest(".history-add-photo-btn");
         if (addBtn) {
           const mid = addBtn.dataset.matchId;
@@ -3802,7 +4020,8 @@ async function fetchPlayerById(playerId) {
       games_lost,
       matches_played,
       mini_games_won,
-      mini_games_lost
+      mini_games_lost,
+      incomplete_matches
     `)
     .eq("id", playerId)
     .maybeSingle();
@@ -3940,6 +4159,12 @@ async function loadPlayerProfile() {
         <div class="profile-stat">
           <div class="profile-stat-label">Drop-In</div>
           <div class="profile-stat-value">${player.mini_games_won ?? 0}W – ${player.mini_games_lost ?? 0}L</div>
+        </div>
+        ` : ""}
+        ${(player.incomplete_matches || 0) > 0 ? `
+        <div class="profile-stat">
+          <div class="profile-stat-label">Incomplete</div>
+          <div class="profile-stat-value" style="color:#64748b">🏳️ ${player.incomplete_matches}</div>
         </div>
         ` : ""}
       </div>
@@ -4469,6 +4694,63 @@ async function loadPlayerMatchHistory() {
         loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
       });
 
+      // Retired / incomplete card (player profile view)
+      if (match.match_type === "retired") {
+        const allRetiredIds2 = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
+        const retiredObjs2 = allRetiredIds2.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
+        const retiredNm2 = disambiguateNames(retiredObjs2);
+        const rName2 = id => id ? (retiredNm2[id] || playerMap[id] || "?") : null;
+        const t1Str2 = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName2).filter(Boolean).join(" / ");
+        const t2Str2 = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName2).filter(Boolean).join(" / ");
+        const matchFmt2 = match.team1_player2_id ? "Doubles" : "Singles";
+        const ptsByPlayer2 = {
+          [match.team1_player1_id]: match.ladder_points_p1 ?? 5,
+          [match.team1_player2_id]: match.ladder_points_p2 ?? 5,
+          [match.team2_player1_id]: match.ladder_points_p3 ?? 5,
+          [match.team2_player2_id]: match.ladder_points_p4 ?? 5,
+        };
+        const partRows2 = allRetiredIds2.map(id => {
+          const dn = escapeHtml(retiredNm2[id] || playerMap[id] || "?");
+          const pts = ptsByPlayer2[id] ?? 5;
+          const isSelf = Number(id) === Number(playerId);
+          const nameHtml = isSelf ? dn : `<a href="player.html?id=${id}" class="player-link">${dn}</a>`;
+          return `<div class="match-extra-row">
+            <span class="match-extra-name">${nameHtml}</span>
+            <span class="match-extra-stat">Points: +${pts}</span>
+            <span class="match-extra-combined">+${pts} pts</span>
+          </div>`;
+        }).join("");
+        const retiredCardJson2 = escapeHtml(JSON.stringify({
+          id: match.id, team1_player1_id: match.team1_player1_id, team1_player2_id: match.team1_player2_id,
+          team2_player1_id: match.team2_player1_id, team2_player2_id: match.team2_player2_id,
+          submitted_by_name: match.submitted_by_name, match_notes: match.match_notes,
+        }));
+        return `
+          <div class="history-item fade-in-card premium-match-card retired-match" data-match-id="${match.id}">
+            <div class="card-badge-row">
+              <span class="match-type-chip retired-chip">🏳️ Incomplete</span>
+              <div class="card-badge-right">
+                <span class="match-badge retired-badge">${escapeHtml(matchFmt2)}</span>
+              </div>
+            </div>
+            <div class="card-photo-date-row">
+              ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              <div class="card-date-info">
+                <div class="history-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}</div>
+              </div>
+            </div>
+            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(t1Str2)} vs ${escapeHtml(t2Str2)}</div>
+            <div class="history-score"><strong>Score at stoppage:</strong> ${escapeHtml(match.score_text || "Incomplete")}</div>
+            ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
+            <div class="match-extras">${partRows2}</div>
+            <div class="history-card-actions history-card-actions-full">
+              <button type="button" class="btn-complete-match history-complete-btn" data-match-id="${match.id}" data-retired-match="${retiredCardJson2}">✅ Complete Match</button>
+              ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
       // Mini-game card
       if (match.match_type === "mini") {
         const pid = Number(playerId);
@@ -4565,6 +4847,11 @@ async function loadPlayerMatchHistory() {
         }
         const thumb = e.target.closest(".match-photo-thumb, .card-photo");
         if (thumb) { openPhotoLightbox(thumb.dataset.photoUrl); return; }
+        const completeBtn = e.target.closest(".history-complete-btn");
+        if (completeBtn) {
+          try { openCompleteMatchModal(completeBtn.dataset.matchId, JSON.parse(completeBtn.dataset.retiredMatch || "{}")); } catch (_) {}
+          return;
+        }
         const addBtn = e.target.closest(".history-add-photo-btn");
         if (addBtn) {
           const mid = addBtn.dataset.matchId;
@@ -4586,6 +4873,212 @@ async function loadPlayerMatchHistory() {
   } catch (error) {
     console.error("Load player history error:", error);
     container.innerHTML = "<p>Error loading player history.</p>";
+  }
+}
+
+/* =========================
+   COMPLETE RETIRED MATCH
+========================= */
+
+async function openCompleteMatchModal(matchId, retiredMatch) {
+  document.getElementById("complete-match-overlay")?.remove();
+
+  // Fetch fresh player names
+  const allIds = [retiredMatch.team1_player1_id, retiredMatch.team1_player2_id,
+    retiredMatch.team2_player1_id, retiredMatch.team2_player2_id].filter(Boolean).map(Number);
+  const { data: players } = await supabaseClient.from("players").select("id, name").in("id", allIds);
+  const pmFresh = {};
+  (players || []).forEach(p => { pmFresh[p.id] = p.name; });
+
+  const playerObjs = allIds.map(id => ({ id, name: pmFresh[id] })).filter(p => p.name);
+  const nmFresh = disambiguateNames(playerObjs);
+  const gName = id => nmFresh[id] || pmFresh[id] || "?";
+
+  const isDoubles = !!(retiredMatch.team1_player2_id);
+  const t1Name = [retiredMatch.team1_player1_id, retiredMatch.team1_player2_id].filter(Boolean).map(gName).join(" & ");
+  const t2Name = [retiredMatch.team2_player1_id, retiredMatch.team2_player2_id].filter(Boolean).map(gName).join(" & ");
+  const today  = new Date().toISOString().split("T")[0];
+
+  const overlay = document.createElement("div");
+  overlay.className = "match-card-overlay";
+  overlay.id = "complete-match-overlay";
+  overlay.innerHTML = `
+    <div class="match-card-modal" role="dialog" aria-modal="true">
+      <div class="mcm-header">
+        <p class="mcm-badge">✅ Complete This Match</p>
+        <p class="mcm-score" style="font-size:14px">${escapeHtml(t1Name)} vs ${escapeHtml(t2Name)}</p>
+      </div>
+      <div class="mcm-body">
+        <p style="font-size:13px;color:var(--muted);margin:0 0 12px">${isDoubles ? "Doubles" : "Singles"} · originally logged as incomplete</p>
+        <div class="form-group">
+          <label style="font-weight:600">Winner</label>
+          <select id="cmpl-winner" required style="font-size:15px;padding:10px;margin-top:4px">
+            <option value="">Select winner</option>
+            <option value="1">${escapeHtml(t1Name)}</option>
+            <option value="2">${escapeHtml(t2Name)}</option>
+          </select>
+        </div>
+        <div style="margin-top:12px">
+          <p style="font-weight:600;font-size:13px;margin:0 0 6px">Score</p>
+          <div class="score-row polished-score-row">
+            <div class="form-group score-input-group"><label>Set 1 – ${escapeHtml(t1Name.split(" & ")[0])}</label><input type="number" id="cmpl-s1t1" class="score-input" min="0" max="7" placeholder="0" required></div>
+            <div class="score-divider">–</div>
+            <div class="form-group score-input-group"><label>${escapeHtml(t2Name.split(" & ")[0])}</label><input type="number" id="cmpl-s1t2" class="score-input" min="0" max="7" placeholder="0" required></div>
+          </div>
+          <div class="score-row polished-score-row" style="margin-top:8px">
+            <div class="form-group score-input-group"><label>Set 2</label><input type="number" id="cmpl-s2t1" class="score-input" min="0" max="7" placeholder="0" required></div>
+            <div class="score-divider">–</div>
+            <div class="form-group score-input-group"><label>Set 2</label><input type="number" id="cmpl-s2t2" class="score-input" min="0" max="7" placeholder="0" required></div>
+          </div>
+          <div class="score-row polished-score-row" style="margin-top:8px">
+            <div class="form-group score-input-group"><label>Tiebreak (opt.)</label><input type="number" id="cmpl-s3t1" class="score-input" min="0" max="99" placeholder="0"></div>
+            <div class="score-divider">–</div>
+            <div class="form-group score-input-group"><label>Tiebreak (opt.)</label><input type="number" id="cmpl-s3t2" class="score-input" min="0" max="99" placeholder="0"></div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label style="font-weight:600">Date Played</label>
+          <input type="date" id="cmpl-date" value="${today}" required style="font-size:15px;padding:10px;margin-top:4px">
+        </div>
+        <p id="cmpl-status" style="color:#dc2626;font-size:13px;margin-top:8px;min-height:18px"></p>
+      </div>
+      <div class="mcm-footer">
+        <button class="mcm-btn-copy" id="cmpl-submit-btn">Submit Final Result</button>
+        <button class="mcm-btn-close" id="cmpl-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("cmpl-cancel-btn").addEventListener("click", () => overlay.remove());
+  document.getElementById("cmpl-submit-btn").addEventListener("click", () =>
+    handleCompleteMatch(matchId, retiredMatch, overlay, isDoubles));
+}
+
+async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles) {
+  const winnerTeam = parseInt(document.getElementById("cmpl-winner")?.value, 10);
+  const s1t1 = toNumberOrNull(document.getElementById("cmpl-s1t1")?.value);
+  const s1t2 = toNumberOrNull(document.getElementById("cmpl-s1t2")?.value);
+  const s2t1 = toNumberOrNull(document.getElementById("cmpl-s2t1")?.value);
+  const s2t2 = toNumberOrNull(document.getElementById("cmpl-s2t2")?.value);
+  const s3t1 = toNumberOrNull(document.getElementById("cmpl-s3t1")?.value);
+  const s3t2 = toNumberOrNull(document.getElementById("cmpl-s3t2")?.value);
+  const datePlayed = document.getElementById("cmpl-date")?.value;
+  const statusEl  = document.getElementById("cmpl-status");
+  const submitBtn = document.getElementById("cmpl-submit-btn");
+  const showErr = msg => { if (statusEl) statusEl.textContent = msg; };
+
+  if (!winnerTeam) return showErr("Please select a winner.");
+  if (s1t1 == null || s1t2 == null || s2t1 == null || s2t2 == null) return showErr("Please enter set scores.");
+  if (!datePlayed) return showErr("Please enter the date played.");
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting…";
+  if (statusEl) statusEl.textContent = "";
+
+  try {
+    const allIds = [originalMatch.team1_player1_id, originalMatch.team1_player2_id,
+      originalMatch.team2_player1_id, originalMatch.team2_player2_id].filter(Boolean).map(Number);
+
+    const { data: players, error: pErr } = await supabaseClient
+      .from("players")
+      .select("id, name, sex, display_rating, dynamic_rating, rating, ladder_points, wins, losses, games_won, games_lost, matches_played, incomplete_matches")
+      .in("id", allIds);
+    if (pErr) throw pErr;
+
+    const byId = {};
+    (players || []).forEach(p => { byId[p.id] = p; });
+
+    const t1p1 = byId[originalMatch.team1_player1_id] || null;
+    const t1p2 = originalMatch.team1_player2_id ? byId[originalMatch.team1_player2_id] || null : null;
+    const t2p1 = byId[originalMatch.team2_player1_id] || null;
+    const t2p2 = originalMatch.team2_player2_id ? byId[originalMatch.team2_player2_id] || null : null;
+
+    const matchFmt = isDoubles ? "Doubles" : "Singles";
+    const t1Std = (s1t1 ?? 0) + (s2t1 ?? 0);
+    const t2Std = (s1t2 ?? 0) + (s2t2 ?? 0);
+    const has3Set = s3t1 != null && s3t2 != null;
+
+    const scoringResult = calculateMatchScoring({
+      matchType: matchFmt, winnerTeam,
+      team1Players: [t1p1, t1p2], team2Players: [t2p1, t2p2],
+      team1StandardGames: t1Std, team2StandardGames: t2Std,
+      team1TotalGames: t1Std, team2TotalGames: t2Std, has3Set,
+    });
+
+    const scoreText = buildScoreText(s1t1, s1t2, s2t1, s2t2, has3Set ? s3t1 : null, has3Set ? s3t2 : null);
+
+    const newMatchPayload = {
+      match_type: matchFmt, is_completed: true, winner_team: winnerTeam,
+      score_text: scoreText, date_played: datePlayed,
+      submitted_by_name: originalMatch.submitted_by_name || null,
+      match_notes: originalMatch.match_notes || null,
+      season_year: new Date(datePlayed).getFullYear(),
+      team1_player1_id: originalMatch.team1_player1_id,
+      team1_player2_id: originalMatch.team1_player2_id || null,
+      team2_player1_id: originalMatch.team2_player1_id,
+      team2_player2_id: originalMatch.team2_player2_id || null,
+      set1_team1_games: s1t1, set1_team2_games: s1t2,
+      set2_team1_games: s2t1, set2_team2_games: s2t2,
+      set3_team1_games: has3Set ? s3t1 : null, set3_team2_games: has3Set ? s3t2 : null,
+      team1_total_games: t1Std, team2_total_games: t2Std,
+      team1_avg_rating: scoringResult.team1AvgRating, team2_avg_rating: scoringResult.team2AvgRating,
+      rating_change_p1: scoringResult.ratingChanges[0],
+      rating_change_p2: t1p2 ? scoringResult.ratingChanges[1] : null,
+      rating_change_p3: scoringResult.ratingChanges[2],
+      rating_change_p4: t2p2 ? scoringResult.ratingChanges[3] : null,
+      ladder_points_p1: scoringResult.ladderPoints[0],
+      ladder_points_p2: t1p2 ? scoringResult.ladderPoints[1] : null,
+      ladder_points_p3: scoringResult.ladderPoints[2],
+      ladder_points_p4: t2p2 ? scoringResult.ladderPoints[3] : null,
+    };
+
+    // Build player stat updates: subtract 5 participation pts, add full match pts
+    const t1Won = winnerTeam === 1, t2Won = winnerTeam === 2;
+    const buildUpd = (player, rc, lp, won, ownStd, oppStd) => {
+      if (!player) return null;
+      const nextRating = roundToTwo(Number(player.display_rating ?? player.dynamic_rating ?? 0) + Number(rc || 0));
+      return {
+        id: player.id,
+        display_rating: nextRating, dynamic_rating: nextRating, rating: Math.round(nextRating * 100),
+        ladder_points: Math.max(0, (player.ladder_points || 0) - 5) + Number(lp || 0),
+        wins:   (player.wins   || 0) + (won ? 1 : 0),
+        losses: (player.losses || 0) + (won ? 0 : 1),
+        games_won:  (player.games_won  || 0) + (ownStd || 0),
+        games_lost: (player.games_lost || 0) + (oppStd || 0),
+        matches_played:    (player.matches_played    || 0) + 1,
+        incomplete_matches: Math.max(0, (player.incomplete_matches || 0) - 1),
+      };
+    };
+    const playerUpdates = [
+      buildUpd(t1p1, scoringResult.ratingChanges[0], scoringResult.ladderPoints[0], t1Won, t1Std, t2Std),
+      buildUpd(t1p2, scoringResult.ratingChanges[1], scoringResult.ladderPoints[1], t1Won, t1Std, t2Std),
+      buildUpd(t2p1, scoringResult.ratingChanges[2], scoringResult.ladderPoints[2], t2Won, t2Std, t1Std),
+      buildUpd(t2p2, scoringResult.ratingChanges[3], scoringResult.ladderPoints[3], t2Won, t2Std, t1Std),
+    ].filter(Boolean);
+
+    // Delete retired match, insert completed match
+    const { error: delErr } = await supabaseClient.from("matches").delete().eq("id", matchId);
+    if (delErr) throw delErr;
+    const { error: insErr } = await supabaseClient.from("matches").insert([newMatchPayload]);
+    if (insErr) throw insErr;
+
+    // Update player stats
+    for (const upd of playerUpdates) {
+      const { id, ...payload } = upd;
+      const { error: upErr } = await supabaseClient.from("players").update(payload).eq("id", id);
+      if (upErr) throw upErr;
+    }
+
+    overlay.remove();
+    showShareToast("Match completed! Full points and ratings updated.");
+    if (document.getElementById("history-list")) await loadMatchHistory();
+    if (document.getElementById("player-match-history")) await loadPlayerMatchHistory();
+  } catch (err) {
+    console.error("Complete match error:", err);
+    showErr(`Error: ${err.message}`);
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit Final Result";
   }
 }
 
@@ -5007,7 +5500,7 @@ async function renderPlayerRatingTrend(playerId, currentDisplayRating, initialRa
     const matches = await fetchMatchesForPlayer(playerId);
 
     const perspectives = matches
-      .filter((match) => match.match_type !== "mini") // mini-games don't affect ratings
+      .filter((match) => match.match_type !== "mini" && match.match_type !== "retired")
       .map((match) => ({
         match,
         perspective: getPlayerMatchPerspective(match, playerId)
