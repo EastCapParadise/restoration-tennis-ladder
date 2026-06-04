@@ -3659,32 +3659,27 @@ async function loadMatchHistory() {
       // Mini-game (Drop-In) cards use a distinct teal-bordered layout
       if (match.match_type === "mini") {
         return `
-          <div class="history-item fade-in-card premium-match-card mini-match" data-match-id="${match.id}">
-            <div class="history-top-row">
-              <div class="history-title-group">
-                <span class="match-badge mini-badge">🎾 Drop-In</span>
-              </div>
-              <div class="history-top-right">
-                ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+          <div class="history-item fade-in-card premium-match-card mini-match history-list-card" data-match-id="${match.id}">
+            <div class="card-badge-row">
+              <span class="match-type-chip">🎾 Drop-In</span>
+              <div class="card-badge-right">
                 <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
               </div>
             </div>
-            <div class="history-meta">
-              <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
-              ${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}
+            <div class="card-photo-date-row">
+              ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              <div class="card-date-info">
+                <div class="history-meta">
+                  <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
+                  ${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}
+                </div>
+              </div>
             </div>
-            <div class="history-matchup">
-              <strong>Players:</strong> ${escapeHtml(display.playersText)}
-            </div>
-            <div class="history-score">
-              <strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)
-            </div>
+            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(display.playersText)}</div>
+            <div class="history-score"><strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)</div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
-            <div class="match-bottom-section">
-              ${renderMiniMatchExtras(match, playerMap)}
-              ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
-            </div>
-            <div class="history-card-actions">
+            ${renderMiniMatchExtras(match, playerMap)}
+            <div class="history-card-actions history-card-actions-full">
               <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
               ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
             </div>
@@ -3695,21 +3690,23 @@ async function loadMatchHistory() {
       const upset = isMatchUpset(match);
 
       return `
-        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}" data-match-id="${match.id}">
-          <div class="history-top-row">
-            <div class="history-title-group">
-              <h3>${escapeHtml(match.match_type || "Match")}</h3>
+        <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""} history-list-card" data-match-id="${match.id}">
+          <div class="card-badge-row">
+            <span class="match-type-chip">${escapeHtml(match.match_type || "Match")}</span>
+            <div class="card-badge-right">
               ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
-            </div>
-            <div class="history-top-right">
-              ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
               <span class="winner-pill">Winner: ${escapeHtml(winnerText || "—")}</span>
             </div>
           </div>
 
-          <div class="history-meta">
-            <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
-            ${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}
+          <div class="card-photo-date-row">
+            ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+            <div class="card-date-info">
+              <div class="history-meta">
+                <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
+                ${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}
+              </div>
+            </div>
           </div>
 
           <div class="history-matchup">
@@ -3728,12 +3725,9 @@ async function loadMatchHistory() {
             </div>
           ` : ""}
 
-          <div class="match-bottom-section">
-            ${renderMatchExtras(match, playerMap, sexMap)}
-            ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
-          </div>
+          ${renderMatchExtras(match, playerMap, sexMap)}
 
-          <div class="history-card-actions">
+          <div class="history-card-actions history-card-actions-full">
             <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(cardData)}">⬆ Share</button>
             ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
           </div>
@@ -3750,7 +3744,7 @@ async function loadMatchHistory() {
           try { shareMatchResult(JSON.parse(shareBtn.getAttribute("data-match") || "{}"), shareBtn); } catch (_) {}
           return;
         }
-        const thumb = e.target.closest(".match-photo-thumb");
+        const thumb = e.target.closest(".match-photo-thumb, .card-photo");
         if (thumb) { openPhotoLightbox(thumb.dataset.photoUrl); return; }
         const addBtn = e.target.closest(".history-add-photo-btn");
         if (addBtn) {
@@ -3758,19 +3752,12 @@ async function loadMatchHistory() {
           showPhotoUploadModal(mid, (url) => {
             const card = container.querySelector(`[data-match-id="${mid}"]`);
             if (!card) return;
-            const topRight = card.querySelector(".history-top-right");
-            if (topRight) {
-              const mobileImg = document.createElement("img");
-              mobileImg.className = "match-photo-thumb match-photo-mobile";
-              mobileImg.src = url; mobileImg.alt = "Match photo"; mobileImg.dataset.photoUrl = url;
-              topRight.prepend(mobileImg);
-            }
-            const bottomSection = card.querySelector(".match-bottom-section");
-            if (bottomSection) {
-              const desktopImg = document.createElement("img");
-              desktopImg.className = "match-photo-thumb match-photo-desktop";
-              desktopImg.src = url; desktopImg.alt = "Match photo"; desktopImg.dataset.photoUrl = url;
-              bottomSection.appendChild(desktopImg);
+            const photoDateRow = card.querySelector(".card-photo-date-row");
+            if (photoDateRow) {
+              const img = document.createElement("img");
+              img.className = "card-photo";
+              img.src = url; img.alt = "Match photo"; img.dataset.photoUrl = url;
+              photoDateRow.prepend(img);
             }
             addBtn.remove();
           });
@@ -4482,22 +4469,23 @@ async function loadPlayerMatchHistory() {
         const miniClass  = myPts > oppPts ? "win" : myPts < oppPts ? "loss" : "";
         return `
           <div class="history-item fade-in-card premium-match-card mini-match" data-match-id="${match.id}">
-            <div class="history-top-row">
-              <div class="history-title-group">
-                <span class="match-badge mini-badge">🎾 Drop-In</span>
-              </div>
-              <div class="history-top-right">
-                ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+            <div class="card-badge-row">
+              <span class="match-type-chip">🎾 Drop-In</span>
+              <div class="card-badge-right">
                 <span class="winner-pill ${miniClass}">${miniResult}</span>
               </div>
             </div>
-            <div class="history-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}</div>
+            <div class="card-photo-date-row">
+              ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+              <div class="card-date-info">
+                <div class="history-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}</div>
+              </div>
+            </div>
             <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(display.playersText)}</div>
             <div class="history-score"><strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)</div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
             <div class="match-bottom-section">
               ${renderMiniMatchExtras(match, playerMap, playerId)}
-              ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
             </div>
             <div class="history-card-actions">
               <button type="button" class="btn-share-match history-share-btn" data-match="${escapeHtml(playerMatchCardData)}">⬆ Share</button>
@@ -4514,19 +4502,19 @@ async function loadPlayerMatchHistory() {
 
       return `
         <div class="history-item fade-in-card premium-match-card${upset ? " upset-match" : ""}" data-match-id="${match.id}">
-          <div class="history-top-row">
-            <div class="history-title-group">
-              <h3>${escapeHtml(match.match_type || "Match")}</h3>
+          <div class="card-badge-row">
+            <span class="match-type-chip">${escapeHtml(match.match_type || "Match")}</span>
+            <div class="card-badge-right">
               ${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}
-            </div>
-            <div class="history-top-right">
-              ${match.photo_url ? `<img class="match-photo-thumb match-photo-mobile" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
               <span class="winner-pill ${resultClass}">${resultText}</span>
             </div>
           </div>
 
-          <div class="history-meta">
-            <strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}
+          <div class="card-photo-date-row">
+            ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
+            <div class="card-date-info">
+              <div class="history-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}</div>
+            </div>
           </div>
 
           <div class="history-matchup">
@@ -4547,7 +4535,6 @@ async function loadPlayerMatchHistory() {
 
           <div class="match-bottom-section">
             ${renderMatchExtras(match, playerMap, sexMap, playerId)}
-            ${match.photo_url ? `<img class="match-photo-thumb match-photo-desktop" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
           </div>
 
           <div class="history-card-actions">
@@ -4566,7 +4553,7 @@ async function loadPlayerMatchHistory() {
           try { shareMatchResult(JSON.parse(shareBtn.getAttribute("data-match") || "{}"), shareBtn); } catch (_) {}
           return;
         }
-        const thumb = e.target.closest(".match-photo-thumb");
+        const thumb = e.target.closest(".match-photo-thumb, .card-photo");
         if (thumb) { openPhotoLightbox(thumb.dataset.photoUrl); return; }
         const addBtn = e.target.closest(".history-add-photo-btn");
         if (addBtn) {
@@ -4574,19 +4561,12 @@ async function loadPlayerMatchHistory() {
           showPhotoUploadModal(mid, (url) => {
             const card = container.querySelector(`[data-match-id="${mid}"]`);
             if (!card) return;
-            const topRight = card.querySelector(".history-top-right");
-            if (topRight) {
-              const mobileImg = document.createElement("img");
-              mobileImg.className = "match-photo-thumb match-photo-mobile";
-              mobileImg.src = url; mobileImg.alt = "Match photo"; mobileImg.dataset.photoUrl = url;
-              topRight.prepend(mobileImg);
-            }
-            const bottomSection = card.querySelector(".match-bottom-section");
-            if (bottomSection) {
-              const desktopImg = document.createElement("img");
-              desktopImg.className = "match-photo-thumb match-photo-desktop";
-              desktopImg.src = url; desktopImg.alt = "Match photo"; desktopImg.dataset.photoUrl = url;
-              bottomSection.appendChild(desktopImg);
+            const photoDateRow = card.querySelector(".card-photo-date-row");
+            if (photoDateRow) {
+              const img = document.createElement("img");
+              img.className = "card-photo";
+              img.src = url; img.alt = "Match photo"; img.dataset.photoUrl = url;
+              photoDateRow.prepend(img);
             }
             addBtn.remove();
           });

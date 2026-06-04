@@ -4562,6 +4562,118 @@ th[data-sort]:hover {
   }
 }
 
+/* ── Redesigned card layout (FIX 1 + FIX 2) ──────────────────────────────── */
+
+/* Top badge row: match type left, result badges right */
+.card-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.card-badge-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* Match type label on left of badge row */
+.match-type-chip {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--green-dark);
+}
+
+/* Photo + date flex row */
+.card-photo-date-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.card-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.08);
+  transition: opacity 0.15s;
+  display: block;
+}
+.card-photo:hover { opacity: 0.82; }
+
+.card-date-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+/* Full-width card action row (FIX 1 history list cards) */
+.history-card-actions-full {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.history-card-actions-full .btn-share-match,
+.history-card-actions-full .btn-add-photo {
+  flex: 1;
+  justify-content: center;
+  margin-top: 0;
+}
+
+/* Compact stat rows — always 2-col in history list cards */
+.history-list-card .match-extras {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.history-list-card .match-extra-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 5px 0;
+}
+
+.history-list-card .match-extra-name {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.history-list-card .match-extra-rating {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+}
+
+.history-list-card .match-extra-stat {
+  display: none;
+}
+
+.history-list-card .match-extra-combined {
+  display: inline;
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green-dark);
+}
+
 /* "Add Photo" button — matches Share button size, teal outline style */
 .btn-add-photo {
   display: inline-flex;
