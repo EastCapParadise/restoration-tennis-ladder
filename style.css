@@ -4674,6 +4674,61 @@ th[data-sort]:hover {
   color: var(--green-dark);
 }
 
+/* ── Badge row: mobile single-line fix ───────────────────────────────────── */
+@media (max-width: 767px) {
+  .card-badge-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  /* Left: match type chip takes remaining space, never wraps */
+  .card-badge-row > .match-type-chip {
+    flex: 1;
+    min-width: 0;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Right: result badges group, never shrinks */
+  .card-badge-row > .card-badge-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  /* Upset badge — compact on mobile */
+  .card-badge-row .upset-badge {
+    font-size: 10px;
+    padding: 3px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Winner/Loss result pill — compact, truncates long names */
+  .card-badge-row .winner-pill {
+    font-size: 10px;
+    padding: 3px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Match type chip also needs compact badge sizing if rendered as .match-badge */
+  .card-badge-row .match-type-chip {
+    font-size: 10px;
+    padding: 3px 7px;
+  }
+}
+
 /* "Add Photo" button — matches Share button size, teal outline style */
 .btn-add-photo {
   display: inline-flex;
