@@ -1073,21 +1073,30 @@ async function loadActivityFeed() {
   if (!container) return;
 
   try {
+    // Fetch a wider window to catch mini-games in last 10 days alongside recent ladder matches
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const { data, error } = await supabaseClient
       .from("matches")
       .select(`
         id, match_type, winner_team, score_text, date_played, created_at,
         team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id
       `)
+      .gte("date_played", tenDaysAgo)
       .order("date_played", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(5);
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    const matches = data || [];
+    const allRecent = data || [];
 
-    if (!matches.length) {
+    // Separate mini-games from real matches
+    const miniMatches   = allRecent.filter(m => m.match_type === "mini");
+    const realAndOther  = allRecent.filter(m => m.match_type !== "mini");
+
+    // Take the 5 most recent non-mini matches for the feed
+    const feedMatches = realAndOther.slice(0, 5);
+
+    if (!feedMatches.length && !miniMatches.length) {
       container.innerHTML = `
         <h2>Recent Activity</h2>
         <p class="small-text">No matches reported yet — be the first!</p>
@@ -1095,9 +1104,22 @@ async function loadActivityFeed() {
       return;
     }
 
-    const playerMap = await fetchPlayerNamesForMatches(matches);
+    const playerMap = await fetchPlayerNamesForMatches(feedMatches);
 
-    const items = matches.map((match, i) => {
+    // Build aggregate mini entry if any mini-games played recently
+    let miniEntry = null;
+    if (miniMatches.length > 0) {
+      const mostRecentMini = miniMatches[0].date_played || miniMatches[0].created_at;
+      const miniTimeAgo = relativeTime(mostRecentMini);
+      miniEntry = {
+        date_played: miniMatches[0].date_played,
+        html: `<li class="activity-feed-item activity-dropin">
+          <span style="color:#10b981;font-weight:600;">🎾 ${miniMatches.length} drop-in game${miniMatches.length === 1 ? "" : "s"} played at the last drop-in night</span> — <a href="ladder.html" class="player-link">see player profiles for results</a> · ${escapeHtml(miniTimeAgo)}
+        </li>`
+      };
+    }
+
+    const items = feedMatches.map((match, i) => {
       const feedPlayerObjs = [
         match.team1_player1_id, match.team1_player2_id,
         match.team2_player1_id, match.team2_player2_id,
@@ -1110,9 +1132,9 @@ async function loadActivityFeed() {
       if (match.match_type === "retired") {
         const allIds = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
         const playerLinks = allIds.map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`).join(" &amp; ");
-        return `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
+        return { date_played: match.date_played, html: `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
           🏳️ <strong>${playerLinks}</strong> have an incomplete match pending · ${escapeHtml(timeAgo)}
-        </li>`;
+        </li>` };
       }
 
       const winnerIds = match.winner_team === 1
@@ -1131,14 +1153,19 @@ async function loadActivityFeed() {
       const score = match.score_text ? ` · ${escapeHtml(winnerFirstScore(match.score_text, match.winner_team))}` : "";
       const type  = match.match_type || "Match";
 
-      return `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
+      return { date_played: match.date_played, html: `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
         <strong>${winnerLinks}</strong> defeated <strong>${loserLinks}</strong>${score} · ${escapeHtml(type)} · ${escapeHtml(timeAgo)}
-      </li>`;
+      </li>` };
     });
+
+    // Insert the mini aggregate entry in chronological position
+    const allEntries = miniEntry ? [...items, miniEntry] : items;
+    allEntries.sort((a, b) => (b.date_played || "").localeCompare(a.date_played || ""));
+    const htmlItems = allEntries.map(e => e.html);
 
     container.innerHTML = `
       <h2>Recent Activity</h2>
-      <ul class="activity-feed-list">${items.join("")}</ul>
+      <ul class="activity-feed-list">${htmlItems.join("")}</ul>
     `;
   } catch (error) {
     console.error("Activity feed error:", error);
@@ -3398,7 +3425,10 @@ async function fetchMatches() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (["Singles", "Doubles", "mini", "retired"].includes(state.history.filterType)) {
+  // Mini-game matches are never shown on the Match History page
+  query = query.neq("match_type", "mini");
+
+  if (["Singles", "Doubles", "retired"].includes(state.history.filterType)) {
     query = query.eq("match_type", state.history.filterType);
   }
 
@@ -3791,6 +3821,18 @@ async function loadMatchHistory() {
   if (myChip) myChip.classList.toggle("active", !!state.history.myMatchesOnly);
 
   try {
+    // Drop-In tab selected: show informational empty state — mini results live on player profiles
+    if (state.history.filterType === "mini") {
+      container.innerHTML = `
+        <div style="padding:24px 16px;text-align:center;color:var(--muted);">
+          <div style="font-size:32px;margin-bottom:12px;">🎾</div>
+          <p style="font-size:15px;font-weight:600;margin:0 0 8px;color:var(--text);">Drop-in game results live on player profiles</p>
+          <p style="font-size:14px;margin:0;">Visit any player's profile from the <a href="ladder.html" class="player-link">Rankings page</a> to see their drop-in history.</p>
+        </div>
+      `;
+      return;
+    }
+
     const matches = await fetchMatches();
     const [playerMap, sexMap] = await Promise.all([
       fetchPlayerNamesForMatches(matches),
