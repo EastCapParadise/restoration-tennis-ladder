@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (document.getElementById("gauntlet-section")) await loadGauntlet();
     if (document.getElementById("player-h2h-section")) await loadPlayerH2H();
     if (document.getElementById("player-doubles-section")) await loadDoublesPartners();
+    if (document.getElementById("dropin-section")) await renderDropInSection();
 
     if (document.getElementById("player-match-history")) {
       await loadPlayerMatchHistory();
@@ -4083,6 +4084,7 @@ async function fetchPlayerById(playerId) {
       matches_played,
       mini_games_won,
       mini_games_lost,
+      mini_points,
       incomplete_matches
     `)
     .eq("id", playerId)
@@ -4217,12 +4219,6 @@ async function loadPlayerProfile() {
           <div class="profile-stat-label">Games Lost</div>
           <div class="profile-stat-value">${player.games_lost ?? 0}</div>
         </div>
-        ${(player.mini_games_won || 0) + (player.mini_games_lost || 0) > 0 ? `
-        <div class="profile-stat">
-          <div class="profile-stat-label">Drop-In</div>
-          <div class="profile-stat-value">${player.mini_games_won ?? 0}W – ${player.mini_games_lost ?? 0}L</div>
-        </div>
-        ` : ""}
         ${(player.incomplete_matches || 0) > 0 ? `
         <div class="profile-stat">
           <div class="profile-stat-label">Incomplete</div>
@@ -4247,6 +4243,124 @@ async function loadPlayerProfile() {
   } catch (error) {
     console.error("Load player profile error:", error);
     container.innerHTML = "<p>Error loading player profile.</p>";
+  }
+}
+
+/* =========================
+   DROP-IN NIGHTS SECTION
+========================= */
+
+async function renderDropInSection() {
+  const section = document.getElementById("dropin-section");
+  if (!section) return;
+
+  const playerId = getPlayerIdFromUrl();
+  if (!playerId) return;
+
+  try {
+    const [player, allMatches] = await Promise.all([
+      fetchPlayerById(playerId),
+      fetchMatchesForPlayer(playerId)
+    ]);
+
+    const totalDropIn = (player.mini_games_won || 0) + (player.mini_games_lost || 0);
+    if (totalDropIn === 0) return;
+
+    const pid = Number(playerId);
+    const miniMatches = allMatches
+      .filter(m => m.match_type === "mini")
+      .sort((a, b) => {
+        const dc = (b.date_played || "").localeCompare(a.date_played || "");
+        return dc !== 0 ? dc : (b.created_at || "").localeCompare(a.created_at || "");
+      });
+
+    const totalWon = player.mini_games_won || 0;
+    const winRate = totalDropIn > 0 ? Math.round(totalWon / totalDropIn * 100) : 0;
+    const dropInPts = player.mini_points || 0;
+
+    const byDate = {};
+    for (const match of miniMatches) {
+      const date = match.date_played;
+      if (!byDate[date]) byDate[date] = { won: 0, lost: 0 };
+      const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
+      const gWon = onTeam1 ? (match.mini_games_won_p1 || 0) : (match.mini_games_won_p3 || 0);
+      const total = (match.mini_games_won_p1 || 0) + (match.mini_games_won_p3 || 0);
+      byDate[date].won += gWon;
+      byDate[date].lost += total - gWon;
+    }
+
+    let bestDate = null;
+    for (const [date, rec] of Object.entries(byDate)) {
+      if (!bestDate || rec.won > byDate[bestDate].won) bestDate = date;
+    }
+
+    const shortDate = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    const bestNightHtml = bestDate
+      ? `<p class="dropin-best-night">Best night: ${escapeHtml(shortDate(bestDate))} — ${byDate[bestDate].won}W ${byDate[bestDate].lost}L</p>`
+      : "";
+
+    const makeRow = (match, hidden) => {
+      const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
+      const gWon = onTeam1 ? (match.mini_games_won_p1 || 0) : (match.mini_games_won_p3 || 0);
+      const total = (match.mini_games_won_p1 || 0) + (match.mini_games_won_p3 || 0);
+      const pts = onTeam1 ? (match.ladder_points_p1 || 0) : (match.ladder_points_p3 || 0);
+      const outcome = gWon >= total - gWon ? "Won" : "Lost";
+      const ptsText = pts >= 0 ? `+${pts} pts` : `${pts} pts`;
+      const hiddenAttr = hidden ? ' class="dropin-history-row dropin-hidden-row" style="display:none"' : ' class="dropin-history-row"';
+      return `<div${hiddenAttr}>
+          <span class="dropin-date">${escapeHtml(shortDate(match.date_played))}</span>
+          <span class="dropin-dot"></span>
+          <span class="dropin-result">${outcome} ${gWon} of ${total} games</span>
+          <span class="dropin-pts">${escapeHtml(ptsText)}</span>
+        </div>`;
+    };
+
+    const LIMIT = 10;
+    const shownRows = miniMatches.slice(0, LIMIT).map(m => makeRow(m, false)).join("");
+    const hiddenRows = miniMatches.length > LIMIT
+      ? miniMatches.slice(LIMIT).map(m => makeRow(m, true)).join("")
+      : "";
+    const showAllBtn = miniMatches.length > LIMIT
+      ? `<span class="dropin-show-all" id="dropin-show-all-btn">Show all ${miniMatches.length} games ▾</span>`
+      : "";
+
+    section.innerHTML = `
+      <h2>🎾 Drop-In Nights</h2>
+      <div class="dropin-stats-grid">
+        <div class="profile-stat">
+          <div class="profile-stat-label">Games Played</div>
+          <div class="profile-stat-value">${totalDropIn}</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-label">Games Won</div>
+          <div class="profile-stat-value">${totalWon}</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-label">Win Rate</div>
+          <div class="profile-stat-value">${winRate}%</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-label">Drop-In Pts</div>
+          <div class="profile-stat-value">${dropInPts}</div>
+        </div>
+      </div>
+      ${bestNightHtml}
+      <div class="dropin-history">
+        ${shownRows}
+        ${hiddenRows}
+        ${showAllBtn}
+      </div>
+    `;
+
+    section.style.display = "";
+
+    document.getElementById("dropin-show-all-btn")?.addEventListener("click", () => {
+      section.querySelectorAll(".dropin-hidden-row").forEach(r => r.style.display = "");
+      document.getElementById("dropin-show-all-btn").style.display = "none";
+    });
+  } catch (err) {
+    console.error("Drop-in section error:", err);
   }
 }
 

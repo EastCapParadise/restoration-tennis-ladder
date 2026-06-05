@@ -4992,3 +4992,69 @@ th[data-sort]:hover {
 @keyframes photoShimmer {
   0%,100% { opacity: 1; } 50% { opacity: 0.55; }
 }
+
+/* =========================
+   DROP-IN NIGHTS SECTION
+========================= */
+
+.dropin-section {}
+.dropin-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+@media (min-width: 768px) {
+  .dropin-stats-grid { grid-template-columns: repeat(4, 1fr); }
+}
+.dropin-best-night {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 14px;
+  margin-top: 0;
+}
+.dropin-history {
+  border-top: 1px solid var(--border);
+}
+.dropin-history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #eef2ee;
+}
+.dropin-history-row:nth-child(odd) {
+  background: rgba(16, 185, 129, 0.04);
+}
+.dropin-date {
+  font-size: 12px;
+  color: var(--muted);
+  width: 44px;
+  flex-shrink: 0;
+}
+.dropin-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+.dropin-result {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+.dropin-pts {
+  font-size: 13px;
+  font-weight: 700;
+  color: #10b981;
+  flex-shrink: 0;
+}
+.dropin-show-all {
+  font-size: 13px;
+  color: #10b981;
+  cursor: pointer;
+  padding: 8px 4px;
+  text-align: center;
+  display: block;
+}
