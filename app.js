@@ -4398,7 +4398,8 @@ async function renderDropInSection() {
         pts  = match.ladder_points_p4  || 0;
       }
       const total = (match.mini_games_won_p1 || 0) + (match.mini_games_won_p3 || 0);
-      const outcome = gWon >= total - gWon ? "Won" : "Lost";
+      const gLost = total - gWon;
+      const outcome = gWon > gLost ? "Won" : gWon < gLost ? "Lost" : "Tied";
       const ptsText = pts >= 0 ? `+${pts} pts` : `${pts} pts`;
 
       // Context: partner and opponents
@@ -4436,7 +4437,7 @@ async function renderDropInSection() {
           <span class="dropin-date">${escapeHtml(shortDate(match.date_played))}</span>
           <span class="dropin-dot"></span>
           <div class="dropin-main">
-            <span class="dropin-result">${outcome} ${gWon} of ${total} games</span>
+            <span class="dropin-result">${outcome} ${gWon}-${gLost}</span>
             ${ctxHtml}
           </div>
           <span class="dropin-pts">${escapeHtml(ptsText)}</span>
