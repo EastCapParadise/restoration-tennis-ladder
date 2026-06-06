@@ -17,7 +17,7 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>Report Match | Restoration Tennis Ladder</title>
-  <link rel="stylesheet" href="style.css?v=18" />
+  <link rel="stylesheet" href="style.css?v=19" />
 </head>
 <body>
   <header class="site-header">
@@ -272,13 +272,21 @@
           <div class="form-grid two-col">
             <div class="form-group">
               <label for="mini-games-won" id="mini-games-won-label">Your Games Won</label>
-              <input type="number" id="mini-games-won" min="0" max="4" step="1" placeholder="0"
-                style="font-size:22px;text-align:center;padding:14px 8px;touch-action:manipulation;">
+              <div class="mini-stepper">
+                <button type="button" class="mini-stepper-btn" data-target="mini-games-won" data-dir="-1">−</button>
+                <input type="number" id="mini-games-won" min="0" max="4" step="1" value="0"
+                  style="font-size:22px;text-align:center;width:60px;padding:10px 4px;touch-action:manipulation;">
+                <button type="button" class="mini-stepper-btn" data-target="mini-games-won" data-dir="1">+</button>
+              </div>
             </div>
             <div class="form-group">
               <label for="mini-games-played">Games Played Total</label>
-              <input type="number" id="mini-games-played" min="1" max="4" step="1" value="4"
-                style="font-size:22px;text-align:center;padding:14px 8px;touch-action:manipulation;">
+              <div class="mini-stepper">
+                <button type="button" class="mini-stepper-btn" data-target="mini-games-played" data-dir="-1">−</button>
+                <input type="number" id="mini-games-played" min="1" max="4" step="1" value="4"
+                  style="font-size:22px;text-align:center;width:60px;padding:10px 4px;touch-action:manipulation;">
+                <button type="button" class="mini-stepper-btn" data-target="mini-games-played" data-dir="1">+</button>
+              </div>
             </div>
           </div>
         </div>

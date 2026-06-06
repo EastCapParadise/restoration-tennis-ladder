@@ -1975,6 +1975,21 @@ async function setupReportForm() {
   // Retired match Singles/Doubles toggle
   setupRetiredFormatToggle(toggleDoublesFields);
 
+  // Mini-game stepper buttons (+/-)
+  form.querySelectorAll(".mini-stepper-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+      const dir = parseInt(btn.dataset.dir, 10);
+      const min = input.min !== "" ? parseInt(input.min, 10) : -Infinity;
+      const max = input.max !== "" ? parseInt(input.max, 10) : Infinity;
+      const current = input.value !== "" ? parseInt(input.value, 10) : 0;
+      const next = Math.min(max, Math.max(min, current + dir));
+      input.value = next;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+
   function showReportError(text) {
     message.innerHTML = `<p class="form-error">${text}</p>`;
   }

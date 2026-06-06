@@ -5058,3 +5058,30 @@ th[data-sort]:hover {
   text-align: center;
   display: block;
 }
+
+.mini-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mini-stepper-btn {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  background: var(--green-dark);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+.mini-stepper-btn:active {
+  background: var(--green);
+}
