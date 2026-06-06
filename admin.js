@@ -186,11 +186,21 @@ function scoreMatch({ winnerTeam, team1Players, team2Players,
 async function runRecalculation(log) {
   log('header', '=== Starting Full Recalculation ===');
 
-  // Load players
+  // ─── Load players (include mini/retired fields for snapshot) ─────────────────
   const { data: players, error: pErr } = await db
     .from('players')
-    .select('id, name, sex, initial_rating, display_rating, dynamic_rating, ladder_points, wins, losses, games_won, games_lost, matches_played, rating');
+    .select('id, name, sex, initial_rating, display_rating, dynamic_rating, ladder_points, wins, losses, games_won, games_lost, matches_played, rating, mini_games_won, mini_games_lost, mini_points, incomplete_matches');
   if (pErr) return { success: false, error: pErr.message };
+
+  // STEP 1 — Snapshot mini stats from current player records before any reset
+  const miniSnap = {};
+  for (const p of players) {
+    miniSnap[p.id] = {
+      mini_games_won:  Number(p.mini_games_won  ?? 0),
+      mini_games_lost: Number(p.mini_games_lost ?? 0),
+      mini_points:     Number(p.mini_points     ?? 0),
+    };
+  }
 
   const oldStats = {};
   const state = {};
@@ -212,6 +222,44 @@ async function runRecalculation(log) {
   }
 
   log('ok', `Loaded ${players.length} players — stats reset to initial rating.`);
+
+  // STEP 1 (cont.) — Compute per-player mini and retired point contributions from matches
+  const [miniMatchRes, retiredMatchRes] = await Promise.all([
+    db.from('matches')
+      .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, ladder_points_p1, ladder_points_p2, ladder_points_p3, ladder_points_p4')
+      .eq('match_type', 'mini'),
+    db.from('matches')
+      .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id')
+      .eq('match_type', 'retired'),
+  ]);
+
+  if (miniMatchRes.error) return { success: false, error: `Mini match fetch: ${miniMatchRes.error.message}` };
+  if (retiredMatchRes.error) return { success: false, error: `Retired match fetch: ${retiredMatchRes.error.message}` };
+
+  const miniPts = {};
+  for (const m of miniMatchRes.data || []) {
+    const pairs = [
+      [m.team1_player1_id, m.ladder_points_p1],
+      [m.team1_player2_id, m.ladder_points_p2],
+      [m.team2_player1_id, m.ladder_points_p3],
+      [m.team2_player2_id, m.ladder_points_p4],
+    ];
+    for (const [pid, pts] of pairs) {
+      if (!pid || pts == null) continue;
+      miniPts[pid] = (miniPts[pid] || 0) + Number(pts);
+    }
+  }
+
+  const retiredPts   = {};
+  const retiredCount = {};
+  for (const m of retiredMatchRes.data || []) {
+    for (const pid of [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id].filter(Boolean)) {
+      retiredPts[pid]   = (retiredPts[pid]   || 0) + 5;
+      retiredCount[pid] = (retiredCount[pid] || 0) + 1;
+    }
+  }
+
+  log('ok', `Snapshotted mini pts for ${Object.keys(miniPts).length} player(s), retired pts for ${Object.keys(retiredPts).length} player(s).`);
 
   // Load matches
   const { data: matches, error: mErr } = await db
@@ -312,16 +360,59 @@ async function runRecalculation(log) {
     if (error) log('error', `  ERROR player ${s.name}: ${error.message}`);
   }
 
+  // STEP 3 — Restore mini-game and retired contributions
+  log('header', '=== Restoring Mini-Game and Retired Points ===');
+
+  for (const p of players) {
+    const addMini    = miniPts[p.id]    || 0;
+    const addRetired = retiredPts[p.id] || 0;
+    const snap       = miniSnap[p.id];
+    const incomplete = retiredCount[p.id] || 0;
+
+    if (addMini === 0 && addRetired === 0 && snap.mini_games_won === 0 && incomplete === 0) continue;
+
+    const officialPts = state[p.id].ladder_points;
+    const finalPts    = officialPts + addMini + addRetired;
+
+    const { error: rErr } = await db.from('players').update({
+      ladder_points:      finalPts,
+      mini_games_won:     snap.mini_games_won,
+      mini_games_lost:    snap.mini_games_lost,
+      mini_points:        snap.mini_points,
+      incomplete_matches: incomplete,
+    }).eq('id', p.id);
+
+    if (rErr) {
+      log('error', `  ERROR restoring mini/retired for ${p.name}: ${rErr.message}`);
+      continue;
+    }
+
+    // Verified read
+    const { data: verify } = await db.from('players').select('ladder_points').eq('id', p.id).single();
+    if (verify?.ladder_points !== finalPts) {
+      log('error', `  VERIFY FAILED for ${p.name} — expected ${finalPts}, got ${verify?.ladder_points}`);
+    } else {
+      const parts = [];
+      if (officialPts) parts.push(`${officialPts} official`);
+      if (addMini)     parts.push(`${addMini} mini`);
+      if (addRetired)  parts.push(`${addRetired} retired`);
+      log('ok', `  ${p.name}: ${parts.join(' + ')} = ${finalPts} pts total (${incomplete} incomplete match${incomplete === 1 ? '' : 'es'})`);
+    }
+
+    // Keep in-memory state in sync for the summary below
+    state[p.id].ladder_points = finalPts;
+  }
+
   log('header', '=== Recalculation complete ===');
 
-  // Build change summary for active players
+  // STEP 4 — Build change summary (includes mini/retired in final totals)
   const changes = players
-    .filter(p => state[p.id].matches_played > 0)
+    .filter(p => state[p.id].matches_played > 0 || (miniPts[p.id] || 0) > 0 || (retiredPts[p.id] || 0) > 0)
     .sort((a, b) => state[b.id].ladder_points - state[a.id].ladder_points)
     .map(p => ({
-      name: state[p.id].name,
-      newPts: state[p.id].ladder_points,
-      oldPts: oldStats[p.id].ladder_points,
+      name:      state[p.id].name,
+      newPts:    state[p.id].ladder_points,
+      oldPts:    oldStats[p.id].ladder_points,
       newRating: state[p.id].dynamic_rating,
       oldRating: oldStats[p.id].dynamic_rating,
     }));

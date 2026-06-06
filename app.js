@@ -2294,19 +2294,24 @@ async function handleMiniGameSubmit(form, message, showReportError) {
   const gamesLost  = gamesPlayed - gamesWon;
   const winnerTeam = gamesWon > gamesLost ? 1 : gamesLost > gamesWon ? 2 : null;
 
-  // Fetch all participating players
-  const { data: players, error: fetchErr } = await supabaseClient
+  // Fetch all participating players — build ID list explicitly so p2/p4 are always included for doubles
+  const idsToFetch = [p1Id, p3Id, ...(isMiniDoubles && p2Id ? [p2Id] : []), ...(isMiniDoubles && p4Id ? [p4Id] : [])];
+  const { data: playersData, error: fetchErr } = await supabaseClient
     .from("players")
     .select("id, name, ladder_points, mini_games_won, mini_games_lost, mini_points")
-    .in("id", selectedIds);
+    .in("id", idsToFetch);
 
   if (fetchErr) { showReportError(`Error loading players: ${fetchErr.message}`); return; }
 
-  const find = id => id ? (players || []).find(p => p.id === id) : null;
-  const pl1 = find(p1Id), pl2 = find(p2Id), pl3 = find(p3Id), pl4 = find(p4Id);
-  if (!pl1 || !pl3 || (isMiniDoubles && (!pl2 || !pl4))) {
-    showReportError("Could not find player data. Try again."); return;
-  }
+  const find = id => id ? ((playersData || []).find(p => p.id === id) ?? null) : null;
+  const pl1 = find(p1Id);
+  const pl2 = isMiniDoubles ? find(p2Id) : null;
+  const pl3 = find(p3Id);
+  const pl4 = isMiniDoubles ? find(p4Id) : null;
+
+  if (!pl1 || !pl3) { showReportError("Could not find player data. Try again."); return; }
+  if (isMiniDoubles && !pl2) { showReportError("Could not find partner data. Try again."); return; }
+  if (isMiniDoubles && !pl4) { showReportError("Could not find opponent partner data. Try again."); return; }
 
   const payload = {
     match_type:        "mini",
@@ -2342,11 +2347,12 @@ async function handleMiniGameSubmit(form, message, showReportError) {
   if (insertErr) { showReportError(`Error saving match: ${insertErr.message}`); return; }
 
   // Build player updates: team 1 earned gamesWon, team 2 earned gamesLost
+  // Guard on the player object directly (pl2/pl4 are already null for singles)
   const teamUpdates = [
     { player: pl1, pts: gamesWon,  won: gamesWon,  lost: gamesLost },
-    ...(isMiniDoubles && pl2 ? [{ player: pl2, pts: gamesWon,  won: gamesWon,  lost: gamesLost }] : []),
+    ...(pl2 ? [{ player: pl2, pts: gamesWon,  won: gamesWon,  lost: gamesLost }] : []),
     { player: pl3, pts: gamesLost, won: gamesLost, lost: gamesWon  },
-    ...(isMiniDoubles && pl4 ? [{ player: pl4, pts: gamesLost, won: gamesLost, lost: gamesWon  }] : []),
+    ...(pl4 ? [{ player: pl4, pts: gamesLost, won: gamesLost, lost: gamesWon  }] : []),
   ];
 
   const updateErrors = await Promise.all(
@@ -3547,30 +3553,40 @@ function buildMatchDisplay(match, playerMap) {
 
 
 // selfId: when viewing a player profile, pass their ID so their own name renders as plain text.
+// Data source: fetchMatches() and fetchMatchesForPlayer() both select all four
+// team_player_id slots and all four ladder_points_pX / mini_games_won_pX fields.
+// playerMap is built by fetchPlayerNamesForMatches() which collects all four IDs.
 function renderMiniMatchExtras(match, playerMap, selfId = null) {
-  const ids = [match.team1_player1_id, match.team2_player1_id].filter(Boolean);
-  const playerObjs = ids.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
-  const nameMap = disambiguateNames(playerObjs);
-  const rows = [];
+  const slots = [
+    { playerId: match.team1_player1_id, points: match.ladder_points_p1, gamesWon: match.mini_games_won_p1 },
+    { playerId: match.team1_player2_id, points: match.ladder_points_p2, gamesWon: match.mini_games_won_p1 },
+    { playerId: match.team2_player1_id, points: match.ladder_points_p3, gamesWon: match.mini_games_won_p3 },
+    { playerId: match.team2_player2_id, points: match.ladder_points_p4, gamesWon: match.mini_games_won_p3 },
+  ];
 
-  const addRow = (playerId, pts) => {
-    if (!playerId) return;
-    const dn = nameMap[playerId] || playerMap[playerId] || "Player";
+  const activeSlots = slots.filter(s => s.playerId != null);
+
+  const nameObjs = activeSlots.map(s => ({ id: s.playerId, name: playerMap[s.playerId] })).filter(p => p.name);
+  const nameMap  = disambiguateNames(nameObjs);
+
+  const rows = activeSlots.map(({ playerId, points, gamesWon }) => {
+    const name = nameMap[playerId] || playerMap[playerId];
+    if (!name) {
+      console.warn("renderMiniMatchExtras: no name found for playerId", playerId, "— check playerMap fetch");
+    }
+    const dn = name || "Player";
     const isSelf = selfId && Number(playerId) === Number(selfId);
     const nameHtml = isSelf
       ? escapeHtml(dn)
       : `<a href="player.html?id=${playerId}" class="player-link">${escapeHtml(dn)}</a>`;
-    rows.push(`
+    return `
       <div class="match-extra-row">
         <span class="match-extra-name">${nameHtml}</span>
-        <span class="match-extra-stat">Games Won: ${pts ?? 0}</span>
-        <span class="match-extra-stat">Points: +${pts ?? 0}</span>
+        <span class="match-extra-stat">Games Won: ${gamesWon ?? 0}</span>
+        <span class="match-extra-stat">Points: +${points ?? 0}</span>
       </div>
-    `);
-  };
-
-  addRow(match.team1_player1_id, match.ladder_points_p1);
-  addRow(match.team2_player1_id, match.ladder_points_p3);
+    `;
+  });
 
   return rows.length ? `<div class="match-extras">${rows.join("")}</div>` : "";
 }
