@@ -1148,6 +1148,122 @@ async function deleteLibraryPhoto(photoId, photoUrl) {
 
 // ─── Wire up all events ───────────────────────────────────────────────────────
 
+// ─── Section 3b: Drop-In Game Log ────────────────────────────────────────────
+
+async function loadDropInLog() {
+  const tbody = document.getElementById('admin-dropin-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7">Loading…</td></tr>';
+
+  const { data: matches, error: mErr } = await db
+    .from('matches')
+    .select(`id, date_played, team1_player1_id, team1_player2_id,
+             team2_player1_id, team2_player2_id,
+             mini_games_won_p1, mini_games_won_p3,
+             ladder_points_p1, ladder_points_p2, ladder_points_p3, ladder_points_p4`)
+    .eq('match_type', 'mini')
+    .order('date_played', { ascending: false })
+    .order('created_at',  { ascending: false });
+
+  if (mErr) {
+    tbody.innerHTML = `<tr><td colspan="7">Error: ${esc(mErr.message)}</td></tr>`;
+    return;
+  }
+  if (!matches?.length) {
+    tbody.innerHTML = '<tr><td colspan="7">No drop-in games recorded yet.</td></tr>';
+    return;
+  }
+
+  // Fetch player names
+  const ids = new Set();
+  for (const m of matches)
+    [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
+      .forEach(id => { if (id) ids.add(id); });
+  const { data: pData } = await db.from('players').select('id, name').in('id', [...ids]);
+  const nameOf = {};
+  (pData || []).forEach(p => { nameOf[p.id] = p.name; });
+
+  const fn   = id => id ? (nameOf[id] || '?').split(' ')[0] : null;
+  const tStr = (a, b) => [fn(a), fn(b)].filter(Boolean).join(' / ');
+  const fmtD = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  // Duplicate detection: same date + any overlapping player ID
+  const dupSet = new Set();
+  for (let i = 0; i < matches.length; i++) {
+    for (let j = i + 1; j < matches.length; j++) {
+      const a = matches[i], b = matches[j];
+      if (a.date_played !== b.date_played) continue;
+      const aIds = [a.team1_player1_id, a.team1_player2_id, a.team2_player1_id, a.team2_player2_id].filter(Boolean);
+      const bIds = new Set([b.team1_player1_id, b.team1_player2_id, b.team2_player1_id, b.team2_player2_id].filter(Boolean));
+      if (aIds.some(id => bIds.has(id))) { dupSet.add(a.id); dupSet.add(b.id); }
+    }
+  }
+
+  tbody.innerHTML = matches.map(m => {
+    const sideA   = tStr(m.team1_player1_id, m.team1_player2_id);
+    const sideB   = tStr(m.team2_player1_id, m.team2_player2_id);
+    const score   = `${m.mini_games_won_p1 ?? 0}-${m.mini_games_won_p3 ?? 0}`;
+    const ptsA    = m.ladder_points_p1 ?? 0;
+    const ptsB    = m.ladder_points_p3 ?? 0;
+    const ptsAStr = m.team1_player2_id ? `${ptsA} each` : String(ptsA);
+    const ptsBStr = m.team2_player2_id ? `${ptsB} each` : String(ptsB);
+    const isDup   = dupSet.has(m.id);
+    const rowAttr = isDup ? ' style="background:#fffbeb;"' : '';
+    const dupNote = isDup
+      ? `<br><small style="color:#b45309;font-size:11px;">⚠️ Possible duplicate — same player on same date</small>`
+      : '';
+    return `<tr${rowAttr}>
+      <td>${esc(fmtD(m.date_played))}</td>
+      <td>${esc(sideA)}</td>
+      <td>${esc(sideB)}</td>
+      <td class="num">${esc(score)}</td>
+      <td class="num">${esc(ptsAStr)}</td>
+      <td class="num">${esc(ptsBStr)}</td>
+      <td><button class="adm-btn adm-btn-sm adm-btn-danger dropin-del-btn" data-id="${m.id}">🗑️ Delete</button>${dupNote}</td>
+    </tr>`;
+  }).join('');
+
+  // Wire delete buttons with the loaded matches array in closure
+  tbody.querySelectorAll('.dropin-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteDropIn(btn.dataset.id, matches));
+  });
+}
+
+async function deleteDropIn(matchId, matches) {
+  const m = matches.find(x => String(x.id) === String(matchId));
+  if (!m) return;
+
+  const ok = await showConfirm('Delete Drop-In Result', 'Delete this drop-in result? Points will be recalculated.');
+  if (!ok) return;
+
+  const { error: dErr } = await db.from('matches').delete().eq('id', matchId);
+  if (dErr) { setStatus('dropin-log-status', `Delete failed: ${dErr.message}`, 'error'); return; }
+
+  // Subtract points from each involved player
+  const slots = [
+    { id: m.team1_player1_id, gw: m.mini_games_won_p1 ?? 0, gl: m.mini_games_won_p3 ?? 0, pts: m.ladder_points_p1 ?? 0 },
+    { id: m.team1_player2_id, gw: m.mini_games_won_p1 ?? 0, gl: m.mini_games_won_p3 ?? 0, pts: m.ladder_points_p2 ?? m.ladder_points_p1 ?? 0 },
+    { id: m.team2_player1_id, gw: m.mini_games_won_p3 ?? 0, gl: m.mini_games_won_p1 ?? 0, pts: m.ladder_points_p3 ?? 0 },
+    { id: m.team2_player2_id, gw: m.mini_games_won_p3 ?? 0, gl: m.mini_games_won_p1 ?? 0, pts: m.ladder_points_p4 ?? m.ladder_points_p3 ?? 0 },
+  ].filter(s => s.id);
+
+  for (const s of slots) {
+    const { data: p } = await db.from('players')
+      .select('ladder_points, mini_games_won, mini_games_lost, mini_points')
+      .eq('id', s.id).single();
+    if (!p) continue;
+    await db.from('players').update({
+      ladder_points:   Math.max(0, (p.ladder_points   ?? 0) - s.pts),
+      mini_games_won:  Math.max(0, (p.mini_games_won  ?? 0) - s.gw),
+      mini_games_lost: Math.max(0, (p.mini_games_lost ?? 0) - s.gl),
+      mini_points:     Math.max(0, (p.mini_points     ?? 0) - s.pts),
+    }).eq('id', s.id);
+  }
+
+  setStatus('dropin-log-status', 'Drop-in result deleted and points adjusted.', 'success');
+  await loadDropInLog();
+}
+
 function wireEvents() {
   // Match management
   document.getElementById('refresh-matches-btn')?.addEventListener('click', loadMatches);
@@ -1170,6 +1286,9 @@ function wireEvents() {
   document.getElementById('adjust-rating-modal')?.addEventListener('click', e => {
     if (e.target.id === 'adjust-rating-modal') closeAdjustRating();
   });
+
+  // Drop-in log
+  document.getElementById('refresh-dropin-btn')?.addEventListener('click', loadDropInLog);
 
   // Event management
   document.getElementById('add-event-form')?.addEventListener('submit', submitAddEvent);
@@ -1194,7 +1313,7 @@ function wireEvents() {
 // ─── Load everything ──────────────────────────────────────────────────────────
 
 async function loadAll() {
-  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary()]);
+  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary(), loadDropInLog()]);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────

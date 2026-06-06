@@ -13,7 +13,7 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>Admin Dashboard | Restoration Tennis Ladder</title>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=20">
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -290,6 +290,33 @@
         </div>
       </div>
 
+      <!-- Section 3b: Drop-In Game Log -->
+      <div class="card">
+        <div class="adm-section-header">
+          <h2>🎾 Drop-In Game Log</h2>
+          <button id="refresh-dropin-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p id="dropin-log-status" class="adm-status-text"></p>
+        <div class="table-wrap">
+          <table class="adm-table" id="admin-dropin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Side A</th>
+                <th>Side B</th>
+                <th class="num">Score</th>
+                <th class="num">Pts A</th>
+                <th class="num">Pts B</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-dropin-body">
+              <tr><td colspan="7">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Section 4: Recent Signups -->
       <div class="card">
         <h2>Recent Signups</h2>
@@ -342,7 +369,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="admin.js?v=4"></script>
+  <script src="admin.js?v=5"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

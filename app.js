@@ -3857,15 +3857,46 @@ async function loadMatchHistory() {
   if (myChip) myChip.classList.toggle("active", !!state.history.myMatchesOnly);
 
   try {
-    // Drop-In tab selected: show informational empty state — mini results live on player profiles
+    // Drop-In tab: fetch all mini matches and render as a table
     if (state.history.filterType === "mini") {
+      const { data: miniData, error: miniErr } = await supabaseClient
+        .from("matches")
+        .select(`id, date_played, team1_player1_id, team1_player2_id,
+                 team2_player1_id, team2_player2_id,
+                 mini_games_won_p1, mini_games_won_p3`)
+        .eq("match_type", "mini")
+        .order("date_played", { ascending: false })
+        .order("created_at",  { ascending: false });
+      if (miniErr) throw miniErr;
+
+      const miniMatches = miniData || [];
+      if (!miniMatches.length) {
+        container.innerHTML = `<p style="padding:16px;color:var(--muted);">No drop-in games recorded yet.</p>`;
+        return;
+      }
+
+      const pMap   = await fetchPlayerNamesForMatches(miniMatches);
+      const fn     = id => id ? (pMap[id] || "?").split(" ")[0] : null;
+      const tStr   = (a, b) => [fn(a), fn(b)].filter(Boolean).join(" / ");
+      const fmtD   = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+      const rows = miniMatches.map(m => `
+        <tr>
+          <td>${escapeHtml(fmtD(m.date_played))}</td>
+          <td>${escapeHtml(tStr(m.team1_player1_id, m.team1_player2_id))}</td>
+          <td>${escapeHtml(tStr(m.team2_player1_id, m.team2_player2_id))}</td>
+          <td class="num">${m.mini_games_won_p1 ?? 0}-${m.mini_games_won_p3 ?? 0}</td>
+        </tr>`).join("");
+
       container.innerHTML = `
-        <div style="padding:24px 16px;text-align:center;color:var(--muted);">
-          <div style="font-size:32px;margin-bottom:12px;">🎾</div>
-          <p style="font-size:15px;font-weight:600;margin:0 0 8px;color:var(--text);">Drop-in game results live on player profiles</p>
-          <p style="font-size:14px;margin:0;">Visit any player's profile from the <a href="ladder.html" class="player-link">Rankings page</a> to see their drop-in history.</p>
-        </div>
-      `;
+        <div class="table-wrap">
+          <table class="dropin-log-table">
+            <thead>
+              <tr><th>Date</th><th>Side A</th><th>Side B</th><th class="num">Score</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
       return;
     }
 

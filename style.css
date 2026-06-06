@@ -5085,3 +5085,36 @@ th[data-sort]:hover {
 .mini-stepper-btn:active {
   background: var(--green);
 }
+
+/* ── Drop-In game log table (history.html Drop-In tab) ── */
+.dropin-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.dropin-log-table th {
+  background: #edf2ee;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--green-dark);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 2px solid #dde6e0;
+}
+.dropin-log-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f4f1;
+  color: var(--text);
+  vertical-align: middle;
+}
+.dropin-log-table tbody tr:nth-child(even) td { background: #f8faf9; }
+.dropin-log-table tbody tr:hover td { background: rgba(31,77,58,0.04); }
+.dropin-log-table td.num,
+.dropin-log-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 540px) {
+  .dropin-log-table { font-size: 13px; }
+  .dropin-log-table th,
+  .dropin-log-table td { padding: 7px 8px; }
+}
