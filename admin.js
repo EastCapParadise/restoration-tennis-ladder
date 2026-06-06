@@ -149,16 +149,24 @@ function scoreMatch({ winnerTeam, team1Players, team2Players,
   // Winner points: 11-base, delta × 0.29, clamped [8, 18]
   let wPts = Math.max(8, Math.min(18, Math.round(11 + delta * 0.29)));
 
-  // Loser points: bagel → gap-scaled floor; otherwise games-based
-  const bagel = lStd === 0;
-  let lPts = bagel
-    ? Math.max(5, Math.round(4 + gap * 6))
-    : Math.max(5, Math.round(4 + lStd * 0.7));
+  // Loser points — expectation-adjusted formula
+  const loserWasFav = lAvg > wAvg;
+  const loserWasUnd = lAvg < wAvg;
+  let lPts;
+  if (lStd === 0) {
+    lPts = Math.max(5, Math.round(4 + gap * 4));
+  } else {
+    const gamesComp  = lStd * 0.6;
+    const expectComp = loserWasFav ? -(gap * 6)
+                     : loserWasUnd ? -(gap * 4)
+                     : 0;
+    lPts = Math.max(5, Math.round(4 + gamesComp + expectComp));
+  }
 
-  // Enforce: loser ≤ winner − 2, loser ≥ 5, winner − loser ≥ 3
+  // Enforce minimum 2-point gap between winner and loser
   lPts = Math.min(lPts, wPts - 2);
   lPts = Math.max(5, lPts);
-  if (wPts - lPts < 3) wPts = lPts + 3;
+  if (wPts - lPts < 2) wPts = lPts + 2;
 
   // 3-set bonus: winner +2; loser +1 or +2 based on rating relationship
   if (has3Set) {
@@ -166,7 +174,7 @@ function scoreMatch({ winnerTeam, team1Players, team2Players,
     if (gap < 0.1)        lPts += 2;  // even match
     else if (lAvg > wAvg) lPts += 1;  // loser was favourite
     else                  lPts += 2;  // loser was underdog
-    if (wPts - lPts < 3) wPts = lPts + 3;
+    if (wPts - lPts < 2) wPts = lPts + 2;
   }
 
   const lp = winnerTeam === 1

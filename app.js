@@ -2811,10 +2811,9 @@ function buildScoringContext(formData, hydrated) {
  * Positive delta = outperformed expectations; negative = closer than expected.
  *
  * Anchor verification (no 3-set bonus):
- *   Even match,        6-3 6-2 → winner=13, loser=8
- *   Fav 0.5,           6-3 6-2 → winner=11, loser=8
- *   Fav 0.75 (capped), 6-0 6-0 → winner=12, loser=7
- *   Major upset 0.5,   6-0 6-0 → winner=17, loser=7
+ *   Even match,        6-3 6-2   → winner=13, loser=7
+ *   Fav 0.5 wins,      6-3 6-2   → winner=11, loser=5
+ *   Upset 0.5,         7-6 6-4   → winner=14, loser=7
  */
 function calculateMatchScoring({
   matchType,
@@ -2891,7 +2890,7 @@ function calculateMatchScoring({
     //   Even match    → no adjustment (expectations were symmetric).
     let expectComponent = 0;
     if (loserWasFavorite) expectComponent = -(gapMagnitude * 6);
-    if (loserWasUnderdog) expectComponent = +(gapMagnitude * 4);
+    if (loserWasUnderdog) expectComponent = -(gapMagnitude * 4);
     const loserRaw = 4 + gamesComponent + expectComponent;
     loserPoints = Math.max(5, Math.round(loserRaw));
   }
