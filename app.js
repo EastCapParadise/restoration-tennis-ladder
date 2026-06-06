@@ -975,7 +975,7 @@ async function loadHomeStats() {
   try {
     const [playersResult, matchesResult] = await Promise.all([
       supabaseClient.from("players").select("id", { count: "exact", head: true }),
-      supabaseClient.from("matches").select("id", { count: "exact", head: true })
+      supabaseClient.from("matches").select("id", { count: "exact", head: true }).in("match_type", ["Singles", "Doubles"])
     ]);
     playerCount = playersResult.count ?? 0;
     matchCount = matchesResult.count ?? 0;
