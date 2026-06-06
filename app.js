@@ -3875,18 +3875,31 @@ async function loadMatchHistory() {
         return;
       }
 
-      const pMap   = await fetchPlayerNamesForMatches(miniMatches);
-      const fn     = id => id ? (pMap[id] || "?").split(" ")[0] : null;
-      const tStr   = (a, b) => [fn(a), fn(b)].filter(Boolean).join(" / ");
-      const fmtD   = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const pMap = await fetchPlayerNamesForMatches(miniMatches);
+      const fmtD = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-      const rows = miniMatches.map(m => `
+      const rows = miniMatches.map(m => {
+        // Disambiguate names within this match's context (up to 4 players)
+        const matchObjs = [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
+          .filter(id => id && pMap[id])
+          .map(id => ({ id, name: pMap[id] }));
+        const nmMap = disambiguateNames(matchObjs);
+        // Use "First L." when there's a conflict; first name only when unique
+        const dn = id => {
+          if (!id || !pMap[id]) return null;
+          const full = pMap[id], d = nmMap[id] || full;
+          return d !== full ? d : full.split(" ")[0];
+        };
+        const sideA = [m.team1_player1_id, m.team1_player2_id].map(dn).filter(Boolean).join(" / ");
+        const sideB = [m.team2_player1_id, m.team2_player2_id].map(dn).filter(Boolean).join(" / ");
+        return `
         <tr>
           <td>${escapeHtml(fmtD(m.date_played))}</td>
-          <td>${escapeHtml(tStr(m.team1_player1_id, m.team1_player2_id))}</td>
-          <td>${escapeHtml(tStr(m.team2_player1_id, m.team2_player2_id))}</td>
+          <td>${escapeHtml(sideA)}</td>
+          <td>${escapeHtml(sideB)}</td>
           <td class="num">${m.mini_games_won_p1 ?? 0}-${m.mini_games_won_p3 ?? 0}</td>
-        </tr>`).join("");
+        </tr>`;
+      }).join("");
 
       container.innerHTML = `
         <div class="table-wrap">

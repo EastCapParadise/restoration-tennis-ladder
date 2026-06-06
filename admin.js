@@ -1148,6 +1148,28 @@ async function deleteLibraryPhoto(photoId, photoUrl) {
 
 // ─── Wire up all events ───────────────────────────────────────────────────────
 
+// ─── Name disambiguation (mirrors app.js disambiguateNames) ──────────────────
+function disambiguateNames(playerObjects) {
+  const firstNames = {};
+  playerObjects.forEach(p => {
+    if (!p || !p.name) return;
+    const first = p.name.trim().split(/\s+/)[0];
+    if (!firstNames[first]) firstNames[first] = [];
+    firstNames[first].push(p);
+  });
+  const out = {};
+  playerObjects.forEach(p => {
+    if (!p || !p.name) return;
+    const parts = p.name.trim().split(/\s+/);
+    const first = parts[0];
+    const li    = parts[parts.length - 1]?.[0] || '';
+    out[p.id]   = firstNames[first].length > 1
+      ? (li ? `${first} ${li}.` : p.name)
+      : p.name;
+  });
+  return out;
+}
+
 // ─── Section 3b: Drop-In Game Log ────────────────────────────────────────────
 
 async function loadDropInLog() {
@@ -1183,9 +1205,16 @@ async function loadDropInLog() {
   const nameOf = {};
   (pData || []).forEach(p => { nameOf[p.id] = p.name; });
 
-  const fn   = id => id ? (nameOf[id] || '?').split(' ')[0] : null;
-  const tStr = (a, b) => [fn(a), fn(b)].filter(Boolean).join(' / ');
   const fmtD = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // Per-match display name: "First L." on conflict, first name only when unique
+  const matchDn = (m, id) => {
+    if (!id || !nameOf[id]) return null;
+    const matchObjs = [m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id]
+      .filter(pid => pid && nameOf[pid]).map(pid => ({ id: pid, name: nameOf[pid] }));
+    const nmMap = disambiguateNames(matchObjs);
+    const full = nameOf[id], d = nmMap[id] || full;
+    return d !== full ? d : full.split(' ')[0];
+  };
 
   // Duplicate detection: same date + any overlapping player ID
   const dupSet = new Set();
@@ -1200,8 +1229,8 @@ async function loadDropInLog() {
   }
 
   tbody.innerHTML = matches.map(m => {
-    const sideA   = tStr(m.team1_player1_id, m.team1_player2_id);
-    const sideB   = tStr(m.team2_player1_id, m.team2_player2_id);
+    const sideA   = [m.team1_player1_id, m.team1_player2_id].map(id => matchDn(m, id)).filter(Boolean).join(' / ');
+    const sideB   = [m.team2_player1_id, m.team2_player2_id].map(id => matchDn(m, id)).filter(Boolean).join(' / ');
     const score   = `${m.mini_games_won_p1 ?? 0}-${m.mini_games_won_p3 ?? 0}`;
     const ptsA    = m.ladder_points_p1 ?? 0;
     const ptsB    = m.ladder_points_p3 ?? 0;
