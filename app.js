@@ -4337,10 +4337,13 @@ async function renderDropInSection() {
   if (!playerId) return;
 
   try {
-    const [player, allMatches] = await Promise.all([
+    const [player, allMatches, allPlayersRes] = await Promise.all([
       fetchPlayerById(playerId),
-      fetchMatchesForPlayer(playerId)
+      fetchMatchesForPlayer(playerId),
+      supabaseClient.from("players").select("id, name")
     ]);
+    const pMap = {};
+    (allPlayersRes.data || []).forEach(p => { pMap[p.id] = p.name; });
 
     const totalDropIn = (player.mini_games_won || 0) + (player.mini_games_lost || 0);
     if (totalDropIn === 0) return;
@@ -4397,11 +4400,45 @@ async function renderDropInSection() {
       const total = (match.mini_games_won_p1 || 0) + (match.mini_games_won_p3 || 0);
       const outcome = gWon >= total - gWon ? "Won" : "Lost";
       const ptsText = pts >= 0 ? `+${pts} pts` : `${pts} pts`;
+
+      // Context: partner and opponents
+      const onTeam1 = match.team1_player1_id === pid || match.team1_player2_id === pid;
+      const myTeamIds  = onTeam1
+        ? [match.team1_player1_id, match.team1_player2_id]
+        : [match.team2_player1_id, match.team2_player2_id];
+      const oppTeamIds = onTeam1
+        ? [match.team2_player1_id, match.team2_player2_id]
+        : [match.team1_player1_id, match.team1_player2_id];
+
+      const matchObjs = [match.team1_player1_id, match.team1_player2_id,
+                         match.team2_player1_id, match.team2_player2_id]
+        .filter(id => id && pMap[id])
+        .map(id => ({ id, name: pMap[id] }));
+      const nmMap = disambiguateNames(matchObjs);
+      const dn = id => {
+        if (!id || !pMap[id]) return null;
+        const full = pMap[id], d = nmMap[id] || full;
+        return d !== full ? d : full.split(" ")[0];
+      };
+
+      const partnerId = myTeamIds.filter(id => id && id !== pid)[0] || null;
+      const oppIds    = oppTeamIds.filter(Boolean);
+      const ctxParts  = [];
+      if (partnerId && dn(partnerId)) ctxParts.push(`With: ${escapeHtml(dn(partnerId))}`);
+      if (oppIds.length) {
+        const oppNames = oppIds.map(id => dn(id)).filter(Boolean).map(escapeHtml);
+        if (oppNames.length) ctxParts.push(`vs ${oppNames.join(" / ")}`);
+      }
+      const ctxHtml = ctxParts.map(p => `<span class="dropin-ctx">${p}</span>`).join("");
+
       const hiddenAttr = hidden ? ' class="dropin-history-row dropin-hidden-row" style="display:none"' : ' class="dropin-history-row"';
       return `<div${hiddenAttr}>
           <span class="dropin-date">${escapeHtml(shortDate(match.date_played))}</span>
           <span class="dropin-dot"></span>
-          <span class="dropin-result">${outcome} ${gWon} of ${total} games</span>
+          <div class="dropin-main">
+            <span class="dropin-result">${outcome} ${gWon} of ${total} games</span>
+            ${ctxHtml}
+          </div>
           <span class="dropin-pts">${escapeHtml(ptsText)}</span>
         </div>`;
     };
