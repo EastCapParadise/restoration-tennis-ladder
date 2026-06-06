@@ -327,7 +327,7 @@ function calcPoints(wStd, lStd, wAdj, lAdj) {
   if (lStd === 0) {
     lp = Math.max(5, Math.round(4 + gap * 4));
   } else {
-    const eComp = lAdj > wAdj ? -(gap * 6) : lAdj < wAdj ? -(gap * 4) : 0;
+    const eComp = lAdj > wAdj ? -(gap * 6) : lAdj < wAdj ? +(gap * 4) : 0;
     lp = Math.max(5, Math.round(4 + lStd * 0.6 + eComp));
   }
 

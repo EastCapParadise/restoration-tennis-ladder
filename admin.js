@@ -158,7 +158,7 @@ function scoreMatch({ winnerTeam, team1Players, team2Players,
   } else {
     const gamesComp  = lStd * 0.6;
     const expectComp = loserWasFav ? -(gap * 6)
-                     : loserWasUnd ? -(gap * 4)
+                     : loserWasUnd ? +(gap * 4)
                      : 0;
     lPts = Math.max(5, Math.round(4 + gamesComp + expectComp));
   }
