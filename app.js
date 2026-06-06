@@ -2285,8 +2285,13 @@ async function handleMiniGameSubmit(form, message, showReportError) {
   const p2Id  = Number(document.getElementById("mini-partner")?.value)   || null; // partner (doubles)
   const p3Id  = Number(document.getElementById("team2-player1")?.value);
   const p4Id  = Number(document.getElementById("mini-opponent2")?.value) || null; // opp2 (doubles)
-  const gamesWon    = parseInt(document.getElementById("mini-games-won")?.value, 10);
+  const rawGamesWon = document.getElementById("mini-games-won")?.value;
+  const gamesWon    = parseInt(rawGamesWon, 10);
   const gamesPlayed = parseInt(document.getElementById("mini-games-played")?.value, 10) || 4;
+  const gamesLostCalc = gamesPlayed - gamesWon;
+  console.log("[mini-submit] isMiniDoubles:", isMiniDoubles);
+  console.log("[mini-submit] rawGamesWon:", rawGamesWon, "→ gamesWon:", gamesWon, "| gamesPlayed:", gamesPlayed, "→ gamesLost:", gamesLostCalc);
+  console.log("[mini-submit] p1Id (you):", p1Id, "| p2Id (partner):", p2Id, "| p3Id (opp1):", p3Id, "| p4Id (opp2):", p4Id);
   const datePlayed  = document.getElementById("date-played")?.value || "";
   const submittedBy = document.getElementById("submitted-by")?.value?.trim() || "";
   const matchNotes  = document.getElementById("match-notes")?.value?.trim() || null;
