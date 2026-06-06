@@ -15,7 +15,10 @@
       "Bash(git commit *)",
       "Bash(powershell -Command ' *)",
       "Bash(npm --version)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(sed -i 's/app\\\\.js?v=29/app.js?v=30/g' contacts.html history.html index.html join.html ladder.html player.html report.html rules.html)",
+      "Bash(sed -i 's/style\\\\.css?v=18/style.css?v=20/g' admin.html)",
+      "Bash(sed -i 's/style\\\\.css?v=19/style.css?v=20/g' contacts.html history.html index.html join.html ladder.html player.html report.html rules.html match-preview.html events.html photos.html)"
     ]
   }
 }
