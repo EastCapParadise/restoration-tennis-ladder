@@ -6,7 +6,16 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(npm install *)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(git commit -m 'Gauntlet: change win prob label to '\\\\''X% chance'\\\\'' *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Maria Strickland\\\\Desktop\\\\restoration-tennis-ladder\" -File | Where-Object {$_.Extension -in '.js','.ts','.env','.json','.txt'} | Select-Object Name)",
+      "Bash(curl *)",
+      "Bash(git commit *)",
+      "Bash(powershell -Command ' *)",
+      "Bash(npm --version)",
+      "Bash(git checkout *)"
     ]
   }
 }
