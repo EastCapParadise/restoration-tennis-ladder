@@ -224,7 +224,7 @@ async function runRecalculation(log) {
   // STEP 1 (cont.) — Derive mini and retired stats fresh from match records
   const [miniMatchRes, retiredMatchRes] = await Promise.all([
     db.from('matches')
-      .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, mini_games_won_p1, mini_games_won_p3, ladder_points_p1, ladder_points_p3')
+      .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, mini_games_won_p1, mini_games_won_p3, ladder_points_p1, ladder_points_p2, ladder_points_p3, ladder_points_p4')
       .eq('match_type', 'mini'),
     db.from('matches')
       .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id')
@@ -236,24 +236,33 @@ async function runRecalculation(log) {
 
   // Per-player mini stats derived entirely from match records (never from player table snapshot)
   const miniStats = {};
+  const ensureMini = pid => { if (!miniStats[pid]) miniStats[pid] = { won: 0, lost: 0, points: 0 }; };
   for (const m of miniMatchRes.data || []) {
     const gWon1 = Number(m.mini_games_won_p1 ?? 0); // team1 games won
     const gWon3 = Number(m.mini_games_won_p3 ?? 0); // team2 games won
-    const pts1  = Number(m.ladder_points_p1  ?? 0);
-    const pts3  = Number(m.ladder_points_p3  ?? 0);
-    const team1 = [m.team1_player1_id, m.team1_player2_id].filter(Boolean);
-    const team2 = [m.team2_player1_id, m.team2_player2_id].filter(Boolean);
-    for (const pid of team1) {
-      if (!miniStats[pid]) miniStats[pid] = { won: 0, lost: 0, points: 0 };
-      miniStats[pid].won    += gWon1;
-      miniStats[pid].lost   += gWon3;
-      miniStats[pid].points += pts1;
+    if (m.team1_player1_id) {
+      ensureMini(m.team1_player1_id);
+      miniStats[m.team1_player1_id].won    += gWon1;
+      miniStats[m.team1_player1_id].lost   += gWon3;
+      miniStats[m.team1_player1_id].points += Number(m.ladder_points_p1 ?? 0);
     }
-    for (const pid of team2) {
-      if (!miniStats[pid]) miniStats[pid] = { won: 0, lost: 0, points: 0 };
-      miniStats[pid].won    += gWon3;
-      miniStats[pid].lost   += gWon1;
-      miniStats[pid].points += pts3;
+    if (m.team1_player2_id) {
+      ensureMini(m.team1_player2_id);
+      miniStats[m.team1_player2_id].won    += gWon1;
+      miniStats[m.team1_player2_id].lost   += gWon3;
+      miniStats[m.team1_player2_id].points += Number(m.ladder_points_p2 ?? 0);
+    }
+    if (m.team2_player1_id) {
+      ensureMini(m.team2_player1_id);
+      miniStats[m.team2_player1_id].won    += gWon3;
+      miniStats[m.team2_player1_id].lost   += gWon1;
+      miniStats[m.team2_player1_id].points += Number(m.ladder_points_p3 ?? 0);
+    }
+    if (m.team2_player2_id) {
+      ensureMini(m.team2_player2_id);
+      miniStats[m.team2_player2_id].won    += gWon3;
+      miniStats[m.team2_player2_id].lost   += gWon1;
+      miniStats[m.team2_player2_id].points += Number(m.ladder_points_p4 ?? 0);
     }
   }
 

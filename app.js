@@ -4380,10 +4380,21 @@ async function renderDropInSection() {
       : "";
 
     const makeRow = (match, hidden) => {
-      const onTeam1 = [match.team1_player1_id, match.team1_player2_id].includes(pid);
-      const gWon = onTeam1 ? (match.mini_games_won_p1 || 0) : (match.mini_games_won_p3 || 0);
+      let gWon, pts;
+      if (match.team1_player1_id === pid) {
+        gWon = match.mini_games_won_p1 || 0;
+        pts  = match.ladder_points_p1  || 0;
+      } else if (match.team1_player2_id === pid) {
+        gWon = match.mini_games_won_p1 || 0;
+        pts  = match.ladder_points_p2  || 0;
+      } else if (match.team2_player1_id === pid) {
+        gWon = match.mini_games_won_p3 || 0;
+        pts  = match.ladder_points_p3  || 0;
+      } else {
+        gWon = match.mini_games_won_p3 || 0;
+        pts  = match.ladder_points_p4  || 0;
+      }
       const total = (match.mini_games_won_p1 || 0) + (match.mini_games_won_p3 || 0);
-      const pts = onTeam1 ? (match.ladder_points_p1 || 0) : (match.ladder_points_p3 || 0);
       const outcome = gWon >= total - gWon ? "Won" : "Lost";
       const ptsText = pts >= 0 ? `+${pts} pts` : `${pts} pts`;
       const hiddenAttr = hidden ? ' class="dropin-history-row dropin-hidden-row" style="display:none"' : ' class="dropin-history-row"';
