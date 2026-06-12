@@ -1847,7 +1847,7 @@ th[data-sort]:hover {
 
 .ladder-table {
   width: 100%;
-  min-width: 1160px;
+  min-width: 1230px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -1902,8 +1902,8 @@ th[data-sort]:hover {
 }
 
 /* Set reasonable widths for remaining columns */
-.ladder-table th:nth-child(13),
-.ladder-table td:nth-child(13) {
+.ladder-table th:nth-child(14),
+.ladder-table td:nth-child(14) {
   min-width: 95px;   /* Ladder */
 }
 
@@ -1913,27 +1913,27 @@ th[data-sort]:hover {
   white-space: nowrap;
 }
 
-.ladder-table th:nth-child(7),
-.ladder-table td:nth-child(7) {
+.ladder-table th:nth-child(8),
+.ladder-table td:nth-child(8) {
   width: 65px;
   min-width: 65px;   /* Rating */
   text-align: right;
 }
 
-.ladder-table th:nth-child(9),
-.ladder-table td:nth-child(9) {
+.ladder-table th:nth-child(10),
+.ladder-table td:nth-child(10) {
   min-width: 44px;   /* SOS — wide enough for values like "3.14" or "—" */
   text-align: right;
 }
 
-.ladder-table th:nth-child(10),
-.ladder-table td:nth-child(10),
 .ladder-table th:nth-child(11),
 .ladder-table td:nth-child(11),
 .ladder-table th:nth-child(12),
 .ladder-table td:nth-child(12),
 .ladder-table th:nth-child(13),
-.ladder-table td:nth-child(13) {
+.ladder-table td:nth-child(13),
+.ladder-table th:nth-child(14),
+.ladder-table td:nth-child(14) {
   min-width: 80px;
   text-align: right;
 }
@@ -1947,7 +1947,7 @@ th[data-sort]:hover {
   }
 
   .ladder-table {
-    min-width: 480px;
+    min-width: 524px;
     font-size: 13px;
   }
 
@@ -2004,9 +2004,20 @@ th[data-sort]:hover {
     text-align: right;
   }
 
-  /* Rating column on mobile */
+  /* Win% column on mobile */
   .ladder-table th:nth-child(7),
   .ladder-table td:nth-child(7) {
+    width: 44px !important;
+    min-width: 0 !important;
+    max-width: 44px !important;
+    padding: 4px !important;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  /* Rating column on mobile */
+  .ladder-table th:nth-child(8),
+  .ladder-table td:nth-child(8) {
     width: 52px !important;
     min-width: 0 !important;
     max-width: 52px !important;
@@ -2014,9 +2025,9 @@ th[data-sort]:hover {
     text-align: right;
   }
 
-  /* Status column on mobile (now visible at col 8) */
-  .ladder-table th:nth-child(8),
-  .ladder-table td:nth-child(8) {
+  /* Status column on mobile (now visible at col 9) */
+  .ladder-table th:nth-child(9),
+  .ladder-table td:nth-child(9) {
     width: 52px !important;
     min-width: 0 !important;
     max-width: 52px !important;
@@ -2026,9 +2037,9 @@ th[data-sort]:hover {
     white-space: nowrap;
   }
 
-  /* SOS column on mobile (moved to col 9) */
-  .ladder-table th:nth-child(9),
-  .ladder-table td:nth-child(9) {
+  /* SOS column on mobile (moved to col 10) */
+  .ladder-table th:nth-child(10),
+  .ladder-table td:nth-child(10) {
     width: 36px !important;
     min-width: 0 !important;
     max-width: 36px !important;
@@ -2108,7 +2119,7 @@ th[data-sort]:hover {
   }
 
   .ladder-table {
-    min-width: 400px;
+    min-width: 444px;
     font-size: 13px;
   }
 
@@ -2138,13 +2149,15 @@ th[data-sort]:hover {
     max-width: 160px;
   }
 
-  /* Points, W, L: short numeric values — keep them narrow */
+  /* Points, W, L, Win%: short numeric values — keep them narrow */
   .ladder-table th:nth-child(4),
   .ladder-table td:nth-child(4),
   .ladder-table th:nth-child(5),
   .ladder-table td:nth-child(5),
   .ladder-table th:nth-child(6),
-  .ladder-table td:nth-child(6) {
+  .ladder-table td:nth-child(6),
+  .ladder-table th:nth-child(7),
+  .ladder-table td:nth-child(7) {
     width: 70px;
     min-width: 70px;
     text-align: right;
@@ -2803,13 +2816,13 @@ th[data-sort]:hover {
    LADDER — SHOW/HIDE COLS
 ========================= */
 
-.ladder-table th:nth-child(n+10),
-.ladder-table td:nth-child(n+10) {
+.ladder-table th:nth-child(n+11),
+.ladder-table td:nth-child(n+11) {
   display: none;
 }
 
-.ladder-table.show-more-stats th:nth-child(n+10),
-.ladder-table.show-more-stats td:nth-child(n+10) {
+.ladder-table.show-more-stats th:nth-child(n+11),
+.ladder-table.show-more-stats td:nth-child(n+11) {
   display: table-cell;
 }
 
@@ -4515,18 +4528,18 @@ th[data-sort]:hover {
 .btn-complete-match:hover { background: var(--green-dark); }
 .btn-complete-match:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Inc. column (16th) in rankings table */
-.ladder-table th:nth-child(16),
-.ladder-table td:nth-child(16) {
+/* Inc. column (17th) in rankings table */
+.ladder-table th:nth-child(17),
+.ladder-table td:nth-child(17) {
   min-width: 50px;
   text-align: right;
 }
 
-/* DI W / DI L columns (14th and 15th) */
-.ladder-table th:nth-child(14),
-.ladder-table td:nth-child(14),
+/* DI W / DI L columns (15th and 16th) */
 .ladder-table th:nth-child(15),
-.ladder-table td:nth-child(15) {
+.ladder-table td:nth-child(15),
+.ladder-table th:nth-child(16),
+.ladder-table td:nth-child(16) {
   min-width: 56px;
   text-align: right;
 }

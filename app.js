@@ -194,6 +194,13 @@ function formatDisplayRating(value) {
   return roundToTwo(Number(value)).toFixed(2);
 }
 
+function formatWinPct(wins, losses) {
+  const w = wins ?? 0;
+  const l = losses ?? 0;
+  if (w + l === 0) return "—";
+  return `${Math.round((w / (w + l)) * 100)}%`;
+}
+
 function formatSignedNumber(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   const num = Number(value);
@@ -450,7 +457,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
-  return state.ladder.showMoreStats ? 16 : 9;
+  return state.ladder.showMoreStats ? 17 : 10;
 }
 
 function getLadderSearchEl() {
@@ -877,6 +884,7 @@ function renderLadder(players) {
         <td class="num">${player.ladder_points ?? 0}</td>
         <td class="num">${player.wins ?? 0}</td>
         <td class="num">${player.losses ?? 0}</td>
+        <td class="num">${formatWinPct(player.wins, player.losses)}</td>
         <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
         <td>${escapeHtml(player.status || "—")}</td>
         <td class="num">${player.sos != null ? player.sos : "—"}</td>
