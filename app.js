@@ -201,6 +201,13 @@ function formatWinPct(wins, losses) {
   return `${Math.round((w / (w + l)) * 100)}%`;
 }
 
+function getWinPct(player) {
+  const w = player.wins ?? 0;
+  const l = player.losses ?? 0;
+  if (w + l === 0) return null;
+  return w / (w + l);
+}
+
 function formatSignedNumber(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   const num = Number(value);
@@ -695,6 +702,28 @@ function sortPlayers(players) {
       if (aNull && bNull) return compareValues(a.name || "", b.name || "", "asc");
       if (aNull) return 1;
       if (bNull) return -1;
+    }
+
+    // For Win%, players with no decisions ("—") always sort to the bottom regardless of direction
+    if (sortBy === "win_pct") {
+      const aVal = getWinPct(a);
+      const bVal = getWinPct(b);
+      const aNull = aVal == null;
+      const bNull = bVal == null;
+      if (aNull && bNull) return compareValues(a.name || "", b.name || "", "asc");
+      if (aNull) return 1;
+      if (bNull) return -1;
+
+      const primaryWinPct = compareValues(aVal, bVal, sortDir);
+      if (primaryWinPct !== 0) return primaryWinPct;
+
+      const secondaryWinPct = compareValues(a.ladder_points ?? 0, b.ladder_points ?? 0, "desc");
+      if (secondaryWinPct !== 0) return secondaryWinPct;
+
+      const tertiaryWinPct = compareValues(a.wins ?? 0, b.wins ?? 0, "desc");
+      if (tertiaryWinPct !== 0) return tertiaryWinPct;
+
+      return compareValues(a.name || "", b.name || "", "asc");
     }
 
     const primary = compareValues(a[sortBy], b[sortBy], sortDir);
