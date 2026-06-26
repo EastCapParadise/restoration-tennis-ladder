@@ -5,6 +5,8 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const state = {
   ladder: {
     filterSex: "All",
+    mode: "standard",        // "standard" | "rating-climb"
+    _theadIsRatingClimb: false,
     search: "",
     sortBy: "ladder_points",
     sortDir: "desc",
@@ -122,6 +124,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (document.getElementById("phone")) setupPhoneFormatting();
 
     if (getLadderBodyEl()) {
+      const tabParam = new URLSearchParams(window.location.search).get("tab");
+      if (tabParam === "rating-climb") {
+        state.ladder.mode = "rating-climb";
+        state.ladder.filterSex = "All";
+      }
       setupLadderSearch();
       setupLadderFilterButtons();
       setupLadderSorting();
@@ -464,6 +471,7 @@ function getLadderBodyEl() {
 }
 
 function getLadderColspan() {
+  if (state.ladder.mode === "rating-climb") return 6;
   return state.ladder.showMoreStats ? 17 : 10;
 }
 
@@ -475,7 +483,15 @@ function setupLadderFilterButtons() {
   const buttons = document.querySelectorAll(".ladder-filters .filter-btn");
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
-      state.ladder.filterSex = button.dataset.filter || "All";
+      const filter = button.dataset.filter || "All";
+      if (filter === "RatingClimb") {
+        state.ladder.mode = "rating-climb";
+        state.ladder.filterSex = "All";
+        state.ladder.userHasSorted = false;
+      } else {
+        state.ladder.mode = "standard";
+        state.ladder.filterSex = filter;
+      }
       loadLadder();
     });
   });
@@ -539,6 +555,7 @@ async function fetchPlayers() {
       sex,
       area,
       phone,
+      initial_rating,
       display_rating,
       dynamic_rating,
       rating,
@@ -883,6 +900,36 @@ function renderLadder(players) {
   const ladderBody = getLadderBodyEl();
   if (!ladderBody) return;
 
+  // Restore standard thead if previously in rating-climb mode
+  if (state.ladder._theadIsRatingClimb) {
+    const theadTr = document.querySelector(".ladder-table thead tr");
+    if (theadTr) {
+      theadTr.innerHTML = `
+        <th data-sort="season_rank">Rank</th>
+        <th data-sort="name">Name</th>
+        <th data-sort="area">Area</th>
+        <th class="num" data-sort="ladder_points" title="Includes drop-in game points">Points</th>
+        <th class="num" data-sort="wins">W</th>
+        <th class="num" data-sort="losses">L</th>
+        <th class="num" data-sort="win_pct">Win%</th>
+        <th class="num" data-sort="dynamic_rating">Rating</th>
+        <th data-sort="status">Status</th>
+        <th class="num" data-sort="sos" title="Average rating of opponents faced">SOS</th>
+        <th class="num" data-sort="games_won">Games W</th>
+        <th class="num" data-sort="games_lost">Games L</th>
+        <th class="num" data-sort="matches_played">Played</th>
+        <th data-sort="sex">Ladder</th>
+        <th class="num" data-sort="mini_games_won" title="Drop-in games won">DI W</th>
+        <th class="num" data-sort="mini_games_lost" title="Drop-in games lost">DI L</th>
+        <th class="num" data-sort="incomplete_matches" title="Incomplete matches — started but not yet finished">Inc.</th>
+      `;
+    }
+    setupLadderSorting();
+    const tbl = document.querySelector(".ladder-table");
+    if (tbl) tbl.classList.remove("ladder-table--rating-climb");
+    state.ladder._theadIsRatingClimb = false;
+  }
+
   if (!players.length) {
     setTableMessage(ladderBody, "No players found.", getLadderColspan());
     return;
@@ -946,11 +993,85 @@ function renderLadder(players) {
   });
 }
 
+function renderRatingClimb(players) {
+  const ladderBody = getLadderBodyEl();
+  if (!ladderBody) return;
+
+  // Replace thead with 6-column Rating Climb layout
+  const theadTr = document.querySelector(".ladder-table thead tr");
+  if (theadTr) {
+    theadTr.innerHTML = `
+      <th>Rank</th>
+      <th>Name</th>
+      <th class="num">Initial</th>
+      <th class="num">Current</th>
+      <th class="num">Change</th>
+      <th class="num">Matches</th>
+    `;
+  }
+  const tbl = document.querySelector(".ladder-table");
+  if (tbl) tbl.classList.add("ladder-table--rating-climb");
+  state.ladder._theadIsRatingClimb = true;
+
+  if (!players.length) {
+    setTableMessage(ladderBody, "No qualifying players (need 3+ matches).", 6);
+    requestAnimationFrame(() => { if (tbl) setupStickyTableHeader(tbl); });
+    return;
+  }
+
+  const mePlayer = getMyLadderPlayer();
+
+  ladderBody.innerHTML = players.map((player, index) => {
+    const rank = index + 1;
+    const badge = getRankBadge(index);
+    const isMe = mePlayer && String(player.id) === String(mePlayer.id);
+    const youTag = isMe ? '<span class="rank-me-tag">← You</span>' : "";
+
+    let rowClass = "fade-in-row";
+    if (isMe) rowClass += " rank-me";
+    else if (rank === 1) rowClass += " rank-1";
+    else if (rank === 2) rowClass += " rank-2";
+    else if (rank === 3) rowClass += " rank-3";
+    else if (rank <= 10) rowClass += " rank-top-10";
+
+    const ir = Number(player.initial_rating ?? 0);
+    const curr = Number(player.dynamic_rating ?? 0);
+    const gain = roundToTwo(curr - ir);
+    const gainFmt = (gain >= 0 ? "+" : "") + gain.toFixed(2);
+    const gainClass = gain > 0 ? "rc-gain-pos" : gain < 0 ? "rc-gain-neg" : "";
+
+    return `
+      <tr class="${rowClass}">
+        <td>${badge}</td>
+        <td><a class="player-link" href="player.html?id=${player.id}">${escapeHtml(player.name || "")}</a>${youTag}</td>
+        <td class="num">${ir.toFixed(2)}</td>
+        <td class="num">${curr.toFixed(2)}</td>
+        <td class="num ${gainClass}">${gainFmt}</td>
+        <td class="num">${player.matches_played ?? 0}</td>
+      </tr>
+    `;
+  }).join("");
+
+  if (mePlayer) {
+    requestAnimationFrame(() => {
+      const meRow = ladderBody.querySelector(".rank-me");
+      if (meRow) meRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  requestAnimationFrame(() => { if (tbl) setupStickyTableHeader(tbl); });
+}
+
 async function loadLadder() {
   const ladderBody = getLadderBodyEl();
   if (!ladderBody) return;
 
-  setActiveFilterButton(".ladder-filters", state.ladder.filterSex);
+  const activeFilter = state.ladder.mode === "rating-climb" ? "RatingClimb" : state.ladder.filterSex;
+  setActiveFilterButton(".ladder-filters", activeFilter);
+
+  const showMoreBtn = document.getElementById("show-more-stats-btn");
+  if (showMoreBtn) showMoreBtn.style.display = state.ladder.mode === "rating-climb" ? "none" : "";
+
   setTableMessage(ladderBody, "Loading rankings...", getLadderColspan());
 
   try {
@@ -969,16 +1090,27 @@ async function loadLadder() {
       sos: calculatePlayerSOS(player.id, sosMatches, sexMap)
     }));
 
-    // Assign overall standings rank before filtering so it stays consistent
-    // across Men's / Women's / All views and when the user sorts by Rank.
-    sortPlayersForStandings(playersWithStatus).forEach((p, i) => { p.season_rank = i + 1; });
+    if (state.ladder.mode === "rating-climb") {
+      const qualified = playersWithStatus.filter(p => (p.matches_played ?? 0) >= 3);
+      const searched = applyLadderFilters(qualified); // applies search; filterSex="All" so no sex filter
+      const sorted = [...searched].sort((a, b) => {
+        const aGain = Number(a.dynamic_rating ?? 0) - Number(a.initial_rating ?? 0);
+        const bGain = Number(b.dynamic_rating ?? 0) - Number(b.initial_rating ?? 0);
+        return bGain - aGain;
+      });
+      renderRatingClimb(sorted);
+    } else {
+      // Assign overall standings rank before filtering so it stays consistent
+      // across Men's / Women's / All views and when the user sorts by Rank.
+      sortPlayersForStandings(playersWithStatus).forEach((p, i) => { p.season_rank = i + 1; });
 
-    const filtered = applyLadderFilters(playersWithStatus);
-    const sorted = state.ladder.userHasSorted
-      ? sortPlayers(filtered)
-      : sortPlayersForStandings(filtered);
+      const filtered = applyLadderFilters(playersWithStatus);
+      const sorted = state.ladder.userHasSorted
+        ? sortPlayers(filtered)
+        : sortPlayersForStandings(filtered);
 
-    renderLadder(sorted);
+      renderLadder(sorted);
+    }
   } catch (error) {
     console.error("Load ladder error:", error);
     setTableMessage(ladderBody, "Error loading rankings.", getLadderColspan());
@@ -1233,6 +1365,8 @@ async function loadSeasonStory() {
 
     const players = playersRes.data || [];
     const matches = matchesRes.data || [];
+
+    renderHomeLeaderboards(players);
 
     if (!players.length || !matches.length) {
       container.innerHTML = "<h2>📖 Season Story So Far</h2><p class=\"season-story-text\">The 2026 season is just getting started — no results yet. Check back once matches are in.</p>";
@@ -1578,6 +1712,89 @@ async function loadSeasonStory() {
     console.error("Season story error:", err);
     container.innerHTML = "<h2>📖 Season Story So Far</h2><p class=\"small-text\">Unable to load season story.</p>";
   }
+}
+
+/* =========================
+   HOME LEADERBOARDS
+========================= */
+
+function renderHomeLeaderboards(players) {
+  const container = document.getElementById("home-leaderboards");
+  if (!container || !players || !players.length) return;
+
+  // Helper: first name, with last-initial disambiguation within a given group
+  function dispName(player, group) {
+    const first = (player?.name || "").trim().split(/\s+/)[0];
+    const conflict = group.some(p => p.id !== player.id &&
+      (p?.name || "").trim().split(/\s+/)[0] === first);
+    if (!conflict) return first;
+    const parts = (player?.name || "").trim().split(/\s+/);
+    const li = parts[parts.length - 1]?.[0] || "";
+    return li ? `${first} ${li}.` : first;
+  }
+
+  // Card 1 — Points Leaders (top 3 by ladder_points)
+  const byPoints = [...players]
+    .sort((a, b) => (b.ladder_points ?? 0) - (a.ladder_points ?? 0))
+    .slice(0, 3);
+
+  // Card 2 — Win% Leaders (min 3 matches, by win%)
+  const byWinPct = [...players]
+    .filter(p => ((p.wins ?? 0) + (p.losses ?? 0)) >= 3)
+    .sort((a, b) => {
+      const aW = (a.wins ?? 0), aL = (a.losses ?? 0);
+      const bW = (b.wins ?? 0), bL = (b.losses ?? 0);
+      return (bW / (bW + bL)) - (aW / (aW + aL));
+    })
+    .slice(0, 3);
+
+  // Card 3 — Rating Climb (min 3 matches, by dynamic_rating - initial_rating)
+  const byClimb = [...players]
+    .filter(p => (p.matches_played ?? 0) >= 3 && p.initial_rating != null)
+    .sort((a, b) => {
+      const aG = Number(a.dynamic_rating ?? 0) - Number(a.initial_rating ?? 0);
+      const bG = Number(b.dynamic_rating ?? 0) - Number(b.initial_rating ?? 0);
+      return bG - aG;
+    })
+    .slice(0, 3);
+
+  const MEDALS = ["🥇", "🥈", "🥉"];
+
+  function buildRows(group, valueFn) {
+    if (!group.length) return `<div class="lbd-empty">No data yet</div>`;
+    return group.map((p, i) => {
+      const name = escapeHtml(dispName(p, group));
+      const val  = escapeHtml(valueFn(p));
+      return `<div class="lbd-row"><span class="lbd-medal">${MEDALS[i]}</span><span class="lbd-name">${name}</span><span class="lbd-val">${val}</span></div>`;
+    }).join("");
+  }
+
+  function fmtWinPct(p) {
+    const w = p.wins ?? 0, l = p.losses ?? 0;
+    return w + l === 0 ? "—" : `${Math.round((w / (w + l)) * 100)}%`;
+  }
+
+  function fmtClimb(p) {
+    const g = roundToTwo(Number(p.dynamic_rating ?? 0) - Number(p.initial_rating ?? 0));
+    return (g >= 0 ? "+" : "") + g.toFixed(2);
+  }
+
+  container.innerHTML = `
+    <div class="home-lbd-row">
+      <a class="lbd-card lbd-card--points" href="ladder.html">
+        <div class="lbd-heading">🏆 Points Leaders</div>
+        ${buildRows(byPoints, p => `${p.ladder_points ?? 0} pts`)}
+      </a>
+      <a class="lbd-card lbd-card--winpct" href="ladder.html">
+        <div class="lbd-heading">🎯 Win% Leaders</div>
+        ${buildRows(byWinPct, fmtWinPct)}
+      </a>
+      <a class="lbd-card lbd-card--climb" href="ladder.html?tab=rating-climb">
+        <div class="lbd-heading">📈 Rating Climb</div>
+        ${buildRows(byClimb, fmtClimb)}
+      </a>
+    </div>
+  `;
 }
 
 /* =========================
@@ -2545,6 +2762,7 @@ async function fetchSelectedPlayers(formData) {
       id,
       name,
       sex,
+      initial_rating,
       display_rating,
       dynamic_rating,
       rating,
@@ -2884,13 +3102,16 @@ function calculateMatchScoring({
   // --- Dynamic rating change ---
   // RC = (delta / 24) × K × 0.85. Winner gains, loser loses.
   // Elo win probability is NOT used here — only in buildOddsLine for display.
-  // K three-tier by sequential match count: matches 1-3 = 0.15, 4-8 = 0.10, 9+ = 0.06.
+  // K is determined per player by their initial_rating band (fixed at season start) AND sequential match count.
+  // Band < 3.0: 0.18/0.13/0.08. Band 3.0–3.75: 0.15/0.10/0.06. Band ≥ 3.75: 0.12/0.08/0.05.
   // Applied per player so doubles teammates at different experience levels get different K.
   function playerK(player) {
     const mp = player?.matches_played ?? 0;
-    if (mp < 3) return 0.15;
-    if (mp < 8) return 0.10;
-    return 0.06;
+    const ir = Number(player?.initial_rating ?? 0);
+    const k = ir < 3.0  ? [0.21, 0.16, 0.11]
+            : ir < 3.75 ? [0.15, 0.10, 0.06]
+            :             [0.12, 0.08, 0.05];
+    return mp < 3 ? k[0] : mp < 8 ? k[1] : k[2];
   }
 
   function playerRc(player, isWinnerTeam) {
@@ -5323,7 +5544,7 @@ async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles) {
 
     const { data: players, error: pErr } = await supabaseClient
       .from("players")
-      .select("id, name, sex, display_rating, dynamic_rating, rating, ladder_points, wins, losses, games_won, games_lost, matches_played, incomplete_matches")
+      .select("id, name, sex, initial_rating, display_rating, dynamic_rating, rating, ladder_points, wins, losses, games_won, games_lost, matches_played, incomplete_matches")
       .in("id", allIds);
     if (pErr) throw pErr;
 

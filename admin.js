@@ -109,12 +109,15 @@ function avgAdjRating(players, adj) {
   }, 0) / v.length;
 }
 
-// K three-tier: matches 1-3 = 0.15, matches 4-8 = 0.10, matches 9+ = 0.06
+// K by initial_rating band (fixed at season start) AND sequential match count.
+// Band < 3.0: 0.18/0.13/0.08. Band 3.0–3.75: 0.15/0.10/0.06. Band ≥ 3.75: 0.12/0.08/0.05.
 function playerK(player) {
   const mp = player?.matches_played ?? 0;
-  if (mp < 3) return 0.15;
-  if (mp < 8) return 0.10;
-  return 0.06;
+  const ir = Number(player?.initial_rating ?? 0);
+  const k = ir < 3.0  ? [0.21, 0.16, 0.11]
+          : ir < 3.75 ? [0.15, 0.10, 0.06]
+          :             [0.12, 0.08, 0.05];
+  return mp < 3 ? k[0] : mp < 8 ? k[1] : k[2];
 }
 
 function scoreMatch({ winnerTeam, team1Players, team2Players,
@@ -213,6 +216,7 @@ async function runRecalculation(log) {
     const ir = Number(p.initial_rating ?? p.display_rating ?? 0);
     state[p.id] = {
       id: p.id, name: p.name, sex: p.sex,
+      initial_rating: ir,
       dynamic_rating: ir, display_rating: ir, rating: Math.round(ir * 100),
       ladder_points: 0, wins: 0, losses: 0,
       games_won: 0, games_lost: 0, matches_played: 0,
