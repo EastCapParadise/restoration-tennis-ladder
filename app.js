@@ -1740,17 +1740,6 @@ function renderHomeLeaderboards(players) {
   const container = document.getElementById("home-leaderboards");
   if (!container || !players || !players.length) return;
 
-  // Helper: first name, with last-initial disambiguation within a given group
-  function dispName(player, group) {
-    const first = (player?.name || "").trim().split(/\s+/)[0];
-    const conflict = group.some(p => p.id !== player.id &&
-      (p?.name || "").trim().split(/\s+/)[0] === first);
-    if (!conflict) return first;
-    const parts = (player?.name || "").trim().split(/\s+/);
-    const li = parts[parts.length - 1]?.[0] || "";
-    return li ? `${first} ${li}.` : first;
-  }
-
   // Card 1 — Points Leaders (top 3 by ladder_points)
   const byPoints = [...players]
     .sort((a, b) => (b.ladder_points ?? 0) - (a.ladder_points ?? 0))
@@ -1781,7 +1770,7 @@ function renderHomeLeaderboards(players) {
   function buildRows(group, valueFn) {
     if (!group.length) return `<div class="lbd-empty">No data yet</div>`;
     return group.map((p, i) => {
-      const name = escapeHtml(dispName(p, group));
+      const name = escapeHtml((p?.name || "").trim());
       const val  = escapeHtml(valueFn(p));
       return `<div class="lbd-row"><span class="lbd-medal">${MEDALS[i]}</span><span class="lbd-name">${name}</span><span class="lbd-val">${val}</span></div>`;
     }).join("");

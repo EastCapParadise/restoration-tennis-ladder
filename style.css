@@ -3026,6 +3026,12 @@ th[data-sort]:hover {
   }
 }
 
+@media (max-width: 480px) {
+  .lbd-name {
+    font-size: 12px;
+  }
+}
+
 /* =========================
    LADDER — RATING CLIMB TABLE
 ========================= */
