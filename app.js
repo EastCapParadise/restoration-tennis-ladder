@@ -472,7 +472,7 @@ function getLadderBodyEl() {
 
 function getLadderColspan() {
   if (state.ladder.mode === "rating-climb") return 6;
-  return state.ladder.showMoreStats ? 17 : 10;
+  return state.ladder.showMoreStats ? 18 : 11;
 }
 
 function getLadderSearchEl() {
@@ -721,6 +721,15 @@ function sortPlayers(players) {
       if (bNull) return -1;
     }
 
+    // For Rating Δ, players with no matches (null) always sort to the bottom
+    if (sortBy === "rating_delta") {
+      const aNull = a.rating_delta == null;
+      const bNull = b.rating_delta == null;
+      if (aNull && bNull) return compareValues(a.name || "", b.name || "", "asc");
+      if (aNull) return 1;
+      if (bNull) return -1;
+    }
+
     // For Win%, players with no decisions ("—") always sort to the bottom regardless of direction
     if (sortBy === "win_pct") {
       const aVal = getWinPct(a);
@@ -913,6 +922,7 @@ function renderLadder(players) {
         <th class="num" data-sort="losses">L</th>
         <th class="num" data-sort="win_pct">Win%</th>
         <th class="num" data-sort="dynamic_rating">Rating</th>
+        <th class="num" data-sort="rating_delta">Rating Δ</th>
         <th data-sort="status">Status</th>
         <th class="num" data-sort="sos" title="Average rating of opponents faced">SOS</th>
         <th class="num" data-sort="games_won">Games W</th>
@@ -952,6 +962,10 @@ function renderLadder(players) {
     const moveHtml = getRankMovementHtml(rank, player.previous_rank);
     const youTag = isMe ? '<span class="rank-me-tag">← You</span>' : "";
 
+    const rd = player.rating_delta;
+    const rdFmt = rd == null ? "—" : (rd >= 0 ? "+" : "") + rd.toFixed(2);
+    const rdClass = rd == null || rd === 0 ? "rc-gain-zero" : rd > 0 ? "rc-gain-pos" : "rc-gain-neg";
+
     return `
       <tr class="${rowClass}">
         <td>${badge}${moveHtml}</td>
@@ -962,6 +976,7 @@ function renderLadder(players) {
         <td class="num">${player.losses ?? 0}</td>
         <td class="num">${formatWinPct(player.wins, player.losses)}</td>
         <td class="num">${formatDisplayRating(player.dynamic_rating)}</td>
+        <td class="num ${rdClass}">${rdFmt}</td>
         <td>${escapeHtml(player.status || "—")}</td>
         <td class="num">${player.sos != null ? player.sos : "—"}</td>
         <td class="num">${player.games_won ?? 0}</td>
@@ -1087,7 +1102,10 @@ async function loadLadder() {
     const playersWithStatus = players.map((player) => ({
       ...player,
       status: getPlayerStatus(player.id, recentMatches),
-      sos: calculatePlayerSOS(player.id, sosMatches, sexMap)
+      sos: calculatePlayerSOS(player.id, sosMatches, sexMap),
+      rating_delta: (player.matches_played ?? 0) > 0
+        ? roundToTwo(Number(player.dynamic_rating ?? 0) - Number(player.initial_rating ?? 0))
+        : null,
     }));
 
     if (state.ladder.mode === "rating-climb") {

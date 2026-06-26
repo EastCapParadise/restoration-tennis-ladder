@@ -1847,7 +1847,7 @@ th[data-sort]:hover {
 
 .ladder-table {
   width: 100%;
-  min-width: 1230px;
+  min-width: 1300px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -1902,8 +1902,8 @@ th[data-sort]:hover {
 }
 
 /* Set reasonable widths for remaining columns */
-.ladder-table th:nth-child(14),
-.ladder-table td:nth-child(14) {
+.ladder-table th:nth-child(15),
+.ladder-table td:nth-child(15) {
   min-width: 95px;   /* Ladder */
 }
 
@@ -1920,20 +1920,27 @@ th[data-sort]:hover {
   text-align: right;
 }
 
-.ladder-table th:nth-child(10),
-.ladder-table td:nth-child(10) {
-  min-width: 44px;   /* SOS — wide enough for values like "3.14" or "—" */
+.ladder-table th:nth-child(9),
+.ladder-table td:nth-child(9) {
+  width: 68px;
+  min-width: 68px;   /* Rating Δ */
   text-align: right;
 }
 
 .ladder-table th:nth-child(11),
-.ladder-table td:nth-child(11),
+.ladder-table td:nth-child(11) {
+  min-width: 44px;   /* SOS — wide enough for values like "3.14" or "—" */
+  text-align: right;
+}
+
 .ladder-table th:nth-child(12),
 .ladder-table td:nth-child(12),
 .ladder-table th:nth-child(13),
 .ladder-table td:nth-child(13),
 .ladder-table th:nth-child(14),
-.ladder-table td:nth-child(14) {
+.ladder-table td:nth-child(14),
+.ladder-table th:nth-child(15),
+.ladder-table td:nth-child(15) {
   min-width: 80px;
   text-align: right;
 }
@@ -1947,7 +1954,7 @@ th[data-sort]:hover {
   }
 
   .ladder-table {
-    min-width: 524px;
+    min-width: 595px;
     font-size: 13px;
   }
 
@@ -2816,13 +2823,13 @@ th[data-sort]:hover {
    LADDER — SHOW/HIDE COLS
 ========================= */
 
-.ladder-table th:nth-child(n+11),
-.ladder-table td:nth-child(n+11) {
+.ladder-table th:nth-child(n+12),
+.ladder-table td:nth-child(n+12) {
   display: none;
 }
 
-.ladder-table.show-more-stats th:nth-child(n+11),
-.ladder-table.show-more-stats td:nth-child(n+11) {
+.ladder-table.show-more-stats th:nth-child(n+12),
+.ladder-table.show-more-stats td:nth-child(n+12) {
   display: table-cell;
 }
 
@@ -3027,8 +3034,9 @@ th[data-sort]:hover {
   min-width: 480px;
 }
 
-.rc-gain-pos { color: #16a34a; font-weight: 700; }
-.rc-gain-neg { color: #dc2626; font-weight: 700; }
+.rc-gain-pos  { color: #16a34a; font-weight: 700; }
+.rc-gain-neg  { color: #dc2626; font-weight: 700; }
+.rc-gain-zero { color: var(--muted); }
 
 /* =========================
    WEATHER WIDGET
