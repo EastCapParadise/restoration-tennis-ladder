@@ -128,6 +128,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (tabParam === "rating-climb") {
         state.ladder.mode = "rating-climb";
         state.ladder.filterSex = "All";
+      } else if (tabParam === "singles") {
+        state.ladder.mode = "singles";
+        state.ladder.filterSex = "All";
+      } else if (tabParam === "doubles") {
+        state.ladder.mode = "doubles";
+        state.ladder.filterSex = "All";
       }
       setupLadderSearch();
       setupLadderFilterButtons();
@@ -475,6 +481,10 @@ function getLadderColspan() {
   return state.ladder.showMoreStats ? 18 : 11;
 }
 
+function isFormatMode() {
+  return state.ladder.mode === "singles" || state.ladder.mode === "doubles";
+}
+
 function getLadderSearchEl() {
   return document.getElementById("ladder-search");
 }
@@ -486,6 +496,14 @@ function setupLadderFilterButtons() {
       const filter = button.dataset.filter || "All";
       if (filter === "RatingClimb") {
         state.ladder.mode = "rating-climb";
+        state.ladder.filterSex = "All";
+        state.ladder.userHasSorted = false;
+      } else if (filter === "Singles") {
+        state.ladder.mode = "singles";
+        state.ladder.filterSex = "All";
+        state.ladder.userHasSorted = false;
+      } else if (filter === "Doubles") {
+        state.ladder.mode = "doubles";
         state.ladder.filterSex = "All";
         state.ladder.userHasSorted = false;
       } else {
@@ -568,7 +586,17 @@ async function fetchPlayers() {
       previous_rank,
       mini_games_won,
       mini_games_lost,
-      incomplete_matches
+      incomplete_matches,
+      singles_points,
+      singles_wins,
+      singles_losses,
+      singles_games_won,
+      singles_games_lost,
+      doubles_points,
+      doubles_wins,
+      doubles_losses,
+      doubles_games_won,
+      doubles_games_lost
     `);
 
   if (error) throw error;
@@ -1081,7 +1109,10 @@ async function loadLadder() {
   const ladderBody = getLadderBodyEl();
   if (!ladderBody) return;
 
-  const activeFilter = state.ladder.mode === "rating-climb" ? "RatingClimb" : state.ladder.filterSex;
+  const activeFilter = state.ladder.mode === "rating-climb" ? "RatingClimb"
+    : state.ladder.mode === "singles" ? "Singles"
+    : state.ladder.mode === "doubles" ? "Doubles"
+    : state.ladder.filterSex;
   setActiveFilterButton(".ladder-filters", activeFilter);
 
   const showMoreBtn = document.getElementById("show-more-stats-btn");
@@ -1117,6 +1148,43 @@ async function loadLadder() {
         return bGain - aGain;
       });
       renderRatingClimb(sorted);
+    } else if (isFormatMode()) {
+      const pfx = state.ladder.mode; // "singles" or "doubles"
+
+      // Filter to players who have played in this format
+      const qualified = playersWithStatus.filter(p =>
+        ((p[`${pfx}_wins`] ?? 0) + (p[`${pfx}_losses`] ?? 0)) > 0
+      );
+
+      // Remap format-specific fields into standard field names so renderLadder
+      // and sortPlayers work without modification.
+      const mapped = qualified.map(p => ({
+        ...p,
+        ladder_points: p[`${pfx}_points`]    ?? 0,
+        wins:          p[`${pfx}_wins`]       ?? 0,
+        losses:        p[`${pfx}_losses`]     ?? 0,
+        games_won:     p[`${pfx}_games_won`]  ?? 0,
+        games_lost:    p[`${pfx}_games_lost`] ?? 0,
+        previous_rank: null, // no per-format rank history
+      }));
+
+      // Apply search (filterSex="All" so no sex filtering)
+      const searched = applyLadderFilters(mapped);
+
+      // Default sort: pts desc → rating desc → wins desc
+      const defaultSort = (a, b) => {
+        const byPts = (b.ladder_points ?? 0) - (a.ladder_points ?? 0);
+        if (byPts !== 0) return byPts;
+        const byRating = Number(b.dynamic_rating ?? 0) - Number(a.dynamic_rating ?? 0);
+        if (byRating !== 0) return byRating;
+        return (b.wins ?? 0) - (a.wins ?? 0);
+      };
+
+      const defaultSorted = [...searched].sort(defaultSort);
+      defaultSorted.forEach((p, i) => { p.season_rank = i + 1; });
+
+      const sorted = state.ladder.userHasSorted ? sortPlayers(defaultSorted) : defaultSorted;
+      renderLadder(sorted);
     } else {
       // Assign overall standings rank before filtering so it stays consistent
       // across Men's / Women's / All views and when the user sorts by Rank.

@@ -220,6 +220,8 @@ async function runRecalculation(log) {
       dynamic_rating: ir, display_rating: ir, rating: Math.round(ir * 100),
       ladder_points: 0, wins: 0, losses: 0,
       games_won: 0, games_lost: 0, matches_played: 0,
+      singles_points: 0, singles_wins: 0, singles_losses: 0, singles_games_won: 0, singles_games_lost: 0,
+      doubles_points: 0, doubles_wins: 0, doubles_losses: 0, doubles_games_won: 0, doubles_games_lost: 0,
     };
   }
 
@@ -354,6 +356,19 @@ async function runRecalculation(log) {
       player.games_won  += ownStd;
       player.games_lost += oppStd;
       player.matches_played += 1;
+      if (m.match_type === 'Singles') {
+        player.singles_points    += lp;
+        player.singles_wins      += won ? 1 : 0;
+        player.singles_losses    += won ? 0 : 1;
+        player.singles_games_won  += ownStd;
+        player.singles_games_lost += oppStd;
+      } else if (m.match_type === 'Doubles') {
+        player.doubles_points    += lp;
+        player.doubles_wins      += won ? 1 : 0;
+        player.doubles_losses    += won ? 0 : 1;
+        player.doubles_games_won  += ownStd;
+        player.doubles_games_lost += oppStd;
+      }
     }
     applyUpd(t1[0], s.ratingChanges[0], s.ladderPoints[0], t1Won, t1Std, t2Std);
     applyUpd(t1[1], s.ratingChanges[1], s.ladderPoints[1], t1Won, t1Std, t2Std);
@@ -367,17 +382,34 @@ async function runRecalculation(log) {
   for (const p of players) {
     const s = state[p.id];
     const { error } = await db.from('players').update({
-      display_rating: s.display_rating,
-      dynamic_rating: s.dynamic_rating,
-      rating: s.rating,
-      ladder_points: s.ladder_points,
-      wins: s.wins,
-      losses: s.losses,
-      games_won: s.games_won,
-      games_lost: s.games_lost,
-      matches_played: s.matches_played,
+      display_rating:    s.display_rating,
+      dynamic_rating:    s.dynamic_rating,
+      rating:            s.rating,
+      ladder_points:     s.ladder_points,
+      wins:              s.wins,
+      losses:            s.losses,
+      games_won:         s.games_won,
+      games_lost:        s.games_lost,
+      matches_played:    s.matches_played,
+      singles_points:    s.singles_points,
+      singles_wins:      s.singles_wins,
+      singles_losses:    s.singles_losses,
+      singles_games_won: s.singles_games_won,
+      singles_games_lost:s.singles_games_lost,
+      doubles_points:    s.doubles_points,
+      doubles_wins:      s.doubles_wins,
+      doubles_losses:    s.doubles_losses,
+      doubles_games_won: s.doubles_games_won,
+      doubles_games_lost:s.doubles_games_lost,
     }).eq('id', p.id);
-    if (error) log('error', `  ERROR player ${s.name}: ${error.message}`);
+    if (error) {
+      log('error', `  ERROR player ${s.name}: ${error.message}`);
+    } else {
+      const splitSum = s.singles_points + s.doubles_points;
+      if (splitSum !== s.ladder_points) {
+        log('error', `  SPLIT MISMATCH ${s.name}: singles(${s.singles_points}) + doubles(${s.doubles_points}) = ${splitSum} ≠ official ${s.ladder_points}`);
+      }
+    }
   }
 
   // STEP 3 — Write recalculated mini-game and retired stats back to each player
