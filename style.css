@@ -959,47 +959,36 @@ hr {
   display: none;
 }
 
-/* Mobile: filter tabs + Show More Stats on one row, never stack or overflow.
-   margin-left: auto on #show-more-stats-btn (from .toggle-stats-link base rule)
-   pushes it right — do NOT also use justify-content: space-between or the two
-   mechanisms fight and the button gets pushed past the viewport edge. */
+/* Mobile: 3×2 grid of filter buttons, Show More Stats on its own row below */
 @media (max-width: 767px) {
   .ladder-filters-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 6px;
-    /* no justify-content: space-between — margin-left:auto on the button handles it */
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
   .ladder-filters-row .ladder-filters {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 4px;
-    flex: 1;
-    min-width: 0; /* allow the flex item to shrink below its content size */
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
     margin: 0;
   }
 
   .ladder-filters-row .ladder-filters .filter-btn {
-    flex: 1;
-    min-width: 0; /* allow buttons to shrink below text width on tiny screens */
+    flex: none;
     font-size: 11px;
-    padding: 6px 4px;
+    padding: 7px 4px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: center;
   }
 
-  #show-more-stats-btn {
+  .ladder-filters-row #show-more-stats-btn {
+    align-self: flex-end;
+    margin-top: 4px;
     font-size: 10px;
     padding: 5px 6px;
     white-space: nowrap;
-    flex-shrink: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
 
