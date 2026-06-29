@@ -5292,6 +5292,8 @@ th[data-sort]:hover {
   padding: 1px 6px;
   font-size: 11px;
   vertical-align: middle;
+  min-width: 90px;
+  justify-content: center;
 }
 
 /* Winner / Opponent player blocks */
