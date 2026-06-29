@@ -5252,7 +5252,7 @@ th[data-sort]:hover {
 .hmt-header,
 .hmt-row {
   display: grid;
-  grid-template-columns: 100px 1fr 1fr 120px;
+  grid-template-columns: max-content 1fr 1fr max-content;
   align-items: start;
 }
 
@@ -5265,47 +5265,45 @@ th[data-sort]:hover {
   color: var(--green-dark);
   border-bottom: 2px solid #dde6e0;
 }
-.hmt-header > div { padding: 8px 12px; white-space: nowrap; }
+.hmt-header > div { padding: 6px 10px; white-space: nowrap; }
 .hmt-header .hmt-score-cell { text-align: right; }
 
 .hmt-match:nth-child(even) .hmt-row { background: #f8faf9; }
 
 .hmt-row {
   cursor: pointer;
-  border-bottom: 1px solid #f0f4f1;
+  border-bottom: 1px solid #e8ede9;
   transition: background 0.1s;
 }
 .hmt-row:hover { background: rgba(31,77,58,0.06) !important; }
 .hmt-row.row-expanded { background: rgba(31,77,58,0.06) !important; }
-.hmt-row > div { padding: 12px; }
+.hmt-row > div { padding: 8px 10px; }
 
-/* Date cell */
+/* Date cell — badge inline next to date on same line */
 .hmt-date-cell {
   font-variant-numeric: tabular-nums;
   font-size: 13px;
   color: var(--text);
-}
-.hmt-date-val {
-  display: block;
-  margin-bottom: 5px;
   white-space: nowrap;
 }
+.hmt-date-val { white-space: nowrap; }
 .hmt-date-cell .match-badge {
-  display: inline-block;
-  padding: 2px 7px;
+  margin-left: 6px;
+  padding: 1px 6px;
   font-size: 11px;
+  vertical-align: middle;
 }
 
 /* Winner / Opponent player blocks */
 .hmt-player {
-  line-height: 1.35;
-  margin-bottom: 6px;
+  line-height: 1.25;
+  margin-bottom: 4px;
 }
 .hmt-player:last-child { margin-bottom: 0; }
 .hmt-pname { font-size: 14px; }
 .hmt-pw { font-weight: 700; }
 .hmt-pl { font-weight: 500; }
-.hmt-pstats { font-size: 12px; color: var(--muted); }
+.hmt-pstats { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
 /* Shared rating/RC/pts color tokens */
 .htc-pr   { color: var(--muted); }
