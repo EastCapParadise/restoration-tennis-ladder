@@ -5245,3 +5245,112 @@ th[data-sort]:hover {
   .dropin-log-table th,
   .dropin-log-table td { padding: 7px 8px; }
 }
+
+/* ── History match table (All / Singles / Doubles tabs) ── */
+.history-match-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  table-layout: fixed;
+}
+.history-match-table th {
+  background: #edf2ee;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--green-dark);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 2px solid #dde6e0;
+  white-space: nowrap;
+}
+.history-match-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f4f1;
+  color: var(--text);
+  vertical-align: middle;
+}
+.history-match-table tbody tr.history-table-row:nth-child(4n+1) td,
+.history-match-table tbody tr.history-table-row:nth-child(4n+3) td { background: #f8faf9; }
+.history-match-table tbody tr.history-table-row:hover td { background: rgba(31,77,58,0.06); cursor: pointer; }
+.history-match-table tbody tr.history-table-row.row-expanded td { background: rgba(31,77,58,0.06); }
+.history-match-table tbody tr.upset-row td { border-left: 3px solid #d97706; }
+
+/* Column widths */
+.history-match-table th.htc-date,
+.history-match-table td.htc-date  { width: 62px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.history-match-table th.htc-type,
+.history-match-table td.htc-type  { width: 94px; }
+.history-match-table th.htc-players,
+.history-match-table td.htc-players { /* flex remainder */ }
+.history-match-table th.htc-score,
+.history-match-table td.htc-score  { width: 100px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.history-match-table th.htc-result,
+.history-match-table td.htc-result { width: 78px; text-align: center; }
+
+/* Players cell — truncate to one line */
+.htc-players-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Expand row */
+.history-table-expand td {
+  padding: 0;
+  border-bottom: 2px solid #dde6e0;
+  background: #f4f8f5 !important;
+}
+
+/* Inner content of expand row */
+.history-expand-inner {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.history-expand-inner .card-photo {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 6px;
+}
+.expand-detail-meta,
+.expand-detail-players,
+.expand-detail-score {
+  font-size: 13px;
+  color: var(--text);
+}
+.expand-detail-meta { color: var(--muted); }
+
+/* Type badge sizing inside table stays compact */
+.history-match-table .match-badge {
+  padding: 3px 8px;
+  font-size: 0.75rem;
+}
+
+/* Row-expanded chevron hint */
+.history-table-row td.htc-date::before {
+  content: "▶";
+  font-size: 8px;
+  color: var(--muted);
+  margin-right: 5px;
+  display: inline-block;
+  transition: transform 0.15s;
+  vertical-align: middle;
+}
+.history-table-row.row-expanded td.htc-date::before { transform: rotate(90deg); }
+
+@media (max-width: 600px) {
+  .history-match-table { font-size: 13px; }
+  .history-match-table th,
+  .history-match-table td { padding: 7px 8px; }
+  .history-match-table th.htc-result,
+  .history-match-table td.htc-result { display: none; }
+  .history-match-table th.htc-score,
+  .history-match-table td.htc-score { width: 80px; }
+  .history-match-table th.htc-type,
+  .history-match-table td.htc-type { width: 76px; }
+  .history-match-table .match-badge { padding: 2px 6px; font-size: 0.7rem; }
+}
