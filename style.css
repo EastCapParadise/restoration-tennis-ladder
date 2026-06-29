@@ -5330,6 +5330,38 @@ th[data-sort]:hover {
   font-size: 0.75rem;
 }
 
+/* ── Players cell — per-player stacked rows ── */
+.htc-players-cell { /* natural multi-line flow */ }
+.htc-player-row {
+  line-height: 1.3;
+  margin-bottom: 5px;
+}
+.htc-player-row:last-child { margin-bottom: 0; }
+.htc-player-name {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.htc-pw { font-weight: 700; }
+.htc-pl { font-weight: 500; }
+.htc-player-stats {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.htc-pr  { color: var(--muted); }
+.htc-rc-pos  { color: #16a34a; }
+.htc-rc-neg  { color: #dc2626; }
+.htc-rc-zero { color: var(--muted); }
+.htc-pts { font-weight: 700; color: var(--text); }
+.htc-team-div {
+  border-top: 1px solid #dde6e0;
+  margin: 4px 0;
+}
+@media (max-width: 600px) {
+  .htc-player-name  { font-size: 12px; }
+  .htc-player-stats { font-size: 10px; white-space: normal; }
+}
+
 /* Row-expanded chevron hint */
 .history-table-row td.htc-date::before {
   content: "▶";

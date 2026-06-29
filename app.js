@@ -4393,6 +4393,7 @@ async function loadMatchHistory() {
         const loserText  = _wt === 1 ? display.team2Text : display.team1Text;
         const upset = isMatchUpset(match);
         const typeClass = match.match_type === "Doubles" ? "doubles" : "singles";
+        const isDoubles = match.match_type === "Doubles";
         const cardData = JSON.stringify({
           type: match.match_type || "Match",
           winner: winnerText || "—",
@@ -4408,6 +4409,34 @@ async function loadMatchHistory() {
           winnerRc:  _wt === 1 ? match.rating_change_p1 : match.rating_change_p3,
           loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
         });
+
+        // Build per-player stacked rows for the Players cell
+        const isMixed = matchIsMixedGender(match, sexMap);
+        const t1Rating = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
+        const t2Rating = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
+        const mkPlayerRow = (id, rc, pts, teamRating, isWinner) => {
+          if (!id) return "";
+          const nm = display.nameMap[id] || playerMap[id] || "?";
+          const rcNum = Number(rc || 0);
+          const rcStr = rcNum > 0 ? `+${rcNum.toFixed(2)}` : rcNum.toFixed(2);
+          const rcCls = rcNum > 0 ? "htc-rc-pos" : rcNum < 0 ? "htc-rc-neg" : "htc-rc-zero";
+          const rStr = teamRating != null ? Number(teamRating).toFixed(2) : "—";
+          const pStr = pts != null ? pts : "—";
+          return `<div class="htc-player-row">` +
+            `<div class="htc-player-name ${isWinner ? "htc-pw" : "htc-pl"}">${escapeHtml(nm)}</div>` +
+            `<div class="htc-player-stats"><span class="htc-pr">${escapeHtml(rStr)}</span> <span class="${rcCls}">${escapeHtml(rcStr)}</span> · <span class="htc-pts">${escapeHtml(String(pStr))} pts</span></div>` +
+            `</div>`;
+        };
+        const wIsT1 = _wt === 1;
+        const t1Html = mkPlayerRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, wIsT1) +
+                       mkPlayerRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Rating, wIsT1);
+        const t2Html = mkPlayerRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Rating, !wIsT1) +
+                       mkPlayerRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, !wIsT1);
+        const divider = isDoubles ? `<div class="htc-team-div"></div>` : "";
+        const playersCell = wIsT1
+          ? `<div class="htc-players-cell">${t1Html}${divider}${t2Html}</div>`
+          : `<div class="htc-players-cell">${t2Html}${divider}${t1Html}</div>`;
+
         const expandInner = `
           <div class="history-expand-inner history-list-card">
             ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
@@ -4424,7 +4453,7 @@ async function loadMatchHistory() {
           <tr class="history-table-row${upset ? " upset-row" : ""}" data-match-id="${match.id}">
             <td class="htc-date">${escapeHtml(fmtShortDate(match.date_played))}</td>
             <td class="htc-type"><span class="match-badge ${typeClass}">${escapeHtml(match.match_type)}</span></td>
-            <td class="htc-players"><span class="htc-players-text">${escapeHtml(winnerText)} def. ${escapeHtml(loserText)}</span></td>
+            <td class="htc-players">${playersCell}</td>
             <td class="htc-score">${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}</td>
             <td class="htc-result">${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}</td>
           </tr>
