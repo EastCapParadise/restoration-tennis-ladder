@@ -5398,6 +5398,12 @@ th[data-sort]:hover {
     border-top: 1px solid #f0f4f1;
   }
 
-  .hmt-pname  { font-size: 14px; }
-  .hmt-pstats { font-size: 11px; }
+  .hmt-player {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .hmt-pname  { font-size: 14px; flex: 1 1 auto; }
+  .hmt-pstats { font-size: 11px; flex: 0 0 auto; text-align: right; white-space: nowrap; margin-top: 0; }
 }
