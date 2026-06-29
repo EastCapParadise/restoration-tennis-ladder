@@ -4333,20 +4333,37 @@ async function loadMatchHistory() {
         `;
       }).join("");
     } else {
-      // Compact table for All / Singles / Doubles
-      const fmtShortDate = d => d ? new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
+      // Four-column layout: Date | Winner | Opponent | Score
+      const fmtShortDate = d => d ? new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }) : "—";
 
-      const tableRows = filteredMatches.map((match) => {
+      const matchGroups = filteredMatches.map((match) => {
         const display = buildMatchDisplay(match, playerMap);
+        const isMixed = matchIsMixedGender(match, sexMap);
+        const t1Rating = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
+        const t2Rating = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
 
+        const mkPlayer = (id, rc, pts, teamRating, bold) => {
+          if (!id) return "";
+          const nm = display.nameMap[id] || playerMap[id] || "?";
+          const rcNum = Number(rc || 0);
+          const rcStr = rcNum > 0 ? `+${rcNum.toFixed(2)}` : rcNum.toFixed(2);
+          const rcCls = rcNum > 0 ? "htc-rc-pos" : rcNum < 0 ? "htc-rc-neg" : "htc-rc-zero";
+          const rStr = teamRating != null ? Number(teamRating).toFixed(2) : "—";
+          const pStr = pts != null ? pts : "—";
+          return `<div class="hmt-player">` +
+            `<div class="hmt-pname ${bold ? "hmt-pw" : "hmt-pl"}">${escapeHtml(nm)}</div>` +
+            `<div class="hmt-pstats"><span class="htc-pr">${escapeHtml(rStr)}</span> <span class="${rcCls}">${escapeHtml(rcStr)}</span> · <span class="htc-pts">${escapeHtml(String(pStr))} pts</span></div>` +
+            `</div>`;
+        };
+
+        // Retired match in the "All" tab
         if (match.match_type === "retired") {
-          // Retired matches surfaced in the "All" tab get a table row + expand
           const allRetiredIds = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
           const retiredObjs = allRetiredIds.map(id => ({ id, name: playerMap[id] })).filter(p => p.name);
           const retiredNm = disambiguateNames(retiredObjs);
           const rName = id => id ? (retiredNm[id] || playerMap[id] || "?") : null;
-          const t1Str = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName).filter(Boolean).join(" / ");
-          const t2Str = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName).filter(Boolean).join(" / ");
+          const t1Names = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName).filter(Boolean);
+          const t2Names = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName).filter(Boolean);
           const ptsByPlayer = {
             [match.team1_player1_id]: match.ladder_points_p1 ?? 5,
             [match.team1_player2_id]: match.ladder_points_p2 ?? 5,
@@ -4367,7 +4384,7 @@ async function loadMatchHistory() {
             <div class="history-expand-inner history-list-card">
               ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
               <div class="expand-detail-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}</div>
-              <div class="expand-detail-players"><strong>Players:</strong> ${escapeHtml(t1Str)} vs ${escapeHtml(t2Str)}</div>
+              <div class="expand-detail-players"><strong>Players:</strong> ${escapeHtml(t1Names.join(" / "))} vs ${escapeHtml(t2Names.join(" / "))}</div>
               <div class="expand-detail-score"><strong>Score at stoppage:</strong> ${escapeHtml(match.score_text || "Incomplete")}</div>
               ${match.match_notes ? `<div class="expand-detail-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
               <div class="match-extras">${partRows}</div>
@@ -4376,23 +4393,25 @@ async function loadMatchHistory() {
                 ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
               </div>
             </div>`;
-          return `
-            <tr class="history-table-row retired-row" data-match-id="${match.id}">
-              <td class="htc-date">${escapeHtml(fmtShortDate(match.date_played))}</td>
-              <td class="htc-type"><span class="match-badge retired-badge">🏳️ Incomplete</span></td>
-              <td class="htc-players"><span class="htc-players-text">${escapeHtml(t1Str)} vs ${escapeHtml(t2Str)}</span></td>
-              <td class="htc-score">${escapeHtml(match.score_text || "—")}</td>
-              <td class="htc-result"></td>
-            </tr>
-            <tr class="history-table-expand" data-expand-for="${match.id}" hidden><td colspan="5">${expandInner}</td></tr>`;
+          const t1Html = t1Names.map(n => `<div class="hmt-player"><div class="hmt-pname hmt-pl">${escapeHtml(n)}</div></div>`).join("");
+          const t2Html = t2Names.map(n => `<div class="hmt-player"><div class="hmt-pname hmt-pl">${escapeHtml(n)}</div></div>`).join("");
+          return `<div class="hmt-match">` +
+            `<div class="hmt-row retired-row" data-match-id="${match.id}">` +
+            `<div class="hmt-date-cell"><span class="hmt-date-val">${escapeHtml(fmtShortDate(match.date_played))}</span><span class="match-badge retired-badge">🏳️ Incomplete</span></div>` +
+            `<div class="hmt-winner-cell">${t1Html}</div>` +
+            `<div class="hmt-opp-cell">${t2Html}</div>` +
+            `<div class="hmt-score-cell">${escapeHtml(match.score_text || "—")}</div>` +
+            `</div>` +
+            `<div class="hmt-expand" data-expand-for="${match.id}" hidden>${expandInner}</div>` +
+            `</div>`;
         }
 
-        // Regular Singles / Doubles row
+        // Regular Singles / Doubles match
         const _wt = match.winner_team;
-        const winnerText = _wt === 1 ? display.team1Text : display.team2Text;
-        const loserText  = _wt === 1 ? display.team2Text : display.team1Text;
+        const wIsT1 = _wt === 1;
+        const winnerText = wIsT1 ? display.team1Text : display.team2Text;
+        const loserText  = wIsT1 ? display.team2Text : display.team1Text;
         const typeClass = match.match_type === "Doubles" ? "doubles" : "singles";
-        const isDoubles = match.match_type === "Doubles";
         const cardData = JSON.stringify({
           type: match.match_type || "Match",
           winner: winnerText || "—",
@@ -4409,32 +4428,17 @@ async function loadMatchHistory() {
           loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
         });
 
-        // Build per-player stacked rows for the Players cell
-        const isMixed = matchIsMixedGender(match, sexMap);
-        const t1Rating = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
-        const t2Rating = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
-        const mkPlayerRow = (id, rc, pts, teamRating, isWinner) => {
-          if (!id) return "";
-          const nm = display.nameMap[id] || playerMap[id] || "?";
-          const rcNum = Number(rc || 0);
-          const rcStr = rcNum > 0 ? `+${rcNum.toFixed(2)}` : rcNum.toFixed(2);
-          const rcCls = rcNum > 0 ? "htc-rc-pos" : rcNum < 0 ? "htc-rc-neg" : "htc-rc-zero";
-          const rStr = teamRating != null ? Number(teamRating).toFixed(2) : "—";
-          const pStr = pts != null ? pts : "—";
-          return `<div class="htc-player-row">` +
-            `<div class="htc-player-name ${isWinner ? "htc-pw" : "htc-pl"}">${escapeHtml(nm)}</div>` +
-            `<div class="htc-player-stats"><span class="htc-pr">${escapeHtml(rStr)}</span> <span class="${rcCls}">${escapeHtml(rcStr)}</span> · <span class="htc-pts">${escapeHtml(String(pStr))} pts</span></div>` +
-            `</div>`;
-        };
-        const wIsT1 = _wt === 1;
-        const t1Html = mkPlayerRow(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, wIsT1) +
-                       mkPlayerRow(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Rating, wIsT1);
-        const t2Html = mkPlayerRow(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Rating, !wIsT1) +
-                       mkPlayerRow(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, !wIsT1);
-        const divider = isDoubles ? `<div class="htc-team-div"></div>` : "";
-        const playersCell = wIsT1
-          ? `<div class="htc-players-cell">${t1Html}${divider}${t2Html}</div>`
-          : `<div class="htc-players-cell">${t2Html}${divider}${t1Html}</div>`;
+        const winnerCell = wIsT1
+          ? mkPlayer(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, true) +
+            mkPlayer(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Rating, true)
+          : mkPlayer(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Rating, true) +
+            mkPlayer(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, true);
+
+        const oppCell = wIsT1
+          ? mkPlayer(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Rating, false) +
+            mkPlayer(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, false)
+          : mkPlayer(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, false) +
+            mkPlayer(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Rating, false);
 
         const expandInner = `
           <div class="history-expand-inner history-list-card">
@@ -4448,29 +4452,29 @@ async function loadMatchHistory() {
               ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
             </div>
           </div>`;
-        return `
-          <tr class="history-table-row" data-match-id="${match.id}">
-            <td class="htc-date">${escapeHtml(fmtShortDate(match.date_played))}</td>
-            <td class="htc-type"><span class="match-badge ${typeClass}">${escapeHtml(match.match_type)}</span></td>
-            <td class="htc-players">${playersCell}</td>
-            <td class="htc-score">${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}</td>
-            <td class="htc-result"></td>
-          </tr>
-          <tr class="history-table-expand" data-expand-for="${match.id}" hidden><td colspan="5">${expandInner}</td></tr>`;
+
+        return `<div class="hmt-match">` +
+          `<div class="hmt-row" data-match-id="${match.id}">` +
+          `<div class="hmt-date-cell"><span class="hmt-date-val">${escapeHtml(fmtShortDate(match.date_played))}</span><span class="match-badge ${typeClass}">${escapeHtml(match.match_type)}</span></div>` +
+          `<div class="hmt-winner-cell">${winnerCell}</div>` +
+          `<div class="hmt-opp-cell">${oppCell}</div>` +
+          `<div class="hmt-score-cell">${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}</div>` +
+          `</div>` +
+          `<div class="hmt-expand" data-expand-for="${match.id}" hidden>${expandInner}</div>` +
+          `</div>`;
       }).join("");
 
       container.innerHTML = `
         <div class="table-wrap">
-          <table class="history-match-table">
-            <thead><tr>
-              <th class="htc-date">Date</th>
-              <th class="htc-type">Type</th>
-              <th class="htc-players">Players</th>
-              <th class="htc-score">Score</th>
-              <th class="htc-result">Result</th>
-            </tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
+          <div class="hmt-list">
+            <div class="hmt-header">
+              <div class="hmt-date-cell">Date</div>
+              <div class="hmt-winner-cell">Winner</div>
+              <div class="hmt-opp-cell">Opponent</div>
+              <div class="hmt-score-cell">Score</div>
+            </div>
+            ${matchGroups}
+          </div>
         </div>`;
     }
 
@@ -4478,14 +4482,14 @@ async function loadMatchHistory() {
     if (!container.dataset.shareListenerAttached) {
       container.dataset.shareListenerAttached = "1";
       container.addEventListener("click", (e) => {
-        // Row expand toggle (table view only; ignore clicks on interactive children)
-        const row = e.target.closest(".history-table-row");
+        // Row expand toggle
+        const row = e.target.closest(".hmt-row");
         if (row && !e.target.closest("button, a")) {
           const matchId = row.dataset.matchId;
-          const expandRow = container.querySelector(`.history-table-expand[data-expand-for="${matchId}"]`);
-          if (expandRow) {
-            const nowHidden = !expandRow.hidden;
-            expandRow.hidden = nowHidden;
+          const expandPanel = container.querySelector(`.hmt-expand[data-expand-for="${matchId}"]`);
+          if (expandPanel) {
+            const nowHidden = !expandPanel.hidden;
+            expandPanel.hidden = nowHidden;
             row.classList.toggle("row-expanded", !nowHidden);
           }
           return;
@@ -4506,7 +4510,7 @@ async function loadMatchHistory() {
         if (addBtn) {
           const mid = addBtn.dataset.matchId;
           showPhotoUploadModal(mid, (url) => {
-            const expandRow = container.querySelector(`.history-table-expand[data-expand-for="${mid}"]`);
+            const expandRow = container.querySelector(`.hmt-expand[data-expand-for="${mid}"]`);
             const expandInner = expandRow?.querySelector(".history-expand-inner");
             const card = container.querySelector(`.history-item[data-match-id="${mid}"]`);
             if (expandInner) {

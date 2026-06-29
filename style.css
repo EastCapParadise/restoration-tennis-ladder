@@ -5246,123 +5246,101 @@ th[data-sort]:hover {
   .dropin-log-table td { padding: 7px 8px; }
 }
 
-/* ── History match table (All / Singles / Doubles tabs) ── */
-.history-match-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  table-layout: fixed;
+/* ── Match History: Date | Winner | Opponent | Score layout ── */
+.hmt-list { width: 100%; }
+
+.hmt-header,
+.hmt-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr 120px;
+  align-items: start;
 }
-.history-match-table th {
+
+.hmt-header {
   background: #edf2ee;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--green-dark);
-  padding: 8px 12px;
-  text-align: left;
   border-bottom: 2px solid #dde6e0;
-  white-space: nowrap;
 }
-.history-match-table td {
-  padding: 9px 12px;
+.hmt-header > div { padding: 8px 12px; white-space: nowrap; }
+.hmt-header .hmt-score-cell { text-align: right; }
+
+.hmt-match:nth-child(even) .hmt-row { background: #f8faf9; }
+
+.hmt-row {
+  cursor: pointer;
   border-bottom: 1px solid #f0f4f1;
+  transition: background 0.1s;
+}
+.hmt-row:hover { background: rgba(31,77,58,0.06) !important; }
+.hmt-row.row-expanded { background: rgba(31,77,58,0.06) !important; }
+.hmt-row > div { padding: 12px; }
+
+/* Date cell */
+.hmt-date-cell {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   color: var(--text);
-  vertical-align: middle;
 }
-.history-match-table tbody tr.history-table-row:nth-child(4n+1) td,
-.history-match-table tbody tr.history-table-row:nth-child(4n+3) td { background: #f8faf9; }
-.history-match-table tbody tr.history-table-row:hover td { background: rgba(31,77,58,0.06); cursor: pointer; }
-.history-match-table tbody tr.history-table-row.row-expanded td { background: rgba(31,77,58,0.06); }
-
-/* Column widths */
-.history-match-table th.htc-date,
-.history-match-table td.htc-date  { width: 62px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.history-match-table th.htc-type,
-.history-match-table td.htc-type  { width: 94px; }
-.history-match-table th.htc-players,
-.history-match-table td.htc-players { /* flex remainder */ }
-.history-match-table th.htc-score,
-.history-match-table td.htc-score  { width: 100px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.history-match-table th.htc-result,
-.history-match-table td.htc-result { width: 78px; text-align: center; }
-
-/* Players cell — truncate to one line */
-.htc-players-text {
+.hmt-date-val {
   display: block;
+  margin-bottom: 5px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+.hmt-date-cell .match-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11px;
 }
 
-/* Expand row */
-.history-table-expand td {
-  padding: 0;
-  border-bottom: 2px solid #dde6e0;
-  background: #f4f8f5 !important;
+/* Winner / Opponent player blocks */
+.hmt-player {
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+.hmt-player:last-child { margin-bottom: 0; }
+.hmt-pname { font-size: 14px; }
+.hmt-pw { font-weight: 700; }
+.hmt-pl { font-weight: 500; }
+.hmt-pstats { font-size: 12px; color: var(--muted); }
+
+/* Shared rating/RC/pts color tokens */
+.htc-pr   { color: var(--muted); }
+.htc-rc-pos  { color: #16a34a; }
+.htc-rc-neg  { color: #dc2626; }
+.htc-rc-zero { color: var(--muted); }
+.htc-pts  { font-weight: 700; color: var(--text); }
+
+/* Score cell */
+.hmt-score-cell {
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  align-self: center;
 }
 
-/* Inner content of expand row */
+/* Expand panel */
+.hmt-expand { border-bottom: 2px solid #dde6e0; background: #f4f8f5; }
+
+/* Inner content of expand panel */
 .history-expand-inner {
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.history-expand-inner .card-photo {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 6px;
-}
+.history-expand-inner .card-photo { width: 80px; height: 80px; margin-bottom: 6px; }
 .expand-detail-meta,
 .expand-detail-players,
-.expand-detail-score {
-  font-size: 13px;
-  color: var(--text);
-}
+.expand-detail-score { font-size: 13px; color: var(--text); }
 .expand-detail-meta { color: var(--muted); }
 
-/* Type badge sizing inside table stays compact */
-.history-match-table .match-badge {
-  padding: 3px 8px;
-  font-size: 0.75rem;
-}
-
-/* ── Players cell — per-player stacked rows ── */
-.htc-players-cell { /* natural multi-line flow */ }
-.htc-player-row {
-  line-height: 1.3;
-  margin-bottom: 5px;
-}
-.htc-player-row:last-child { margin-bottom: 0; }
-.htc-player-name {
-  font-size: 13px;
-  white-space: nowrap;
-}
-.htc-pw { font-weight: 700; }
-.htc-pl { font-weight: 500; }
-.htc-player-stats {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.htc-pr  { color: var(--muted); }
-.htc-rc-pos  { color: #16a34a; }
-.htc-rc-neg  { color: #dc2626; }
-.htc-rc-zero { color: var(--muted); }
-.htc-pts { font-weight: 700; color: var(--text); }
-.htc-team-div {
-  border-top: 1px solid #dde6e0;
-  margin: 4px 0;
-}
-@media (max-width: 600px) {
-  .htc-player-name  { font-size: 12px; }
-  .htc-player-stats { font-size: 10px; white-space: normal; }
-}
-
-/* Row-expanded chevron hint */
-.history-table-row td.htc-date::before {
+/* Chevron expand hint in date cell */
+.hmt-row .hmt-date-val::before {
   content: "▶";
   font-size: 8px;
   color: var(--muted);
@@ -5371,17 +5349,57 @@ th[data-sort]:hover {
   transition: transform 0.15s;
   vertical-align: middle;
 }
-.history-table-row.row-expanded td.htc-date::before { transform: rotate(90deg); }
+.hmt-row.row-expanded .hmt-date-val::before { transform: rotate(90deg); }
 
-@media (max-width: 600px) {
-  .history-match-table { font-size: 13px; }
-  .history-match-table th,
-  .history-match-table td { padding: 7px 8px; }
-  .history-match-table th.htc-result,
-  .history-match-table td.htc-result { display: none; }
-  .history-match-table th.htc-score,
-  .history-match-table td.htc-score { width: 80px; }
-  .history-match-table th.htc-type,
-  .history-match-table td.htc-type { width: 76px; }
-  .history-match-table .match-badge { padding: 2px 6px; font-size: 0.7rem; }
+/* ── Mobile: stacked card layout ── */
+@media (max-width: 767px) {
+  .hmt-header { display: none; }
+
+  .hmt-match {
+    border: 1px solid #e0e7e3;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .hmt-match:nth-child(even) .hmt-row { background: #fff; }
+
+  .hmt-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 12px;
+    border-bottom: none;
+    gap: 0;
+  }
+  .hmt-row > div { padding: 0; }
+
+  /* Date + Score share the top line */
+  .hmt-date-cell { order: 1; flex: 1 1 auto; }
+  .hmt-score-cell {
+    order: 2;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    text-align: right;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Winner and Opponent each take full width below */
+  .hmt-winner-cell {
+    order: 3;
+    flex: 0 0 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f4f1;
+  }
+  .hmt-opp-cell {
+    order: 4;
+    flex: 0 0 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f4f1;
+  }
+
+  .hmt-pname  { font-size: 14px; }
+  .hmt-pstats { font-size: 11px; }
 }
