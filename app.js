@@ -4351,7 +4351,7 @@ async function loadMatchHistory() {
           const rStr = teamRating != null ? Number(teamRating).toFixed(2) : "—";
           const pStr = pts != null ? pts : "—";
           return `<div class="hmt-player">` +
-            `<div class="hmt-pname ${bold ? "hmt-pw" : "hmt-pl"}">${escapeHtml(nm)}</div>` +
+            `<div class="hmt-pname ${bold ? "hmt-pw" : "hmt-pl"}"><a href="player.html?id=${id}" class="player-link hmt-plink">${escapeHtml(nm)}</a></div>` +
             `<div class="hmt-pstats"><span class="htc-pr">${escapeHtml(rStr)}</span> <span class="${rcCls}">${escapeHtml(rcStr)}</span> · <span class="htc-pts">${escapeHtml(String(pStr))} pts</span></div>` +
             `</div>`;
         };
