@@ -4391,7 +4391,6 @@ async function loadMatchHistory() {
         const _wt = match.winner_team;
         const winnerText = _wt === 1 ? display.team1Text : display.team2Text;
         const loserText  = _wt === 1 ? display.team2Text : display.team1Text;
-        const upset = isMatchUpset(match);
         const typeClass = match.match_type === "Doubles" ? "doubles" : "singles";
         const isDoubles = match.match_type === "Doubles";
         const cardData = JSON.stringify({
@@ -4450,12 +4449,12 @@ async function loadMatchHistory() {
             </div>
           </div>`;
         return `
-          <tr class="history-table-row${upset ? " upset-row" : ""}" data-match-id="${match.id}">
+          <tr class="history-table-row" data-match-id="${match.id}">
             <td class="htc-date">${escapeHtml(fmtShortDate(match.date_played))}</td>
             <td class="htc-type"><span class="match-badge ${typeClass}">${escapeHtml(match.match_type)}</span></td>
             <td class="htc-players">${playersCell}</td>
             <td class="htc-score">${escapeHtml(winnerFirstScore(match.score_text || "", match.winner_team))}</td>
-            <td class="htc-result">${upset ? '<span class="match-badge upset-badge">⚡ Upset</span>' : ""}</td>
+            <td class="htc-result"></td>
           </tr>
           <tr class="history-table-expand" data-expand-for="${match.id}" hidden><td colspan="5">${expandInner}</td></tr>`;
       }).join("");

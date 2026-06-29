@@ -5275,7 +5275,6 @@ th[data-sort]:hover {
 .history-match-table tbody tr.history-table-row:nth-child(4n+3) td { background: #f8faf9; }
 .history-match-table tbody tr.history-table-row:hover td { background: rgba(31,77,58,0.06); cursor: pointer; }
 .history-match-table tbody tr.history-table-row.row-expanded td { background: rgba(31,77,58,0.06); }
-.history-match-table tbody tr.upset-row td:first-child { box-shadow: inset 3px 0 0 0 #f59e0b; }
 
 /* Column widths */
 .history-match-table th.htc-date,
