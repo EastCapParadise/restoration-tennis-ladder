@@ -331,9 +331,9 @@ function calcPoints(wStd, lStd, wAdj, lAdj) {
     lp = Math.max(5, Math.round(4 + lStd * 0.6 + eComp));
   }
 
-  lp = Math.min(lp, wp - 3);
+  lp = Math.min(lp, wp - 2);
   lp = Math.max(5, lp);
-  if (wp - lp < 3) wp = lp + 3;
+  if (wp - lp < 2) wp = lp + 2;
   return { wp, lp };
 }
 
