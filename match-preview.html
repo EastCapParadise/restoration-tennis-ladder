@@ -151,6 +151,13 @@
       margin-top: 2px;
     }
 
+    .pc-team-avg {
+      font-size: 13px;
+      font-weight: 800;
+      color: #1f4d3a;
+      margin-bottom: 6px;
+    }
+
     .pc-vs {
       font-size: 11px;
       font-weight: 800;
@@ -480,24 +487,23 @@ function render(data) {
       2:  { w: 12, score: '6-1, 6-1' }, 3:  { w: 12, score: '6-2, 6-1' },
       4:  { w: 12, score: '6-2, 6-2' }, 5:  { w: 12, score: '6-3, 6-2' },
       6:  { w: 12, score: '6-3, 6-3' }, 7:  { w: 12, score: '6-4, 6-3' },
-      8:  { w: 12, score: '6-4, 6-4' }, 10: { w: 13, score: '7-6, 6-4' },
-      11: { w: 13, score: '7-5, 6-4' }, 12: { w: 13, score: '7-6, 7-5' },
-      13: { w: 13, score: '7-6, 7-6' },
+      8:  { w: 12, score: '6-4, 6-4' }, 9:  { w: 13, score: '7-5, 6-4' },
+      10: { w: 13, score: '7-6, 6-4' }, 11: { w: 13, score: '7-5, 6-4' },
+      12: { w: 13, score: '7-6, 7-5' }, 13: { w: 13, score: '7-6, 7-6' },
     };
     const e = map[l] || map[2];
     return { w: e.w, l, score: e.score };
   }
 
-  // A = fav wins as expected  |  B = 8 closer (likely upset)
-  // C = underdog wins close   |  D = underdog dominates
-  // C and D use fixed absolute spreads so they always differ meaningfully:
-  //   C: abs 6  → always 6-3, 6-3 for the underdog winner
-  //   D: abs 20 → always capped to abs 10 → 6-1, 6-1 for the underdog winner
+  // A = fav wins convincingly   |  B = fav wins close
+  // C = underdog wins close     |  D = underdog wins convincingly
+  // A and B are always positive → favWins=true. C and D are always negative → favWins=false.
+  // Result: always exactly 2 fav-win scenarios and 2 underdog-win scenarios.
   const tSpreads = [
-    expSpread,      // A
-    expSpread - 8,  // B
-    -6,             // C: fixed — underdog wins close
-    -20,            // D: fixed — underdog dominates (caps at abs 10)
+    expSpread + 4,              // A: fav wins above expectation
+    Math.max(2, expSpread - 4), // B: fav wins close (≥+2 so always positive)
+    -4,                         // C: fixed — underdog wins close
+    -(expSpread + 4),           // D: mirror of A — underdog wins convincingly
   ];
 
   const scenarios = tSpreads.map(sp => buildScenario(sp));
@@ -536,25 +542,26 @@ function render(data) {
   const t1TitleName  = teamTitle(team1,   matchDispNames);
   const t2TitleName  = teamTitle(team2,   matchDispNames);
 
+  // Labels: A=fav wins big, B=fav wins close, C=und wins close, D=und wins big
   const labelsByGap = gapMag >= 0.35
     ? [
         `${favTitleName} wins as expected`,
-        `${undTitleName} pushes it — competitive`,
-        `⚡ Upset — ${undTitleName} wins`,
+        `${favTitleName} survives a scare`,
+        `⚡ Upset — ${undTitleName} edges it`,
         `⚡ ${undTitleName} dominates`,
       ]
     : gapMag >= 0.15
     ? [
         `${favTitleName} wins comfortably`,
-        `Close match — ${favTitleName} survives`,
+        `${favTitleName} holds on`,
         `${undTitleName} wins close`,
         `${undTitleName} takes it convincingly`,
       ]
     : [
-        `${favTitleName} wins comfortably`,
-        `Tight match — could go either way`,
-        `${undTitleName} wins close`,
-        `${undTitleName} takes it convincingly`,
+        `${favTitleName} wins in a tight one`,
+        `${favTitleName} edges it out`,
+        `${undTitleName} edges it out`,
+        `${undTitleName} wins in a tight one`,
       ];
 
   scenarios.forEach((s, i) => {
@@ -576,11 +583,15 @@ function render(data) {
     : `${t1Title} vs ${t2Title}`;
 
   const favShortName = teamShortName(favTeam);
-  const probLine = `${esc(favShortName)} ${favPct}% fav · Expected ~${scenarios[0].score}`;
+  const expectedScore = spreadToGameCounts(expSpread).score;
+  const probLine = `${esc(favShortName)} ${favPct}% fav · Expected ~${expectedScore}`;
 
   /* ── Teams HTML ── */
-  function teamColHtml(players) {
-    return players.map((p, i) => `
+  function teamColHtml(players, adjRating) {
+    const avgBlock = (isDoubles && players.length > 1)
+      ? `<div class="pc-team-avg">Team avg: ${Number(adjRating).toFixed(2)}</div>`
+      : '';
+    return avgBlock + players.map((p, i) => `
       ${i > 0 ? '<div class="pc-team-separator"></div>' : ''}
       <div class="pc-team-name">${esc(p.name)}</div>
       <div class="pc-team-rank">Rank ${rankLabel(p.rank)}</div>
@@ -640,9 +651,9 @@ function render(data) {
     </div>
 
     <div class="pc-teams">
-      <div class="pc-team left">${teamColHtml(team1)}</div>
+      <div class="pc-team left">${teamColHtml(team1, r1)}</div>
       <div class="pc-vs">VS</div>
-      <div class="pc-team right">${teamColHtml(team2)}</div>
+      <div class="pc-team right">${teamColHtml(team2, r2)}</div>
     </div>
 
     <div class="pc-scenarios-label">What's At Stake</div>
@@ -687,7 +698,7 @@ function render(data) {
     const exp    = g * 16;
     const favA   = Math.max(r1t, r2t);
     const undA   = Math.min(r1t, r2t);
-    const tsp    = [exp, exp - 8, -6, -20];
+    const tsp    = [exp + 4, Math.max(2, exp - 4), -4, -(exp + 4)];
     const rows   = tsp.map(sp => {
       const a = Math.round(Math.abs(sp));
       let w, l;
