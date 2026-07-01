@@ -5252,7 +5252,7 @@ th[data-sort]:hover {
 .hmt-header,
 .hmt-row {
   display: grid;
-  grid-template-columns: max-content 1fr 1fr 140px;
+  grid-template-columns: 195px 1fr 1fr 140px;
   align-items: start;
 }
 
