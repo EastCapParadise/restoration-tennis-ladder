@@ -3227,9 +3227,10 @@ th[data-sort]:hover {
   background: rgba(0, 0, 0, 0.6);
   z-index: 900;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
   animation: fadeInOverlay 0.18s ease;
 }
 
@@ -3245,6 +3246,9 @@ th[data-sort]:hover {
   width: 100%;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
   overflow: hidden;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
   animation: slideUpModal 0.22s ease;
 }
 
@@ -3258,6 +3262,7 @@ th[data-sort]:hover {
   color: white;
   padding: 20px 22px 18px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .mcm-header .mcm-badge {
@@ -3285,6 +3290,9 @@ th[data-sort]:hover {
 
 .mcm-body {
   padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mcm-row {
@@ -3316,6 +3324,7 @@ th[data-sort]:hover {
   display: flex;
   gap: 8px;
   padding: 12px 20px 20px;
+  flex-shrink: 0;
 }
 
 .mcm-footer button {
@@ -3340,6 +3349,19 @@ th[data-sort]:hover {
 .mcm-btn-close {
   background: #f0f4f1;
   color: var(--text);
+}
+
+@media (max-width: 767px) {
+  .match-card-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .match-card-modal {
+    max-height: 92dvh;
+    border-radius: 20px 20px 0 0;
+    max-width: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 /* Share buttons on history cards and confirmation */
