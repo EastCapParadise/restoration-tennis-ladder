@@ -3150,9 +3150,14 @@ th[data-sort]:hover {
 }
 
 .hero-tagline {
-  font-size: 1rem;
+  font-size: 13px;
   color: var(--muted);
-  margin: 0 0 14px;
+  margin: 0 0 8px;
+}
+
+.hero-card h2 {
+  font-size: 19px;
+  margin-bottom: 8px;
 }
 
 .hero-tagline a {
@@ -3945,27 +3950,6 @@ th[data-sort]:hover {
   color: var(--muted);
   margin: 10px 0 0;
   text-align: center;
-}
-
-/* =========================
-   SEASON STORY SO FAR
-========================= */
-
-#season-story h2 {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1f3558;
-  margin-bottom: 10px;
-}
-
-.season-story-text {
-  font-style: italic;
-  color: #2d3f35;
-  line-height: 1.7;
-  font-size: 15px;
-  margin-top: 8px;
-  border-left: 3px solid #1f4d3a;
-  padding-left: 16px;
 }
 
 /* =========================
