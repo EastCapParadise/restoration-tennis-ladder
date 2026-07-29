@@ -1868,7 +1868,7 @@ function renderHomeLeaderboards(players) {
   container.innerHTML = `
     <div class="home-lbd-row">
       <a class="lbd-card lbd-card--points" href="ladder.html">
-        <div class="lbd-heading">🏆 Points Leaders</div>
+        <div class="lbd-heading">Points Leaders</div>
         ${buildRows(byPoints, p => `${p.ladder_points ?? 0} pts`)}
       </a>
       <a class="lbd-card lbd-card--winpct" href="ladder.html">
