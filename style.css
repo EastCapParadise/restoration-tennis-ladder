@@ -5438,6 +5438,14 @@ th[data-sort]:hover {
    TOURNAMENT BRACKET
 ========================= */
 
+.draw-live-note {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--muted);
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
 .bracket-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
