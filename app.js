@@ -6529,14 +6529,10 @@ function renderTournamentSeedRow(seed, player) {
     </div>`;
 }
 
-function renderTournamentByeRow(seed, player) {
-  const name = player ? escapeHtml(player.name) : "TBD";
-  const topSeedClass = seed <= 4 ? " bm-top-seed" : "";
+function renderTournamentByeLabelRow() {
   return `
-    <div class="bm-player${topSeedClass}">
-      <span class="bm-seed">#${seed}</span>
-      <span class="bm-name">${name}</span>
-      <span class="bm-bye-badge">BYE</span>
+    <div class="bm-player">
+      <span class="bm-name bm-bye-text">BYE</span>
     </div>`;
 }
 
@@ -6617,7 +6613,7 @@ function buildTournamentWomenRound1(seedMap) {
 function renderTournamentMatchCard(slot, isFirstRound, id, feedsId) {
   let bodyHtml;
   if (isFirstRound && slot.type === "bye") {
-    bodyHtml = renderTournamentByeRow(slot.top.seed, slot.top.player);
+    bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentByeLabelRow()}`;
   } else if (isFirstRound) {
     bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentSeedRow(slot.bottom.seed, slot.bottom.player)}`;
   } else {

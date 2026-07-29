@@ -5557,17 +5557,9 @@ th[data-sort]:hover {
   margin-bottom: 4px;
 }
 
-.bm-bye-badge {
-  flex: 0 0 auto;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: var(--green-dark);
-  background: var(--green-light);
-  padding: 2px 8px;
-  border-radius: 20px;
-  white-space: nowrap;
+.bm-bye-text {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .bm-placeholder .bm-name {
