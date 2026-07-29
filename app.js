@@ -6807,7 +6807,7 @@ function setupRealtimeSubscriptions() {
 const TOURNAMENT_MEN_R16_PAIRS = [
   [1, 16], [8, 9],
   [5, 12], [4, 13],
-  [6, 11], [3, 14],
+  [3, 14], [6, 11],
   [7, 10], [2, 15]
 ];
 
@@ -6815,10 +6815,10 @@ const TOURNAMENT_MEN_R16_PAIRS = [
 // Each group below is rendered as [bye seed, real match] so it merges the
 // same way the men's pairs do (bye winner + match winner -> one QF slot).
 const TOURNAMENT_WOMEN_R16_GROUPS = [
-  { bye: 1, match: [8, 9] },
-  { bye: 4, match: [5, 12] },
-  { bye: 2, match: [6, 11] },
-  { bye: 3, match: [7, 10] }
+  { bye: 1, match: [5, 12] },
+  { bye: 4, match: [8, 9] },
+  { bye: 3, match: [7, 10] },
+  { bye: 2, match: [6, 11] }
 ];
 
 function normalizeTournamentSex(sex) {
