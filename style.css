@@ -5430,6 +5430,11 @@ th[data-sort]:hover {
   vertical-align: middle;
 }
 
+.tournament-subtitle {
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
 .bracket-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
