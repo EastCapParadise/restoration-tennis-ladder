@@ -6863,7 +6863,7 @@ function buildTournamentSeeds(players, topCount, totalCount) {
 function tournamentSeedStats(player) {
   if (!player) return "";
   const pts = Number(player.ladder_points) || 0;
-  return `${pts}pts · ${formatDisplayRating(player.dynamic_rating)}`;
+  return `${pts} · ${formatDisplayRating(player.dynamic_rating)}`;
 }
 
 function renderTournamentSeedRow(seed, player) {
