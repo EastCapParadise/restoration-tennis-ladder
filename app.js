@@ -6839,8 +6839,10 @@ function sortByPointsThenRatingDesc(players) {
 
 // Seeds 1..topCount = top players by points (tie: rating desc).
 // Seeds topCount+1..totalCount = next players by points, but re-ordered by
-// dynamic_rating ASC so the lowest-rated of that group seeds first — this
-// keeps the highest-rated "underdogs" away from the #1 overall seed.
+// dynamic_rating DESC so the highest-rated of that group seeds first
+// (topCount+1, facing the weakest top seed) and the lowest-rated seeds
+// last (totalCount, facing the #1 overall seed) — this gives the #1 seed
+// the easiest possible bottom-half opponent.
 // Missing players are filled with TBD (null) placeholders.
 function buildTournamentSeeds(players, topCount, totalCount) {
   const sorted = sortByPointsThenRatingDesc(players);
@@ -6848,7 +6850,7 @@ function buildTournamentSeeds(players, topCount, totalCount) {
   const lowerTier = sorted
     .slice(topCount, totalCount)
     .slice()
-    .sort((a, b) => (Number(a.dynamic_rating) || 0) - (Number(b.dynamic_rating) || 0));
+    .sort((a, b) => (Number(b.dynamic_rating) || 0) - (Number(a.dynamic_rating) || 0));
   const ordered = topTier.concat(lowerTier);
 
   const seeds = [];
