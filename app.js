@@ -6863,7 +6863,7 @@ function buildTournamentSeeds(players, topCount, totalCount) {
 function tournamentSeedStats(player) {
   if (!player) return "";
   const pts = Number(player.ladder_points) || 0;
-  return `${pts} pts · ${formatDisplayRating(player.dynamic_rating)}`;
+  return `${pts}pts · ${formatDisplayRating(player.dynamic_rating)}`;
 }
 
 function renderTournamentSeedRow(seed, player) {
@@ -6875,6 +6875,17 @@ function renderTournamentSeedRow(seed, player) {
       <span class="bm-seed">#${seed}</span>
       <span class="bm-name">${name}</span>
       ${stats ? `<span class="bm-stats">${escapeHtml(stats)}</span>` : ""}
+    </div>`;
+}
+
+function renderTournamentByeRow(seed, player) {
+  const name = player ? escapeHtml(player.name) : "TBD";
+  const topSeedClass = seed <= 4 ? " bm-top-seed" : "";
+  return `
+    <div class="bm-player${topSeedClass}">
+      <span class="bm-seed">#${seed}</span>
+      <span class="bm-name">${name}</span>
+      <span class="bm-bye-badge">BYE</span>
     </div>`;
 }
 
@@ -6955,7 +6966,7 @@ function buildTournamentWomenRound1(seedMap) {
 function renderTournamentMatchCard(slot, isFirstRound, id, feedsId) {
   let bodyHtml;
   if (isFirstRound && slot.type === "bye") {
-    bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-bye-badge">BYE</div>`;
+    bodyHtml = renderTournamentByeRow(slot.top.seed, slot.top.player);
   } else if (isFirstRound) {
     bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentSeedRow(slot.bottom.seed, slot.bottom.player)}`;
   } else {
