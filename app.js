@@ -6458,13 +6458,18 @@ const TOURNAMENT_MEN_R16_PAIRS = [
 ];
 
 // Women's draw: seeds 1-4 receive a bye straight into the Quarterfinals.
-// Each group below is rendered as [bye seed, real match] so it merges the
-// same way the men's pairs do (bye winner + match winner -> one QF slot).
-const TOURNAMENT_WOMEN_R16_GROUPS = [
-  { bye: 1, match: [5, 12] },
-  { bye: 4, match: [8, 9] },
-  { bye: 3, match: [7, 10] },
-  { bye: 2, match: [6, 11] }
+// These are the 8 R16-column boxes top to bottom, exactly as displayed.
+// Consecutive pairs merge into one QF slot (box1+box2 -> QF1, box3+box4 ->
+// QF2, ...), same mechanism as the men's bracket.
+const TOURNAMENT_WOMEN_R16_BOXES = [
+  { type: "bye", seed: 1 },
+  { type: "match", pair: [8, 9] },
+  { type: "match", pair: [5, 12] },
+  { type: "bye", seed: 4 },
+  { type: "bye", seed: 3 },
+  { type: "match", pair: [6, 11] },
+  { type: "match", pair: [7, 10] },
+  { type: "bye", seed: 2 }
 ];
 
 function normalizeTournamentSex(sex) {
@@ -6597,16 +6602,16 @@ function buildTournamentMenRound1(seedMap) {
 }
 
 function buildTournamentWomenRound1(seedMap) {
-  const slots = [];
-  TOURNAMENT_WOMEN_R16_GROUPS.forEach(({ bye, match }) => {
-    slots.push({ type: "bye", top: { seed: bye, player: seedMap.get(bye) || null } });
-    slots.push({
+  return TOURNAMENT_WOMEN_R16_BOXES.map((box) => {
+    if (box.type === "bye") {
+      return { type: "bye", top: { seed: box.seed, player: seedMap.get(box.seed) || null } };
+    }
+    return {
       type: "match",
-      top: { seed: match[0], player: seedMap.get(match[0]) || null },
-      bottom: { seed: match[1], player: seedMap.get(match[1]) || null }
-    });
+      top: { seed: box.pair[0], player: seedMap.get(box.pair[0]) || null },
+      bottom: { seed: box.pair[1], player: seedMap.get(box.pair[1]) || null }
+    };
   });
-  return slots;
 }
 
 function renderTournamentMatchCard(slot, isFirstRound, id, feedsId) {
