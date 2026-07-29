@@ -20,6 +20,9 @@ const state = {
   realtime: {
     playersChannel: null,
     matchesChannel: null
+  },
+  tournament: {
+    _resizeTimer: null
   }
 };
 
@@ -171,6 +174,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (document.getElementById("player-match-history")) {
       await loadPlayerMatchHistory();
+    }
+
+    if (document.getElementById("bracket-men") || document.getElementById("bracket-women")) {
+      await loadTournamentBracket();
+      window.addEventListener("resize", () => {
+        clearTimeout(state.tournament._resizeTimer);
+        state.tournament._resizeTimer = setTimeout(redrawTournamentBrackets, 200);
+      });
     }
 
     setupRealtimeSubscriptions();
@@ -6757,6 +6768,9 @@ function setupRealtimeSubscriptions() {
           if (document.getElementById("directory-body")) await loadDirectory();
           if (document.getElementById("report-form")) await populatePlayerDropdowns();
           if (document.getElementById("player-profile")) await loadPlayerProfile();
+          if (document.getElementById("bracket-men") || document.getElementById("bracket-women")) {
+            await loadTournamentBracket();
+          }
         }
       )
       .subscribe();
@@ -6780,5 +6794,284 @@ function setupRealtimeSubscriptions() {
       .subscribe();
   } catch (error) {
     console.error("Realtime setup error:", error);
+  }
+}
+
+/* =========================
+   TOURNAMENT BRACKET
+   (tournament.html)
+========================= */
+
+// Standard bracket pairing for a 16-player single-elim draw, in render order.
+// Consecutive pairs merge into the next round (1&2 -> QF1, 3&4 -> QF2, ...).
+const TOURNAMENT_MEN_R16_PAIRS = [
+  [1, 16], [8, 9],
+  [5, 12], [4, 13],
+  [6, 11], [3, 14],
+  [7, 10], [2, 15]
+];
+
+// Women's draw: seeds 1-4 receive a bye straight into the Quarterfinals.
+// Each group below is rendered as [bye seed, real match] so it merges the
+// same way the men's pairs do (bye winner + match winner -> one QF slot).
+const TOURNAMENT_WOMEN_R16_GROUPS = [
+  { bye: 1, match: [8, 9] },
+  { bye: 4, match: [5, 12] },
+  { bye: 2, match: [6, 11] },
+  { bye: 3, match: [7, 10] }
+];
+
+function normalizeTournamentSex(sex) {
+  const s = String(sex || "").trim().toLowerCase();
+  if (s === "m" || s === "man" || s === "male") return "M";
+  if (s === "f" || s === "w" || s === "woman" || s === "female") return "F";
+  return null;
+}
+
+// Ranks by ladder_points desc, ties broken by dynamic_rating desc.
+function sortByPointsThenRatingDesc(players) {
+  return players.slice().sort((a, b) => {
+    const pointsDiff = (Number(b.ladder_points) || 0) - (Number(a.ladder_points) || 0);
+    if (pointsDiff !== 0) return pointsDiff;
+    return (Number(b.dynamic_rating) || 0) - (Number(a.dynamic_rating) || 0);
+  });
+}
+
+// Seeds 1..topCount = top players by points (tie: rating desc).
+// Seeds topCount+1..totalCount = next players by points, but re-ordered by
+// dynamic_rating ASC so the lowest-rated of that group seeds first — this
+// keeps the highest-rated "underdogs" away from the #1 overall seed.
+// Missing players are filled with TBD (null) placeholders.
+function buildTournamentSeeds(players, topCount, totalCount) {
+  const sorted = sortByPointsThenRatingDesc(players);
+  const topTier = sorted.slice(0, topCount);
+  const lowerTier = sorted
+    .slice(topCount, totalCount)
+    .slice()
+    .sort((a, b) => (Number(a.dynamic_rating) || 0) - (Number(b.dynamic_rating) || 0));
+  const ordered = topTier.concat(lowerTier);
+
+  const seeds = [];
+  for (let i = 0; i < totalCount; i++) {
+    seeds.push({ seed: i + 1, player: ordered[i] || null });
+  }
+  return seeds;
+}
+
+function tournamentSeedStats(player) {
+  if (!player) return "";
+  const pts = Number(player.ladder_points) || 0;
+  return `${pts} pts · ${formatDisplayRating(player.dynamic_rating)}`;
+}
+
+function renderTournamentSeedRow(seed, player) {
+  const name = player ? escapeHtml(player.name) : "TBD";
+  const stats = tournamentSeedStats(player);
+  const topSeedClass = seed <= 4 ? " bm-top-seed" : "";
+  return `
+    <div class="bm-player${topSeedClass}">
+      <span class="bm-seed">#${seed}</span>
+      <span class="bm-name">${name}</span>
+      ${stats ? `<span class="bm-stats">${escapeHtml(stats)}</span>` : ""}
+    </div>`;
+}
+
+function renderTournamentPlaceholderRow(label) {
+  return `
+    <div class="bm-player bm-placeholder">
+      <span class="bm-name">${escapeHtml(label)}</span>
+    </div>`;
+}
+
+// A "side" for QF/SF/Final rounds is either a concrete seed (advanced via a
+// bye) or a placeholder pointing at the match still deciding who fills it.
+function renderTournamentSide(side) {
+  if (!side) return renderTournamentPlaceholderRow("TBD");
+  if (side.concrete) return renderTournamentSeedRow(side.seed, side.player);
+  return renderTournamentPlaceholderRow(side.label);
+}
+
+function tournamentSideFromRound1Slot(slot) {
+  if (slot.type === "bye") {
+    return { concrete: true, seed: slot.top.seed, player: slot.top.player };
+  }
+  const topName = slot.top.player ? slot.top.player.name : "TBD";
+  const botName = slot.bottom.player ? slot.bottom.player.name : "TBD";
+  return {
+    concrete: false,
+    label: `Winner of #${slot.top.seed} ${topName} vs #${slot.bottom.seed} ${botName}`
+  };
+}
+
+function tournamentSideFromPriorMatch(prevMatch) {
+  return { concrete: false, label: `Winner of ${prevMatch.roundAbbrev}${prevMatch.matchNum}` };
+}
+
+// Builds every later round (QF, SF, Final, ...) from the Round-of-16 slots by
+// merging consecutive pairs. The first later round reads real seed numbers
+// off the R16 slots; every round after that just references "Winner of <prev
+// match>" since we don't try to compose nested "winner of winner of" text.
+function buildTournamentBracketRounds(round1Slots, laterRoundAbbrevs) {
+  const rounds = [round1Slots];
+  let current = round1Slots;
+  laterRoundAbbrevs.forEach((abbrev, roundIdx) => {
+    const next = [];
+    for (let i = 0; i < current.length; i += 2) {
+      const a = current[i];
+      const b = current[i + 1];
+      const top = roundIdx === 0 ? tournamentSideFromRound1Slot(a) : tournamentSideFromPriorMatch(a);
+      const bottom = roundIdx === 0 ? tournamentSideFromRound1Slot(b) : tournamentSideFromPriorMatch(b);
+      next.push({ matchNum: next.length + 1, roundAbbrev: abbrev, top, bottom });
+    }
+    rounds.push(next);
+    current = next;
+  });
+  return rounds;
+}
+
+function buildTournamentMenRound1(seedMap) {
+  return TOURNAMENT_MEN_R16_PAIRS.map(([topSeed, botSeed]) => ({
+    type: "match",
+    top: { seed: topSeed, player: seedMap.get(topSeed) || null },
+    bottom: { seed: botSeed, player: seedMap.get(botSeed) || null }
+  }));
+}
+
+function buildTournamentWomenRound1(seedMap) {
+  const slots = [];
+  TOURNAMENT_WOMEN_R16_GROUPS.forEach(({ bye, match }) => {
+    slots.push({ type: "bye", top: { seed: bye, player: seedMap.get(bye) || null } });
+    slots.push({
+      type: "match",
+      top: { seed: match[0], player: seedMap.get(match[0]) || null },
+      bottom: { seed: match[1], player: seedMap.get(match[1]) || null }
+    });
+  });
+  return slots;
+}
+
+function renderTournamentMatchCard(slot, isFirstRound, id, feedsId) {
+  let bodyHtml;
+  if (isFirstRound && slot.type === "bye") {
+    bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-bye-badge">BYE</div>`;
+  } else if (isFirstRound) {
+    bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentSeedRow(slot.bottom.seed, slot.bottom.player)}`;
+  } else {
+    bodyHtml = `${renderTournamentSide(slot.top)}<div class="bm-divider"></div>${renderTournamentSide(slot.bottom)}`;
+  }
+  const feedsAttr = feedsId ? ` data-feeds="${feedsId}"` : "";
+  return `
+    <div class="bracket-match" id="${id}"${feedsAttr}>
+      ${bodyHtml}
+      <div class="bm-date">Date: TBD</div>
+    </div>`;
+}
+
+function renderTournamentRoundColumn(label, slots, isFirstRound, prefix, roundIdx, isLastRound) {
+  const cards = slots
+    .map((slot, idx) => {
+      const id = `${prefix}-r${roundIdx}-${idx}`;
+      const feedsId = isLastRound ? null : `${prefix}-r${roundIdx + 1}-${Math.floor(idx / 2)}`;
+      return renderTournamentMatchCard(slot, isFirstRound, id, feedsId);
+    })
+    .join("");
+  return `
+    <div class="bracket-round">
+      <div class="bracket-round-label">${escapeHtml(label)}</div>
+      <div class="bracket-round-matches">${cards}</div>
+    </div>`;
+}
+
+// Draws the SVG connector lines between a round's matches and the next
+// round's matches, based on actual rendered positions (robust to cards
+// wrapping onto extra lines from long names).
+function drawTournamentBracketConnectors(bracketEl) {
+  const svg = bracketEl.querySelector(".bracket-lines");
+  if (!svg) return;
+
+  const width = bracketEl.scrollWidth;
+  const height = bracketEl.scrollHeight;
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = "";
+
+  const bracketRect = bracketEl.getBoundingClientRect();
+  bracketEl.querySelectorAll("[data-feeds]").forEach((el) => {
+    const target = bracketEl.querySelector(`#${el.getAttribute("data-feeds")}`);
+    if (!target) return;
+    const a = el.getBoundingClientRect();
+    const b = target.getBoundingClientRect();
+    const x1 = a.right - bracketRect.left;
+    const y1 = a.top + a.height / 2 - bracketRect.top;
+    const x2 = b.left - bracketRect.left;
+    const y2 = b.top + b.height / 2 - bracketRect.top;
+    const midX = x1 + (x2 - x1) / 2;
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`);
+    path.setAttribute("class", "bracket-line");
+    svg.appendChild(path);
+  });
+}
+
+function renderTournamentBracket(containerId, seeds, buildRound1Fn) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const seedMap = new Map(seeds.map((s) => [s.seed, s.player]));
+  const round1 = buildRound1Fn(seedMap);
+  const rounds = buildTournamentBracketRounds(round1, ["QF", "SF", "F"]);
+  const roundLabels = ["Round of 16", "Quarterfinals", "Semifinals", "Final"];
+
+  const roundsHtml = rounds
+    .map((slots, idx) =>
+      renderTournamentRoundColumn(roundLabels[idx], slots, idx === 0, containerId, idx, idx === rounds.length - 1)
+    )
+    .join("");
+
+  const roundsContainer = container.querySelector(".bracket-rounds");
+  if (roundsContainer) roundsContainer.innerHTML = roundsHtml;
+
+  requestAnimationFrame(() => drawTournamentBracketConnectors(container));
+}
+
+function redrawTournamentBrackets() {
+  ["bracket-men", "bracket-women"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && el.querySelector(".bracket-round")) drawTournamentBracketConnectors(el);
+  });
+}
+
+async function loadTournamentBracket() {
+  const menContainer = document.getElementById("bracket-men");
+  const womenContainer = document.getElementById("bracket-women");
+  if (!menContainer && !womenContainer) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("players")
+      .select("name, sex, ladder_points, dynamic_rating, wins, losses")
+      .order("ladder_points", { ascending: false });
+    if (error) throw error;
+
+    const players = data || [];
+    const men = players.filter((p) => normalizeTournamentSex(p.sex) === "M");
+    const women = players.filter((p) => normalizeTournamentSex(p.sex) === "F");
+
+    const menSeeds = buildTournamentSeeds(men, 8, 16);
+    const womenSeeds = buildTournamentSeeds(women, 6, 12);
+
+    renderTournamentBracket("bracket-men", menSeeds, buildTournamentMenRound1);
+    renderTournamentBracket("bracket-women", womenSeeds, buildTournamentWomenRound1);
+  } catch (error) {
+    console.error("Failed to load tournament bracket:", error);
+    [menContainer, womenContainer].forEach((el) => {
+      if (!el) return;
+      const roundsEl = el.querySelector(".bracket-rounds");
+      if (roundsEl) {
+        roundsEl.innerHTML = `<p class="small-text">Unable to load the tournament bracket right now. Please try again later.</p>`;
+      }
+    });
   }
 }
