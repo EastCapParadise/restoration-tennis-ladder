@@ -17,12 +17,12 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>End of Season Tournament | Restoration Tennis Ladder</title>
-  <meta name="description" content="Live men's and women's end of season singles tournament bracket for the Restoration Tennis Ladder. Seedings update automatically with current standings.">
+  <meta name="description" content="Live Women's Open, Men's Club, and Men's Open end of season singles tournament brackets for the Restoration Tennis Ladder. Seedings update automatically with current standings.">
   <meta name="google-site-verification" content="-WUQhE0nQxDcyfe0bvAdXng_w1UqHmoKCN-p1qYuMEE" />
   <meta name="robots" content="index, follow">
   <meta property="og:site_name" content="Restoration Tennis Ladder">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="style.css?v=39">
+  <link rel="stylesheet" href="style.css?v=40">
 </head>
 <body>
   <header class="site-header">
@@ -63,13 +63,13 @@
     <section class="card">
       <h2>End of Season Tournament</h2>
       <p class="small-text tournament-subtitle">End of Season Singles Tournament · Seedings update live with the ladder</p>
-      <p class="small-text">Seeds 1-8 (men's) and 1-6 (women's) are determined by ladder points — the most active players earn the highest seeds. Seeds 9-16 (men's) and 7-12 (women's) are then re-sorted by rating from lowest to highest, ensuring a competitive and balanced draw.</p>
+      <p class="small-text">Seeds 1-8 (Men's and Women's Open) are determined by ladder points. Seeds 9-16 (Men's Open) and 7-12 (Women's Open) are then re-sorted by rating from lowest to highest, ensuring a competitive and balanced draw. The Men's Club bracket features the top four rated players in a separate single-elimination draw.</p>
     </section>
 
     <section class="card">
-      <h3>Men's Draw<span class="draw-live-note">Seedings update live with the ladder</span></h3>
+      <h3>Women's Open<span class="draw-live-note">Seedings update live with the ladder</span></h3>
       <div class="bracket-scroll">
-        <div class="bracket" id="bracket-men">
+        <div class="bracket" id="bracket-women-open">
           <div class="bracket-rounds">
             <p class="small-text">Loading bracket…</p>
           </div>
@@ -78,10 +78,27 @@
       </div>
     </section>
 
+    <hr>
+
     <section class="card">
-      <h3>Women's Draw<span class="draw-live-note">Seedings update live with the ladder</span></h3>
+      <h3>Men's Club<span class="draw-live-note">Seedings update live with the ladder</span></h3>
+      <p class="small-text bracket-elite-label">Elite Division</p>
       <div class="bracket-scroll">
-        <div class="bracket" id="bracket-women">
+        <div class="bracket bracket-compact" id="bracket-men-club">
+          <div class="bracket-rounds">
+            <p class="small-text">Loading bracket…</p>
+          </div>
+          <svg class="bracket-lines"></svg>
+        </div>
+      </div>
+    </section>
+
+    <hr>
+
+    <section class="card">
+      <h3>Men's Open<span class="draw-live-note">Seedings update live with the ladder</span></h3>
+      <div class="bracket-scroll">
+        <div class="bracket" id="bracket-men-open">
           <div class="bracket-rounds">
             <p class="small-text">Loading bracket…</p>
           </div>
@@ -92,7 +109,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=52"></script>
+  <script src="app.js?v=53"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

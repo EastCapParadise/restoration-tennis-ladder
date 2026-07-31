@@ -5435,6 +5435,24 @@ th[data-sort]:hover {
   margin-bottom: 6px;
 }
 
+.bracket-elite-label {
+  margin-top: -8px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.bracket-compact .bracket-rounds {
+  gap: 32px;
+}
+
+.bracket-compact .bracket-round {
+  min-width: 220px;
+}
+
 .bracket-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadPlayerMatchHistory();
     }
 
-    if (document.getElementById("bracket-men") || document.getElementById("bracket-women")) {
+    if (document.getElementById("bracket-women-open") || document.getElementById("bracket-men-club") || document.getElementById("bracket-men-open")) {
       await loadTournamentBracket();
       window.addEventListener("resize", () => {
         clearTimeout(state.tournament._resizeTimer);
@@ -6414,7 +6414,7 @@ function setupRealtimeSubscriptions() {
           if (document.getElementById("directory-body")) await loadDirectory();
           if (document.getElementById("report-form")) await populatePlayerDropdowns();
           if (document.getElementById("player-profile")) await loadPlayerProfile();
-          if (document.getElementById("bracket-men") || document.getElementById("bracket-women")) {
+          if (document.getElementById("bracket-women-open") || document.getElementById("bracket-men-club") || document.getElementById("bracket-men-open")) {
             await loadTournamentBracket();
           }
         }
@@ -6456,6 +6456,24 @@ const TOURNAMENT_MEN_R16_PAIRS = [
   [3, 14], [6, 11],
   [7, 10], [2, 15]
 ];
+
+// Men's Club: 4-player single-elim draw. SF1: #1 vs #4, SF2: #2 vs #3.
+const TOURNAMENT_MEN_CLUB_PAIRS = [
+  [1, 4], [2, 3]
+];
+
+// Hardcoded Men's Club roster — fixed membership regardless of points/rating.
+const TOURNAMENT_MEN_CLUB_NAMES = ["Endel Liias", "James Janis", "Jed Royal", "Mac McCullough"];
+
+// Men are excluded from the Open bracket at/above this rating, with a named exception below.
+const TOURNAMENT_MEN_OPEN_RATING_CAP = 4.25;
+const TOURNAMENT_MEN_OPEN_RATING_EXCEPTION = "Chris Donahoe";
+
+const TOURNAMENT_WOMEN_OPEN_EXCLUDED_NAMES = ["Kelly Sheppard"];
+
+function normalizeTournamentName(name) {
+  return String(name || "").trim().toLowerCase();
+}
 
 // Women's draw: seeds 1-4 receive a bye straight into the Quarterfinals.
 // These are the 8 R16-column boxes top to bottom, exactly as displayed.
@@ -6507,6 +6525,17 @@ function buildTournamentSeeds(players, topCount, totalCount) {
   const seeds = [];
   for (let i = 0; i < totalCount; i++) {
     seeds.push({ seed: i + 1, player: ordered[i] || null });
+  }
+  return seeds;
+}
+
+// Straight seeding by points (tie: rating desc), no tier re-sort — used for
+// the small, fixed-membership Men's Club bracket.
+function buildSimpleTournamentSeeds(players, totalCount) {
+  const sorted = sortByPointsThenRatingDesc(players);
+  const seeds = [];
+  for (let i = 0; i < totalCount; i++) {
+    seeds.push({ seed: i + 1, player: sorted[i] || null });
   }
   return seeds;
 }
@@ -6597,6 +6626,14 @@ function buildTournamentMenRound1(seedMap) {
   }));
 }
 
+function buildTournamentMenClubRound1(seedMap) {
+  return TOURNAMENT_MEN_CLUB_PAIRS.map(([topSeed, botSeed]) => ({
+    type: "match",
+    top: { seed: topSeed, player: seedMap.get(topSeed) || null },
+    bottom: { seed: botSeed, player: seedMap.get(botSeed) || null }
+  }));
+}
+
 function buildTournamentWomenRound1(seedMap) {
   return TOURNAMENT_WOMEN_R16_BOXES.map((box) => {
     if (box.type === "bye") {
@@ -6675,14 +6712,13 @@ function drawTournamentBracketConnectors(bracketEl) {
   });
 }
 
-function renderTournamentBracket(containerId, seeds, buildRound1Fn) {
+function renderTournamentBracket(containerId, seeds, buildRound1Fn, roundLabels, laterRoundAbbrevs) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
   const seedMap = new Map(seeds.map((s) => [s.seed, s.player]));
   const round1 = buildRound1Fn(seedMap);
-  const rounds = buildTournamentBracketRounds(round1, ["QF", "SF", "F"]);
-  const roundLabels = ["Round of 16", "Quarterfinals", "Semifinals", "Final"];
+  const rounds = buildTournamentBracketRounds(round1, laterRoundAbbrevs);
 
   const roundsHtml = rounds
     .map((slots, idx) =>
@@ -6697,16 +6733,17 @@ function renderTournamentBracket(containerId, seeds, buildRound1Fn) {
 }
 
 function redrawTournamentBrackets() {
-  ["bracket-men", "bracket-women"].forEach((id) => {
+  ["bracket-women-open", "bracket-men-club", "bracket-men-open"].forEach((id) => {
     const el = document.getElementById(id);
     if (el && el.querySelector(".bracket-round")) drawTournamentBracketConnectors(el);
   });
 }
 
 async function loadTournamentBracket() {
-  const menContainer = document.getElementById("bracket-men");
-  const womenContainer = document.getElementById("bracket-women");
-  if (!menContainer && !womenContainer) return;
+  const womenContainer = document.getElementById("bracket-women-open");
+  const menClubContainer = document.getElementById("bracket-men-club");
+  const menOpenContainer = document.getElementById("bracket-men-open");
+  if (!womenContainer && !menClubContainer && !menOpenContainer) return;
 
   try {
     const { data, error } = await supabaseClient
@@ -6719,14 +6756,49 @@ async function loadTournamentBracket() {
     const men = players.filter((p) => normalizeTournamentSex(p.sex) === "M");
     const women = players.filter((p) => normalizeTournamentSex(p.sex) === "F");
 
-    const menSeeds = buildTournamentSeeds(men, 8, 16);
-    const womenSeeds = buildTournamentSeeds(women, 6, 12);
+    const womenOpen = women.filter(
+      (p) => !TOURNAMENT_WOMEN_OPEN_EXCLUDED_NAMES.some((n) => normalizeTournamentName(n) === normalizeTournamentName(p.name))
+    );
 
-    renderTournamentBracket("bracket-men", menSeeds, buildTournamentMenRound1);
-    renderTournamentBracket("bracket-women", womenSeeds, buildTournamentWomenRound1);
+    const clubNamesLower = TOURNAMENT_MEN_CLUB_NAMES.map(normalizeTournamentName);
+    const isClubPlayer = (p) => clubNamesLower.includes(normalizeTournamentName(p.name));
+    const menClub = men.filter(isClubPlayer);
+
+    const ratingExceptionLower = normalizeTournamentName(TOURNAMENT_MEN_OPEN_RATING_EXCEPTION);
+    const menOpenEligible = men.filter((p) => {
+      if (isClubPlayer(p)) return false;
+      if (normalizeTournamentName(p.name) === ratingExceptionLower) return true;
+      return (Number(p.dynamic_rating) || 0) < TOURNAMENT_MEN_OPEN_RATING_CAP;
+    });
+
+    const womenSeeds = buildTournamentSeeds(womenOpen, 6, 12);
+    const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
+    const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16);
+
+    renderTournamentBracket(
+      "bracket-women-open",
+      womenSeeds,
+      buildTournamentWomenRound1,
+      ["Round of 16", "Quarterfinals", "Semifinals", "Final"],
+      ["QF", "SF", "F"]
+    );
+    renderTournamentBracket(
+      "bracket-men-club",
+      menClubSeeds,
+      buildTournamentMenClubRound1,
+      ["Semifinals", "Final"],
+      ["F"]
+    );
+    renderTournamentBracket(
+      "bracket-men-open",
+      menOpenSeeds,
+      buildTournamentMenRound1,
+      ["Round of 16", "Quarterfinals", "Semifinals", "Final"],
+      ["QF", "SF", "F"]
+    );
   } catch (error) {
     console.error("Failed to load tournament bracket:", error);
-    [menContainer, womenContainer].forEach((el) => {
+    [womenContainer, menClubContainer, menOpenContainer].forEach((el) => {
       if (!el) return;
       const roundsEl = el.querySelector(".bracket-rounds");
       if (roundsEl) {
