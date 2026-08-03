@@ -1397,8 +1397,10 @@ async function loadActivityFeed() {
 
       // Retired / incomplete match: show as pending
       if (match.match_type === "retired") {
-        const allIds = [match.team1_player1_id, match.team1_player2_id, match.team2_player1_id, match.team2_player2_id].filter(Boolean);
-        const playerLinks = allIds.map(id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`).join(" &amp; ");
+        const linkFor = id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`;
+        const team1Links = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(linkFor).join(" &amp; ");
+        const team2Links = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(linkFor).join(" &amp; ");
+        const playerLinks = `${team1Links} vs ${team2Links}`;
         return { date_played: match.date_played, html: `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
           🏳️ <strong>${playerLinks}</strong> have an incomplete match pending · ${escapeHtml(timeAgo)}
         </li>` };
