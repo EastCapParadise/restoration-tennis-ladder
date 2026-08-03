@@ -1395,12 +1395,13 @@ async function loadActivityFeed() {
       const feedName = id => id ? (feedNameMap[id] || abbreviateName(playerMap[id])) : "";
       const timeAgo = relativeTime(match.date_played || match.created_at);
 
-      // Retired / incomplete match: show as pending
+      // Retired / incomplete match: show as pending, leader (if any) first
       if (match.match_type === "retired") {
         const linkFor = id => `<a href="player.html?id=${id}" class="player-link">${escapeHtml(feedName(id))}</a>`;
+        const leaderTeam = leadingTeamForIncompleteMatch(match.score_text);
         const team1Links = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(linkFor).join(" &amp; ");
         const team2Links = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(linkFor).join(" &amp; ");
-        const playerLinks = `${team1Links} vs ${team2Links}`;
+        const playerLinks = leaderTeam === 1 ? `${team1Links} vs ${team2Links}` : `${team2Links} vs ${team1Links}`;
         return { date_played: match.date_played, html: `<li class="activity-feed-item${i === 0 ? " activity-new" : ""}">
           🏳️ <strong>${playerLinks}</strong> have an incomplete match pending · ${escapeHtml(timeAgo)}
         </li>` };
@@ -2552,6 +2553,26 @@ function winnerFirstScore(scoreText, winnerTeam) {
     const [a, b] = set.split("-");
     return `${b}-${a}`;
   }).join(", ");
+}
+
+// Parses a team1-first score string like "6-2, 3-6, 7-5" into [[a,b], ...]
+// numeric set pairs, skipping any non-numeric entries (e.g. "Incomplete").
+function parseScoreSets(scoreText) {
+  if (!scoreText) return [];
+  return scoreText.split(/,?\s+/).map((set) => {
+    const parts = set.split("-").map(Number);
+    return parts.length === 2 && parts.every(Number.isFinite) ? parts : null;
+  }).filter(Boolean);
+}
+
+// For matches with no declared winner yet (retired/incomplete), determines
+// which team is currently ahead by total games won across recorded sets.
+// Falls back to team1 when there's no score yet or games are tied.
+function leadingTeamForIncompleteMatch(scoreText) {
+  const sets = parseScoreSets(scoreText);
+  if (!sets.length) return 1;
+  const [t1Games, t2Games] = sets.reduce(([a, b], [x, y]) => [a + x, b + y], [0, 0]);
+  return t2Games > t1Games ? 2 : 1;
 }
 
 function buildScoreText(
@@ -3884,12 +3905,19 @@ async function loadMatchHistory() {
         };
         const sideA = [m.team1_player1_id, m.team1_player2_id].map(dn).filter(Boolean).join(" / ");
         const sideB = [m.team2_player1_id, m.team2_player2_id].map(dn).filter(Boolean).join(" / ");
+        const p1Games = Number(m.mini_games_won_p1 ?? 0);
+        const p3Games = Number(m.mini_games_won_p3 ?? 0);
+        const leaderIsSideA = p1Games >= p3Games; // tie falls back to Side A
+        const leaderSide  = leaderIsSideA ? sideA : sideB;
+        const trailerSide = leaderIsSideA ? sideB : sideA;
+        const leaderGames  = leaderIsSideA ? p1Games : p3Games;
+        const trailerGames = leaderIsSideA ? p3Games : p1Games;
         return `
         <tr>
           <td>${escapeHtml(fmtD(m.date_played))}</td>
-          <td>${escapeHtml(sideA)}</td>
-          <td>${escapeHtml(sideB)}</td>
-          <td class="num">${m.mini_games_won_p1 ?? 0}-${m.mini_games_won_p3 ?? 0}</td>
+          <td>${escapeHtml(leaderSide)}</td>
+          <td>${escapeHtml(trailerSide)}</td>
+          <td class="num">${leaderGames}-${trailerGames}</td>
         </tr>`;
       }).join("");
 
@@ -3942,6 +3970,12 @@ async function loadMatchHistory() {
         const rName = id => id ? (retiredNm[id] || playerMap[id] || "?") : null;
         const t1Str = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName).filter(Boolean).join(" / ");
         const t2Str = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName).filter(Boolean).join(" / ");
+        const leaderTeam = leadingTeamForIncompleteMatch(match.score_text);
+        const leaderStr = leaderTeam === 1 ? t1Str : t2Str;
+        const trailerStr = leaderTeam === 1 ? t2Str : t1Str;
+        const stoppageScore = match.score_text && parseScoreSets(match.score_text).length
+          ? winnerFirstScore(match.score_text, leaderTeam)
+          : (match.score_text || "Incomplete");
         const matchFmt = match.team1_player2_id ? "Doubles" : "Singles";
         const ptsByPlayer = {
           [match.team1_player1_id]: match.ladder_points_p1 ?? 5,
@@ -3980,8 +4014,8 @@ async function loadMatchHistory() {
                 </div>
               </div>
             </div>
-            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(t1Str)} vs ${escapeHtml(t2Str)}</div>
-            <div class="history-score"><strong>Score at stoppage:</strong> ${escapeHtml(match.score_text || "Incomplete")}</div>
+            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(leaderStr)} vs ${escapeHtml(trailerStr)}</div>
+            <div class="history-score"><strong>Score at stoppage:</strong> ${escapeHtml(stoppageScore)}</div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
             <div class="match-extras">${partRows}</div>
             <div class="history-card-actions history-card-actions-full">
@@ -4023,6 +4057,12 @@ async function loadMatchHistory() {
           const rName = id => id ? (retiredNm[id] || playerMap[id] || "?") : null;
           const t1Names = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName).filter(Boolean);
           const t2Names = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName).filter(Boolean);
+          const leaderTeam = leadingTeamForIncompleteMatch(match.score_text);
+          const leaderNames = leaderTeam === 1 ? t1Names : t2Names;
+          const trailerNames = leaderTeam === 1 ? t2Names : t1Names;
+          const stoppageScore = match.score_text && parseScoreSets(match.score_text).length
+            ? winnerFirstScore(match.score_text, leaderTeam)
+            : (match.score_text || "Incomplete");
           const ptsByPlayer = {
             [match.team1_player1_id]: match.ladder_points_p1 ?? 5,
             [match.team1_player2_id]: match.ladder_points_p2 ?? 5,
@@ -4043,8 +4083,8 @@ async function loadMatchHistory() {
             <div class="history-expand-inner history-list-card">
               ${match.photo_url ? `<img class="card-photo" src="${escapeHtml(match.photo_url)}" alt="Match photo" data-photo-url="${escapeHtml(match.photo_url)}">` : ""}
               <div class="expand-detail-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}${match.submitted_by_name ? ` • <strong>Submitted by:</strong> ${escapeHtml(match.submitted_by_name)}` : ""}</div>
-              <div class="expand-detail-players"><strong>Players:</strong> ${escapeHtml(t1Names.join(" / "))} vs ${escapeHtml(t2Names.join(" / "))}</div>
-              <div class="expand-detail-score"><strong>Score at stoppage:</strong> ${escapeHtml(match.score_text || "Incomplete")}</div>
+              <div class="expand-detail-players"><strong>Players:</strong> ${escapeHtml(leaderNames.join(" / "))} vs ${escapeHtml(trailerNames.join(" / "))}</div>
+              <div class="expand-detail-score"><strong>Score at stoppage:</strong> ${escapeHtml(stoppageScore)}</div>
               ${match.match_notes ? `<div class="expand-detail-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
               <div class="match-extras">${partRows}</div>
               <div class="history-card-actions history-card-actions-full">
@@ -4052,14 +4092,14 @@ async function loadMatchHistory() {
                 ${!match.photo_url ? `<button type="button" class="btn-add-photo history-add-photo-btn" data-match-id="${match.id}">📷 Add Photo</button>` : ""}
               </div>
             </div>`;
-          const t1Html = t1Names.map(n => `<div class="hmt-player"><div class="hmt-pname hmt-pl">${escapeHtml(n)}</div></div>`).join("");
-          const t2Html = t2Names.map(n => `<div class="hmt-player"><div class="hmt-pname hmt-pl">${escapeHtml(n)}</div></div>`).join("");
+          const leaderHtml = leaderNames.map(n => `<div class="hmt-player"><div class="hmt-pname hmt-pl">${escapeHtml(n)}</div></div>`).join("");
+          const trailerHtml = trailerNames.map(n => `<div class="hmt-player"><div class="hmt-pname hmt-pl">${escapeHtml(n)}</div></div>`).join("");
           return `<div class="hmt-match">` +
             `<div class="hmt-row retired-row" data-match-id="${match.id}">` +
             `<div class="hmt-date-cell"><span class="hmt-date-val">${escapeHtml(fmtShortDate(match.date_played))}</span><span class="match-badge retired-badge">🏳️ Incomplete</span></div>` +
-            `<div class="hmt-winner-cell">${t1Html}</div>` +
-            `<div class="hmt-opp-cell">${t2Html}</div>` +
-            `<div class="hmt-score-cell">${escapeHtml(match.score_text || "—")}</div>` +
+            `<div class="hmt-winner-cell">${leaderHtml}</div>` +
+            `<div class="hmt-opp-cell">${trailerHtml}</div>` +
+            `<div class="hmt-score-cell">${escapeHtml(stoppageScore || "—")}</div>` +
             `</div>` +
             `<div class="hmt-expand" data-expand-for="${match.id}" hidden>${expandInner}</div>` +
             `</div>`;
@@ -5061,6 +5101,12 @@ async function loadPlayerMatchHistory() {
         const rName2 = id => id ? (retiredNm2[id] || playerMap[id] || "?") : null;
         const t1Str2 = [match.team1_player1_id, match.team1_player2_id].filter(Boolean).map(rName2).filter(Boolean).join(" / ");
         const t2Str2 = [match.team2_player1_id, match.team2_player2_id].filter(Boolean).map(rName2).filter(Boolean).join(" / ");
+        const leaderTeam2 = leadingTeamForIncompleteMatch(match.score_text);
+        const leaderStr2 = leaderTeam2 === 1 ? t1Str2 : t2Str2;
+        const trailerStr2 = leaderTeam2 === 1 ? t2Str2 : t1Str2;
+        const stoppageScore2 = match.score_text && parseScoreSets(match.score_text).length
+          ? winnerFirstScore(match.score_text, leaderTeam2)
+          : (match.score_text || "Incomplete");
         const matchFmt2 = match.team1_player2_id ? "Doubles" : "Singles";
         const ptsByPlayer2 = {
           [match.team1_player1_id]: match.ladder_points_p1 ?? 5,
@@ -5098,8 +5144,8 @@ async function loadPlayerMatchHistory() {
                 <div class="history-meta"><strong>Date:</strong> ${escapeHtml(safeDateText(match.date_played))}</div>
               </div>
             </div>
-            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(t1Str2)} vs ${escapeHtml(t2Str2)}</div>
-            <div class="history-score"><strong>Score at stoppage:</strong> ${escapeHtml(match.score_text || "Incomplete")}</div>
+            <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(leaderStr2)} vs ${escapeHtml(trailerStr2)}</div>
+            <div class="history-score"><strong>Score at stoppage:</strong> ${escapeHtml(stoppageScore2)}</div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
             <div class="match-extras">${partRows2}</div>
             <div class="history-card-actions history-card-actions-full">
@@ -5133,7 +5179,7 @@ async function loadPlayerMatchHistory() {
               </div>
             </div>
             <div class="history-matchup"><strong>Players:</strong> ${escapeHtml(display.playersText)}</div>
-            <div class="history-score"><strong>Score:</strong> ${escapeHtml(match.score_text || "—")} (games)</div>
+            <div class="history-score"><strong>Score:</strong> ${escapeHtml((match.winner_team ? winnerFirstScore(match.score_text || "", match.winner_team) : match.score_text) || "—")} (games)</div>
             ${match.match_notes ? `<div class="history-meta"><strong>Notes:</strong> ${escapeHtml(match.match_notes)}</div>` : ""}
             <div class="match-bottom-section">
               ${renderMiniMatchExtras(match, playerMap, playerId)}
