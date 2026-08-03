@@ -6475,15 +6475,16 @@ function normalizeTournamentName(name) {
   return String(name || "").trim().toLowerCase();
 }
 
-// Women's draw: seeds 1-4 receive a bye straight into the Quarterfinals.
+// Women's draw (13 players): seeds 1-3 receive a bye straight into the
+// Quarterfinals; seeds 4-13 all play in the Round of 16 (5 matches).
 // These are the 8 R16-column boxes top to bottom, exactly as displayed.
 // Consecutive pairs merge into one QF slot (box1+box2 -> QF1, box3+box4 ->
 // QF2, ...), same mechanism as the men's bracket.
 const TOURNAMENT_WOMEN_R16_BOXES = [
   { type: "bye", seed: 1 },
   { type: "match", pair: [8, 9] },
-  { type: "match", pair: [5, 12] },
-  { type: "bye", seed: 4 },
+  { type: "match", pair: [5, 13] },
+  { type: "match", pair: [4, 12] },
   { type: "bye", seed: 3 },
   { type: "match", pair: [6, 11] },
   { type: "match", pair: [7, 10] },
@@ -6771,7 +6772,7 @@ async function loadTournamentBracket() {
       return (Number(p.dynamic_rating) || 0) < TOURNAMENT_MEN_OPEN_RATING_CAP;
     });
 
-    const womenSeeds = buildTournamentSeeds(womenOpen, 6, 12);
+    const womenSeeds = buildTournamentSeeds(womenOpen, 6, 13);
     const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
     const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16);
 
