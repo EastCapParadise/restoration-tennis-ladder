@@ -6578,6 +6578,36 @@ function buildTournamentSeeds(players, topCount, totalCount) {
   return seeds;
 }
 
+// Women's Open (13 players): seeds 1-6 = top 6 by points (tie: rating desc).
+// Seeds 7-13 = the remaining 7 players, custom-routed by dynamic_rating so
+// each top seed's early-round opponent is deliberately weak: the lowest-rated
+// of the group lands on #12/#13 (R16 opponents of #4/#5), the next two on
+// #8/#9 (the pair that meets #1 in the QF), the next two on #7/#10 (meets
+// #2 in the QF), and the highest-rated of the group lands on #11 (the QF
+// opponent reached via #3's #6/#11 R16 match).
+const TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC = [12, 13, 8, 9, 7, 10, 11];
+
+function buildWomenOpenTournamentSeeds(players) {
+  const topCount = 6;
+  const totalCount = 13;
+  const sorted = sortByPointsThenRatingDesc(players);
+  const topTier = sorted.slice(0, topCount);
+  const lowerTierByRatingAsc = sorted
+    .slice(topCount, totalCount)
+    .slice()
+    .sort((a, b) => (Number(a.dynamic_rating) || 0) - (Number(b.dynamic_rating) || 0));
+
+  const playerBySeed = new Map();
+  topTier.forEach((player, i) => playerBySeed.set(i + 1, player));
+  lowerTierByRatingAsc.forEach((player, i) => playerBySeed.set(TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC[i], player));
+
+  const seeds = [];
+  for (let i = 1; i <= totalCount; i++) {
+    seeds.push({ seed: i, player: playerBySeed.get(i) || null });
+  }
+  return seeds;
+}
+
 // Straight seeding by points (tie: rating desc), no tier re-sort — used for
 // the small, fixed-membership Men's Club bracket.
 function buildSimpleTournamentSeeds(players, totalCount) {
@@ -6820,7 +6850,7 @@ async function loadTournamentBracket() {
       return (Number(p.dynamic_rating) || 0) < TOURNAMENT_MEN_OPEN_RATING_CAP;
     });
 
-    const womenSeeds = buildTournamentSeeds(womenOpen, 6, 13);
+    const womenSeeds = buildWomenOpenTournamentSeeds(womenOpen);
     const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
     const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16);
 
