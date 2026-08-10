@@ -6546,16 +6546,17 @@ function normalizeTournamentSex(sex) {
   return null;
 }
 
-// Ranks by ladder_points desc, ties broken by dynamic_rating desc.
-function sortByPointsThenRatingDesc(players) {
+// Ranks by ladder_points desc, ties broken by SOS desc — the same tiebreak
+// used for ties in the main ladder standings.
+function sortByPointsThenSOSDesc(players) {
   return players.slice().sort((a, b) => {
     const pointsDiff = (Number(b.ladder_points) || 0) - (Number(a.ladder_points) || 0);
     if (pointsDiff !== 0) return pointsDiff;
-    return (Number(b.dynamic_rating) || 0) - (Number(a.dynamic_rating) || 0);
+    return (Number(b.sos) || 0) - (Number(a.sos) || 0);
   });
 }
 
-// Seeds 1..topCount = top players by points (tie: rating desc).
+// Seeds 1..topCount = top players by points (tie: SOS desc).
 // Seeds topCount+1..totalCount = next players by points, but re-ordered by
 // dynamic_rating DESC so the highest-rated of that group seeds first
 // (topCount+1, facing the weakest top seed) and the lowest-rated seeds
@@ -6563,7 +6564,7 @@ function sortByPointsThenRatingDesc(players) {
 // the easiest possible bottom-half opponent.
 // Missing players are filled with TBD (null) placeholders.
 function buildTournamentSeeds(players, topCount, totalCount) {
-  const sorted = sortByPointsThenRatingDesc(players);
+  const sorted = sortByPointsThenSOSDesc(players);
   const topTier = sorted.slice(0, topCount);
   const lowerTier = sorted
     .slice(topCount, totalCount)
@@ -6578,7 +6579,7 @@ function buildTournamentSeeds(players, topCount, totalCount) {
   return seeds;
 }
 
-// Women's Open (13 players): seeds 1-6 = top 6 by points (tie: rating desc).
+// Women's Open (13 players): seeds 1-6 = top 6 by points (tie: SOS desc).
 // Seeds 7-13 = the remaining 7 players, custom-routed by dynamic_rating so
 // each top seed's early-round opponent is deliberately weak: the lowest-rated
 // of the group lands on #12/#13 (R16 opponents of #4/#5), the next two on
@@ -6590,7 +6591,7 @@ const TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC = [12, 13, 8, 9, 7, 10, 11];
 function buildWomenOpenTournamentSeeds(players) {
   const topCount = 6;
   const totalCount = 13;
-  const sorted = sortByPointsThenRatingDesc(players);
+  const sorted = sortByPointsThenSOSDesc(players);
   const topTier = sorted.slice(0, topCount);
   const lowerTierByRatingAsc = sorted
     .slice(topCount, totalCount)
@@ -6608,10 +6609,10 @@ function buildWomenOpenTournamentSeeds(players) {
   return seeds;
 }
 
-// Straight seeding by points (tie: rating desc), no tier re-sort — used for
+// Straight seeding by points (tie: SOS desc), no tier re-sort — used for
 // the small, fixed-membership Men's Club bracket.
 function buildSimpleTournamentSeeds(players, totalCount) {
-  const sorted = sortByPointsThenRatingDesc(players);
+  const sorted = sortByPointsThenSOSDesc(players);
   const seeds = [];
   for (let i = 0; i < totalCount; i++) {
     seeds.push({ seed: i + 1, player: sorted[i] || null });
@@ -6825,13 +6826,20 @@ async function loadTournamentBracket() {
   if (!womenContainer && !menClubContainer && !menOpenContainer) return;
 
   try {
-    const { data, error } = await supabaseClient
-      .from("players")
-      .select("name, sex, ladder_points, dynamic_rating, wins, losses")
-      .order("ladder_points", { ascending: false });
+    const [{ data, error }, sosMatches] = await Promise.all([
+      supabaseClient
+        .from("players")
+        .select("id, name, sex, ladder_points, dynamic_rating, wins, losses")
+        .order("ladder_points", { ascending: false }),
+      fetchAllMatchesForSOS()
+    ]);
     if (error) throw error;
 
     const players = data || [];
+    const sexMap = {};
+    players.forEach((p) => { sexMap[p.id] = p.sex; });
+    players.forEach((p) => { p.sos = calculatePlayerSOS(p.id, sosMatches, sexMap); });
+
     const men = players.filter((p) => normalizeTournamentSex(p.sex) === "M");
     const women = players.filter((p) => normalizeTournamentSex(p.sex) === "F");
 
