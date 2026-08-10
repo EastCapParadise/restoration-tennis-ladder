@@ -6523,11 +6523,12 @@ function normalizeTournamentName(name) {
   return String(name || "").trim().toLowerCase();
 }
 
-// Women's draw (14 players): seeds 1-2 receive a bye straight into the
-// Quarterfinals; seeds 3-14 all play in the Round of 16 (6 matches).
-// These are the 8 R16-column boxes top to bottom, exactly as displayed.
-// Consecutive pairs merge into one QF slot (box1+box2 -> QF1, box3+box4 ->
-// QF2, ...), same mechanism as the men's bracket.
+// Women's draw: a standard 16-slot bracket like the men's, but with seeds
+// 15-16 always left empty (there are only 14 eligible women), which gives
+// seeds #1 and #2 a bye rather than a real Round-of-16 opponent. These are
+// the 8 R16-column boxes top to bottom, exactly as displayed. Consecutive
+// pairs merge into one QF slot (box1+box2 -> QF1, box3+box4 -> QF2, ...),
+// same mechanism as the men's bracket.
 const TOURNAMENT_WOMEN_R16_BOXES = [
   { type: "bye", seed: 1 },
   { type: "match", pair: [8, 9] },
@@ -6575,37 +6576,6 @@ function buildTournamentSeeds(players, topCount, totalCount) {
   const seeds = [];
   for (let i = 0; i < totalCount; i++) {
     seeds.push({ seed: i + 1, player: ordered[i] || null });
-  }
-  return seeds;
-}
-
-// Women's Open (14 players): seeds 1-7 = top 7 by points (tie: SOS desc).
-// Seeds 8-14 = the remaining 7 players, custom-routed by dynamic_rating so
-// each of seeds #3-#7's R16 opponent is deliberately weak, in strict order:
-// the lowest-rated of the group lands on #14 (R16 opponent of #3), then
-// #13/#12/#11/#10 fill in as R16 opponents of #4/#5/#6/#7 respectively.
-// The two highest-rated of the group land on #8/#9, which face each other
-// in the R16 and don't affect any top seed's early-round path (seeds #1
-// and #2 already have byes).
-const TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC = [14, 13, 12, 11, 10, 9, 8];
-
-function buildWomenOpenTournamentSeeds(players) {
-  const topCount = 7;
-  const totalCount = 14;
-  const sorted = sortByPointsThenSOSDesc(players);
-  const topTier = sorted.slice(0, topCount);
-  const lowerTierByRatingAsc = sorted
-    .slice(topCount, totalCount)
-    .slice()
-    .sort((a, b) => (Number(a.dynamic_rating) || 0) - (Number(b.dynamic_rating) || 0));
-
-  const playerBySeed = new Map();
-  topTier.forEach((player, i) => playerBySeed.set(i + 1, player));
-  lowerTierByRatingAsc.forEach((player, i) => playerBySeed.set(TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC[i], player));
-
-  const seeds = [];
-  for (let i = 1; i <= totalCount; i++) {
-    seeds.push({ seed: i, player: playerBySeed.get(i) || null });
   }
   return seeds;
 }
@@ -6859,7 +6829,7 @@ async function loadTournamentBracket() {
       return (Number(p.dynamic_rating) || 0) < TOURNAMENT_MEN_OPEN_RATING_CAP;
     });
 
-    const womenSeeds = buildWomenOpenTournamentSeeds(womenOpen);
+    const womenSeeds = buildTournamentSeeds(womenOpen, 8, 14);
     const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
     const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16);
 
