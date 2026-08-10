@@ -6523,17 +6523,17 @@ function normalizeTournamentName(name) {
   return String(name || "").trim().toLowerCase();
 }
 
-// Women's draw (13 players): seeds 1-3 receive a bye straight into the
-// Quarterfinals; seeds 4-13 all play in the Round of 16 (5 matches).
+// Women's draw (14 players): seeds 1-2 receive a bye straight into the
+// Quarterfinals; seeds 3-14 all play in the Round of 16 (6 matches).
 // These are the 8 R16-column boxes top to bottom, exactly as displayed.
 // Consecutive pairs merge into one QF slot (box1+box2 -> QF1, box3+box4 ->
 // QF2, ...), same mechanism as the men's bracket.
 const TOURNAMENT_WOMEN_R16_BOXES = [
   { type: "bye", seed: 1 },
   { type: "match", pair: [8, 9] },
-  { type: "match", pair: [5, 13] },
-  { type: "match", pair: [4, 12] },
-  { type: "bye", seed: 3 },
+  { type: "match", pair: [5, 12] },
+  { type: "match", pair: [4, 13] },
+  { type: "match", pair: [3, 14] },
   { type: "match", pair: [6, 11] },
   { type: "match", pair: [7, 10] },
   { type: "bye", seed: 2 }
@@ -6579,18 +6579,19 @@ function buildTournamentSeeds(players, topCount, totalCount) {
   return seeds;
 }
 
-// Women's Open (13 players): seeds 1-6 = top 6 by points (tie: SOS desc).
-// Seeds 7-13 = the remaining 7 players, custom-routed by dynamic_rating so
-// each top seed's early-round opponent is deliberately weak: the lowest-rated
-// of the group lands on #12/#13 (R16 opponents of #4/#5), the next two on
-// #8/#9 (the pair that meets #1 in the QF), the next two on #7/#10 (meets
-// #2 in the QF), and the highest-rated of the group lands on #11 (the QF
-// opponent reached via #3's #6/#11 R16 match).
-const TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC = [12, 13, 8, 9, 7, 10, 11];
+// Women's Open (14 players): seeds 1-7 = top 7 by points (tie: SOS desc).
+// Seeds 8-14 = the remaining 7 players, custom-routed by dynamic_rating so
+// each of seeds #3-#7's R16 opponent is deliberately weak, in strict order:
+// the lowest-rated of the group lands on #14 (R16 opponent of #3), then
+// #13/#12/#11/#10 fill in as R16 opponents of #4/#5/#6/#7 respectively.
+// The two highest-rated of the group land on #8/#9, which face each other
+// in the R16 and don't affect any top seed's early-round path (seeds #1
+// and #2 already have byes).
+const TOURNAMENT_WOMEN_LOWER_SEED_BY_RATING_ASC = [14, 13, 12, 11, 10, 9, 8];
 
 function buildWomenOpenTournamentSeeds(players) {
-  const topCount = 6;
-  const totalCount = 13;
+  const topCount = 7;
+  const totalCount = 14;
   const sorted = sortByPointsThenSOSDesc(players);
   const topTier = sorted.slice(0, topCount);
   const lowerTierByRatingAsc = sorted
