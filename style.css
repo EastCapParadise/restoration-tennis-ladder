@@ -2146,6 +2146,22 @@ th[data-sort]:hover {
   }
 }
 
+/* Rating Climb tab: thead/tbody are swapped to a compact 6-column layout
+   (Rank, Name, Initial, Current, Change, Matches) via .ladder-table--rating-climb,
+   but the shared Name-column rule above still applies its 120px mobile width —
+   too wide alongside four numeric columns on a narrow screen. Narrow it here. */
+@media (max-width: 767px) {
+  .ladder-table--rating-climb th:nth-child(2),
+  .ladder-table--rating-climb td:nth-child(2) {
+    width: 90px !important;
+    max-width: 90px !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 @media (max-width: 480px) {
   .table-wrap {
     overflow-x: auto;
