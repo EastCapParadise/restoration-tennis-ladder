@@ -498,17 +498,6 @@ p {
   font-size: 14px;
 }
 
-.scoring-disclaimer {
-  font-size: 13px;
-  color: var(--muted);
-  background: var(--green-light);
-  border-left: 3px solid var(--green);
-  padding: 8px 12px;
-  border-radius: 0 4px 4px 0;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
 .button-group {
   display: flex;
   flex-direction: column;
@@ -984,10 +973,11 @@ hr {
   }
 
   .ladder-filters-row #show-more-stats-btn {
-    align-self: flex-end;
+    align-self: stretch;
     margin-top: 4px;
-    font-size: 10px;
-    padding: 5px 6px;
+    margin-left: 0;
+    min-height: 36px;
+    text-align: center;
     white-space: nowrap;
   }
 }
@@ -2143,6 +2133,19 @@ th[data-sort]:hover {
   }
 }
 
+/* Landscape mobile: shorter viewport height makes the wide 120px Name column
+   crowd the visible columns even more — narrow it further */
+@media (max-width: 767px) and (orientation: landscape) {
+  .ladder-table th:nth-child(2),
+  .ladder-table td:nth-child(2) {
+    width: 90px !important;
+    max-width: 90px !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 @media (max-width: 480px) {
   .table-wrap {
     overflow-x: auto;
@@ -2866,17 +2869,15 @@ th[data-sort]:hover {
 
 
 .toggle-stats-link {
-  background: none;
-  border: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
   color: var(--navy);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 999px;
-  box-shadow: none;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  padding: 7px 16px;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: background 0.15s ease;
   margin-left: auto; /* right-align in flex row; also works when wrapping to a second line */
   white-space: nowrap;
