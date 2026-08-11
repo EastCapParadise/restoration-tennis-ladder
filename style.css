@@ -1817,7 +1817,6 @@ th[data-sort]:hover {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   position: relative;
   border-radius: 14px;
 }
@@ -1942,7 +1941,6 @@ th[data-sort]:hover {
 @media (max-width: 768px) {
   .table-wrap {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     border-radius: 12px;
   }
 
@@ -2165,7 +2163,6 @@ th[data-sort]:hover {
 @media (max-width: 480px) {
   .table-wrap {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     border-radius: 10px;
   }
 
