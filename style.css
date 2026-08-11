@@ -1952,9 +1952,11 @@ th[data-sort]:hover {
   /* Show More Stats reveals all 18 columns — their combined widths sum to
      roughly 1000-1050px, well past the min-width:0 reset above. Give the
      table an explicit floor so it can't be squeezed narrower than its own
-     columns instead of relying on table-layout:auto to work it out. */
+     columns. table-layout: fixed makes the browser respect each column's
+     explicit width exactly instead of redistributing based on content. */
   .ladder-table.show-more-stats {
     min-width: 1050px;
+    table-layout: fixed;
   }
 
   .ladder-table th,
@@ -1984,13 +1986,45 @@ th[data-sort]:hover {
     display: none;
   }
 
-  /* Area, when revealed: full width instead of the desktop 1%-collapse rule */
+  /* Area, when revealed: explicit width instead of the desktop 1%-collapse
+     rule — table-layout: fixed (added above) can't collapse-to-content, so
+     every visible column needs a real px width or the browser assigns
+     leftover space arbitrarily */
   .ladder-table.show-more-stats:not(.ladder-table--rating-climb) th:nth-child(3),
   .ladder-table.show-more-stats:not(.ladder-table--rating-climb) td:nth-child(3) {
-    max-width: none;
-    width: auto;
-    overflow: visible;
-    text-overflow: clip;
+    width: 70px;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Games W, Games L, Played, Ladder, DI W, DI L, Inc. — previously had only
+     min-width (fine under table-layout:auto, but table-layout:fixed on the
+     expanded table needs an explicit width for every visible column) */
+  .ladder-table th:nth-child(12),
+  .ladder-table td:nth-child(12),
+  .ladder-table th:nth-child(13),
+  .ladder-table td:nth-child(13),
+  .ladder-table th:nth-child(14),
+  .ladder-table td:nth-child(14) {
+    width: 80px;
+  }
+
+  .ladder-table th:nth-child(15),
+  .ladder-table td:nth-child(15) {
+    width: 95px;
+  }
+
+  .ladder-table th:nth-child(16),
+  .ladder-table td:nth-child(16),
+  .ladder-table th:nth-child(17),
+  .ladder-table td:nth-child(17) {
+    width: 56px;
+  }
+
+  .ladder-table th:nth-child(18),
+  .ladder-table td:nth-child(18) {
+    width: 50px;
   }
 
   /* Name column on mobile — tighter to save horizontal space, never wraps */
@@ -2181,6 +2215,7 @@ th[data-sort]:hover {
 
   .ladder-table.show-more-stats {
     min-width: 1050px;
+    table-layout: fixed;
   }
 
   .ladder-table th,
