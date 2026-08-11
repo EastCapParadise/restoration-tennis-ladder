@@ -585,8 +585,6 @@ th {
   font-weight: 700;
   letter-spacing: 0.03em;
   border-bottom: 2px solid #dde6e0;
-  position: sticky;
-  top: 0;
 }
 
 tr:hover td {
@@ -824,7 +822,7 @@ hr {
 
 .rank-2 td {
   font-weight: 700;
-  background: rgba(192, 192, 192, 0.14);
+  background: rgba(180, 190, 210, 0.18);
 }
 
 .rank-2 td:first-child {
@@ -1848,7 +1846,9 @@ th[data-sort]:hover {
   border-bottom: 2px solid #dde6e0;
 }
 
-/* Rank column — z-index 26 keeps it above the Name column (z-index 24) */
+/* Rank column — z-index 15 keeps it above the Name column (z-index 13),
+   both kept below the site header's z-index 20 so they don't bleed over
+   the nav bar during vertical scroll */
 .ladder-table th:nth-child(1),
 .ladder-table td:nth-child(1) {
   position: sticky;
@@ -1856,7 +1856,7 @@ th[data-sort]:hover {
   min-width: 28px;
   width: 28px;
   overflow: hidden;
-  z-index: 26;
+  z-index: 15;
   background: #fff;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
   text-align: center;
@@ -1878,7 +1878,7 @@ th[data-sort]:hover {
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
-  z-index: 24;
+  z-index: 13;
   background: #fff;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
   text-align: left;
@@ -2221,21 +2221,10 @@ th[data-sort]:hover {
   background: rgba(15, 23, 42, 0.025);
 }
 
-/* Improve smooth scrolling + sticky column performance on iOS */
+/* Enable momentum scrolling on iOS */
 
 .table-wrap {
   -webkit-overflow-scrolling: touch;
-  transform: translateZ(0);
-}
-
-.ladder-table {
-  transform: translateZ(0);
-}
-
-.ladder-table th,
-.ladder-table td {
-  backface-visibility: hidden;
-  transform: translateZ(0);
 }
 
 .history-player-impact {
