@@ -2280,7 +2280,10 @@ th[data-sort]:hover {
 
 .ladder-table .rank-1 td:nth-child(1),
 .ladder-table .rank-1 td:nth-child(2) {
-  background: rgba(255, 215, 0, 0.12);
+  /* rgba alone is never opaque — it composites with whatever scrolls
+     underneath a sticky cell regardless of specificity. Layer the gold
+     tint over a solid base so the result is fully opaque. */
+  background: linear-gradient(rgba(255, 215, 0, 0.25), rgba(255, 215, 0, 0.25)), var(--card, #fff) !important;
 }
 
 .ladder-table .rank-2 td:nth-child(1),
@@ -2290,7 +2293,7 @@ th[data-sort]:hover {
 
 .ladder-table .rank-3 td:nth-child(1),
 .ladder-table .rank-3 td:nth-child(2) {
-  background: rgba(205, 127, 50, 0.12);
+  background: linear-gradient(rgba(205, 127, 50, 0.25), rgba(205, 127, 50, 0.25)), var(--card, #fff) !important;
 }
 
 /* Enable momentum scrolling on iOS */
