@@ -6505,6 +6505,21 @@ const TOURNAMENT_MEN_R16_PAIRS = [
   [7, 10], [2, 15]
 ];
 
+// Men's Open Tier 2 slot routing (see buildTournamentSeeds). Tier 2 players
+// are sorted by dynamic_rating ASC; index i here is that sorted position
+// (0 = lowest rated), and the value is the seed slot that player fills.
+// Slots #16/#9 and #15/#10 are the two R16 boxes that merge into #1's and
+// #2's QF quarters (per TOURNAMENT_MEN_R16_PAIRS above), so the four
+// lowest-rated Tier 2 players are routed there — #1 and #2 get both the
+// easiest R16 opponent AND the weakest QF opponent pool. The four
+// highest-rated Tier 2 players land in #3/#4's quarter (slots #14/#11 and
+// #13/#12), which absorbs into the middle seeds' path instead.
+const TOURNAMENT_MEN_OPEN_TIER2_SLOTS = [16, 9, 15, 10, 13, 12, 14, 11];
+
+// Women's Open Tier 2 slot routing — same mechanism, 6-player Tier 2 group
+// (seeds 9-14; seeds 15/16 don't exist since #1/#2 get byes instead).
+const TOURNAMENT_WOMEN_OPEN_TIER2_SLOTS = [14, 9, 13, 10, 12, 11];
+
 // Men's Club: 4-player single-elim draw. SF1: #1 vs #4, SF2: #2 vs #3.
 const TOURNAMENT_MEN_CLUB_PAIRS = [
   [1, 4], [2, 3]
@@ -6557,26 +6572,33 @@ function sortByPointsThenSOSDesc(players) {
   });
 }
 
-// Seeds 1..topCount = top players by points (tie: SOS desc).
-// Seeds topCount+1..totalCount = next players by points, but re-ordered by
-// dynamic_rating DESC so the highest-rated of that group seeds first
-// (topCount+1, facing the weakest top seed) and the lowest-rated seeds
-// last (totalCount, facing the #1 overall seed) — this gives the #1 seed
-// the easiest possible bottom-half opponent.
+// Seeds 1..topCount = top players by points (tie: SOS desc) — pure points,
+// unchanged. Seeds topCount+1..totalCount ("Tier 2") are next by points for
+// pool selection, then re-ordered by dynamic_rating ASC and routed to
+// specific bracket slots via tier2SlotSeeds — NOT assigned sequentially.
+// tier2SlotSeeds[i] is the seed number that the i-th lowest-rated Tier 2
+// player fills (see TOURNAMENT_MEN_OPEN_TIER2_SLOTS / _WOMEN_ for the exact
+// routing and why). This is what makes every seed's expected path get
+// measurably harder going down the seed list, instead of just the R16
+// opponent while leaving the QF opponent pool arbitrary.
 // Missing players are filled with TBD (null) placeholders.
-function buildTournamentSeeds(players, topCount, totalCount) {
+function buildTournamentSeeds(players, topCount, totalCount, tier2SlotSeeds) {
   const sorted = sortByPointsThenSOSDesc(players);
   const topTier = sorted.slice(0, topCount);
   const lowerTier = sorted
     .slice(topCount, totalCount)
     .slice()
-    .sort((a, b) => (Number(b.dynamic_rating) || 0) - (Number(a.dynamic_rating) || 0));
-  const ordered = topTier.concat(lowerTier);
+    .sort((a, b) => (Number(a.dynamic_rating) || 0) - (Number(b.dynamic_rating) || 0));
 
   const seeds = [];
   for (let i = 0; i < totalCount; i++) {
-    seeds.push({ seed: i + 1, player: ordered[i] || null });
+    seeds.push({ seed: i + 1, player: null });
   }
+  topTier.forEach((player, i) => { seeds[i].player = player; });
+  lowerTier.forEach((player, i) => {
+    const targetSeed = tier2SlotSeeds[i];
+    if (targetSeed >= 1 && targetSeed <= totalCount) seeds[targetSeed - 1].player = player;
+  });
   return seeds;
 }
 
@@ -6829,9 +6851,9 @@ async function loadTournamentBracket() {
       return (Number(p.dynamic_rating) || 0) < TOURNAMENT_MEN_OPEN_RATING_CAP;
     });
 
-    const womenSeeds = buildTournamentSeeds(womenOpen, 8, 14);
+    const womenSeeds = buildTournamentSeeds(womenOpen, 8, 14, TOURNAMENT_WOMEN_OPEN_TIER2_SLOTS);
     const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
-    const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16);
+    const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16, TOURNAMENT_MEN_OPEN_TIER2_SLOTS);
 
     renderTournamentBracket(
       "bracket-women-open",
