@@ -10,7 +10,10 @@ const state = {
     search: "",
     sortBy: "ladder_points",
     sortDir: "desc",
-    showMoreStats: false,
+    // Desktop defaults to expanded (every column visible without a click);
+    // mobile keeps the collapsed default. Computed once at script load —
+    // resizing the window afterward never re-applies this default.
+    showMoreStats: window.innerWidth >= 768,
     userHasSorted: false
   },
   history: {
@@ -645,6 +648,7 @@ async function fetchAllMatchesForSOS() {
     .from("matches")
     .select(`
       id,
+      match_type, score_text, is_completed,
       team1_player1_id, team1_player2_id,
       team2_player1_id, team2_player2_id,
       team1_avg_rating, team2_avg_rating
@@ -654,6 +658,38 @@ async function fetchAllMatchesForSOS() {
     return [];
   }
   return data || [];
+}
+
+// Retired/incomplete matches (match_type "retired", is_completed false) only
+// ever store their score in score_text — the numeric set columns are 0/null,
+// so they contribute nothing to games_won/games_lost until completed. Sum
+// each team's games across sets (skipping a "0-0" set, which is a
+// placeholder for one that hasn't been played yet) so those in-progress
+// scores still count. Returns Map<playerId, {won, lost}>.
+function computeIncompleteMatchGamesDelta(matches) {
+  const delta = new Map();
+  const add = (playerId, won, lost) => {
+    const id = Number(playerId);
+    if (!id) return;
+    const cur = delta.get(id) || { won: 0, lost: 0 };
+    cur.won += won;
+    cur.lost += lost;
+    delta.set(id, cur);
+  };
+
+  for (const match of matches) {
+    if (match.match_type !== "retired" || match.is_completed) continue;
+    const sets = parseScoreSets(match.score_text).filter(([t1, t2]) => t1 > 0 || t2 > 0);
+    if (!sets.length) continue;
+
+    const team1Games = sets.reduce((sum, [t1]) => sum + t1, 0);
+    const team2Games = sets.reduce((sum, [, t2]) => sum + t2, 0);
+
+    [match.team1_player1_id, match.team1_player2_id].filter(Boolean).forEach((id) => add(id, team1Games, team2Games));
+    [match.team2_player1_id, match.team2_player2_id].filter(Boolean).forEach((id) => add(id, team2Games, team1Games));
+  }
+
+  return delta;
 }
 
 function calculatePlayerSOS(playerId, allMatches, sexMap) {
@@ -1141,14 +1177,21 @@ async function loadLadder() {
     const sexMap = {};
     players.forEach(p => { sexMap[p.id] = p.sex || ""; });
 
-    const playersWithStatus = players.map((player) => ({
-      ...player,
-      status: getPlayerStatus(player.id, recentMatches),
-      sos: calculatePlayerSOS(player.id, sosMatches, sexMap),
-      rating_delta: (player.matches_played ?? 0) > 0
-        ? roundToTwo(Number(player.dynamic_rating ?? 0) - Number(player.initial_rating ?? 0))
-        : null,
-    }));
+    const incompleteGamesDelta = computeIncompleteMatchGamesDelta(sosMatches);
+
+    const playersWithStatus = players.map((player) => {
+      const delta = incompleteGamesDelta.get(Number(player.id)) || { won: 0, lost: 0 };
+      return {
+        ...player,
+        games_won: Number(player.games_won || 0) + delta.won,
+        games_lost: Number(player.games_lost || 0) + delta.lost,
+        status: getPlayerStatus(player.id, recentMatches),
+        sos: calculatePlayerSOS(player.id, sosMatches, sexMap),
+        rating_delta: (player.matches_played ?? 0) > 0
+          ? roundToTwo(Number(player.dynamic_rating ?? 0) - Number(player.initial_rating ?? 0))
+          : null,
+      };
+    });
 
     if (state.ladder.mode === "rating-climb") {
       const qualified = playersWithStatus.filter(p => (p.matches_played ?? 0) >= 3);
@@ -1217,6 +1260,15 @@ async function loadLadder() {
 function setupShowMoreStats() {
   const btn = document.getElementById("show-more-stats-btn");
   if (!btn) return;
+
+  // Desktop defaults to expanded (state.ladder.showMoreStats is set from
+  // window.innerWidth at page load, above) — apply that initial state to
+  // the table and button before any click, so desktop users see every
+  // column without needing to toggle it themselves. This only runs once
+  // at setup; resizing the window afterward never re-applies the default.
+  const table = document.querySelector(".ladder-table");
+  if (table) table.classList.toggle("show-more-stats", state.ladder.showMoreStats);
+  btn.textContent = state.ladder.showMoreStats ? "Show Less ▴" : "Show More Stats ▾";
 
   btn.addEventListener("click", () => {
     state.ladder.showMoreStats = !state.ladder.showMoreStats;
@@ -4278,6 +4330,7 @@ async function fetchMatchesForPlayer(playerId) {
       match_type,
       winner_team,
       score_text,
+      is_completed,
       date_played,
       created_at,
       team1_player1_id,
@@ -4355,12 +4408,19 @@ async function loadPlayerProfile() {
   }
 
   try {
-    const player = await fetchPlayerById(playerId);
+    const [player, playerMatches] = await Promise.all([
+      fetchPlayerById(playerId),
+      fetchMatchesForPlayer(playerId)
+    ]);
 
     if (!player) {
       container.innerHTML = "<p>Player not found.</p>";
       return;
     }
+
+    const incompleteDelta = computeIncompleteMatchGamesDelta(playerMatches).get(Number(playerId)) || { won: 0, lost: 0 };
+    const gamesWon = Number(player.games_won || 0) + incompleteDelta.won;
+    const gamesLost = Number(player.games_lost || 0) + incompleteDelta.lost;
 
     container.innerHTML = `
       <div class="profile-header">
@@ -4387,11 +4447,11 @@ async function loadPlayerProfile() {
         </div>
         <div class="profile-stat">
           <div class="profile-stat-label">Games Won</div>
-          <div class="profile-stat-value">${player.games_won ?? 0}</div>
+          <div class="profile-stat-value">${gamesWon}</div>
         </div>
         <div class="profile-stat">
           <div class="profile-stat-label">Games Lost</div>
-          <div class="profile-stat-value">${player.games_lost ?? 0}</div>
+          <div class="profile-stat-value">${gamesLost}</div>
         </div>
         ${(player.incomplete_matches || 0) > 0 ? `
         <div class="profile-stat">
