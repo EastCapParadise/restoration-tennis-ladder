@@ -3964,12 +3964,14 @@ async function loadMatchHistory() {
         const trailerSide = leaderIsSideA ? sideB : sideA;
         const leaderGames  = leaderIsSideA ? p1Games : p3Games;
         const trailerGames = leaderIsSideA ? p3Games : p1Games;
-        const winBadge = leaderGames !== trailerGames ? `<span class="win-badge">W</span>` : "";
+        const isTie = leaderGames === trailerGames;
+        const winBadge = !isTie ? `<span class="win-badge">W</span>` : "";
+        const lossBadge = !isTie ? `<span class="loss-badge">L</span>` : "";
         return `
         <tr>
           <td>${escapeHtml(fmtD(m.date_played))}</td>
           <td>${escapeHtml(leaderSide)}${winBadge}</td>
-          <td>${escapeHtml(trailerSide)}</td>
+          <td>${escapeHtml(trailerSide)}${lossBadge}</td>
           <td class="num">${leaderGames}-${trailerGames}</td>
         </tr>`;
       }).join("");
@@ -4088,7 +4090,7 @@ async function loadMatchHistory() {
         const t1Rating = unadjustedTeamRating(match.team1_avg_rating, [match.team1_player1_id, match.team1_player2_id], sexMap, isMixed);
         const t2Rating = unadjustedTeamRating(match.team2_avg_rating, [match.team2_player1_id, match.team2_player2_id], sexMap, isMixed);
 
-        const mkPlayer = (id, rc, pts, teamRating, bold, showWinBadge) => {
+        const mkPlayer = (id, rc, pts, teamRating, bold, showWinBadge, showLossBadge) => {
           if (!id) return "";
           const nm = display.nameMap[id] || playerMap[id] || "?";
           const rcNum = Number(rc || 0);
@@ -4097,8 +4099,9 @@ async function loadMatchHistory() {
           const rStr = teamRating != null ? Number(teamRating).toFixed(2) : "—";
           const pStr = pts != null ? pts : "—";
           const winBadge = showWinBadge ? `<span class="win-badge">W</span>` : "";
+          const lossBadge = showLossBadge ? `<span class="loss-badge">L</span>` : "";
           return `<div class="hmt-player">` +
-            `<div class="hmt-pname ${bold ? "hmt-pw" : "hmt-pl"}"><a href="player.html?id=${id}" class="player-link hmt-plink">${escapeHtml(nm)}</a>${winBadge}</div>` +
+            `<div class="hmt-pname ${bold ? "hmt-pw" : "hmt-pl"}"><a href="player.html?id=${id}" class="player-link hmt-plink">${escapeHtml(nm)}</a>${winBadge}${lossBadge}</div>` +
             `<div class="hmt-pstats"><span class="htc-pr">${escapeHtml(rStr)}</span> <span class="${rcCls}">${escapeHtml(rcStr)}</span> · <span class="htc-pts">${escapeHtml(String(pStr))} pts</span></div>` +
             `</div>`;
         };
@@ -4181,12 +4184,15 @@ async function loadMatchHistory() {
           loserRc:   _wt === 1 ? match.rating_change_p3 : match.rating_change_p1,
         });
 
-        // Win badge goes on the winning team's last (non-null) player only —
+        // Win/loss badges go on each team's last (non-null) player only —
         // one badge per team, not one per player.
         const hasDeterminedWinner = _wt === 1 || _wt === 2;
         const winnerLastId = wIsT1
           ? (match.team1_player2_id || match.team1_player1_id)
           : (match.team2_player2_id || match.team2_player1_id);
+        const loserLastId = wIsT1
+          ? (match.team2_player2_id || match.team2_player1_id)
+          : (match.team1_player2_id || match.team1_player1_id);
 
         const winnerCell = wIsT1
           ? mkPlayer(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, true, hasDeterminedWinner && match.team1_player1_id === winnerLastId) +
@@ -4195,10 +4201,10 @@ async function loadMatchHistory() {
             mkPlayer(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, true, hasDeterminedWinner && match.team2_player2_id === winnerLastId);
 
         const oppCell = wIsT1
-          ? mkPlayer(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Rating, false) +
-            mkPlayer(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, false)
-          : mkPlayer(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, false) +
-            mkPlayer(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Rating, false);
+          ? mkPlayer(match.team2_player1_id, match.rating_change_p3, match.ladder_points_p3, t2Rating, false, false, hasDeterminedWinner && match.team2_player1_id === loserLastId) +
+            mkPlayer(match.team2_player2_id, match.rating_change_p4, match.ladder_points_p4, t2Rating, false, false, hasDeterminedWinner && match.team2_player2_id === loserLastId)
+          : mkPlayer(match.team1_player1_id, match.rating_change_p1, match.ladder_points_p1, t1Rating, false, false, hasDeterminedWinner && match.team1_player1_id === loserLastId) +
+            mkPlayer(match.team1_player2_id, match.rating_change_p2, match.ladder_points_p2, t1Rating, false, false, hasDeterminedWinner && match.team1_player2_id === loserLastId);
 
         const expandInner = `
           <div class="history-expand-inner history-list-card">
