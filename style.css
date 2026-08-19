@@ -5438,6 +5438,20 @@ th[data-sort]:hover {
 .hmt-plink:hover { text-decoration: underline; }
 .hmt-pstats { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
+.win-badge {
+  display: inline-block;
+  background: #1f4d3a;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 5px;
+  vertical-align: middle;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+
 /* Shared rating/RC/pts color tokens */
 .htc-pr   { color: var(--muted); }
 .htc-rc-pos  { color: #16a34a; }
