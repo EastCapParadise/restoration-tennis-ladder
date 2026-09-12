@@ -6573,27 +6573,13 @@ function setupRealtimeSubscriptions() {
 
 // Standard bracket pairing for a 16-player single-elim draw, in render order.
 // Consecutive pairs merge into the next round (1&2 -> QF1, 3&4 -> QF2, ...).
-const TOURNAMENT_MEN_R16_PAIRS = [
+// Used for both the Men's Open and Women's Open draws.
+const TOURNAMENT_OPEN_R16_PAIRS = [
   [1, 16], [8, 9],
   [5, 12], [4, 13],
   [3, 14], [6, 11],
   [7, 10], [2, 15]
 ];
-
-// Men's Open Tier 2 slot routing (see buildTournamentSeeds). Tier 2 players
-// are sorted by dynamic_rating ASC; index i here is that sorted position
-// (0 = lowest rated), and the value is the seed slot that player fills.
-// Slots #16/#9 and #15/#10 are the two R16 boxes that merge into #1's and
-// #2's QF quarters (per TOURNAMENT_MEN_R16_PAIRS above), so the four
-// lowest-rated Tier 2 players are routed there — #1 and #2 get both the
-// easiest R16 opponent AND the weakest QF opponent pool. The four
-// highest-rated Tier 2 players land in #3/#4's quarter (slots #14/#11 and
-// #13/#12), which absorbs into the middle seeds' path instead.
-const TOURNAMENT_MEN_OPEN_TIER2_SLOTS = [16, 9, 15, 10, 13, 12, 14, 11];
-
-// Women's Open Tier 2 slot routing — same mechanism, 6-player Tier 2 group
-// (seeds 9-14; seeds 15/16 don't exist since #1/#2 get byes instead).
-const TOURNAMENT_WOMEN_OPEN_TIER2_SLOTS = [14, 9, 13, 10, 12, 11];
 
 // Men's Club: 4-player single-elim draw. SF1: #1 vs #4, SF2: #2 vs #3.
 const TOURNAMENT_MEN_CLUB_PAIRS = [
@@ -6603,32 +6589,9 @@ const TOURNAMENT_MEN_CLUB_PAIRS = [
 // Hardcoded Men's Club roster — fixed membership regardless of points/rating.
 const TOURNAMENT_MEN_CLUB_NAMES = ["Endel Liias", "James Janis", "Jed Royal", "Mac McCullough"];
 
-// Men are excluded from the Open bracket at/above this rating, with a named exception below.
-const TOURNAMENT_MEN_OPEN_RATING_CAP = 4.25;
-const TOURNAMENT_MEN_OPEN_RATING_EXCEPTION = "Chris Donahoe";
-
-const TOURNAMENT_WOMEN_OPEN_EXCLUDED_NAMES = ["Kelly Sheppard"];
-
 function normalizeTournamentName(name) {
   return String(name || "").trim().toLowerCase();
 }
-
-// Women's draw: a standard 16-slot bracket like the men's, but with seeds
-// 15-16 always left empty (there are only 14 eligible women), which gives
-// seeds #1 and #2 a bye rather than a real Round-of-16 opponent. These are
-// the 8 R16-column boxes top to bottom, exactly as displayed. Consecutive
-// pairs merge into one QF slot (box1+box2 -> QF1, box3+box4 -> QF2, ...),
-// same mechanism as the men's bracket.
-const TOURNAMENT_WOMEN_R16_BOXES = [
-  { type: "bye", seed: 1 },
-  { type: "match", pair: [8, 9] },
-  { type: "match", pair: [5, 12] },
-  { type: "match", pair: [4, 13] },
-  { type: "match", pair: [3, 14] },
-  { type: "match", pair: [6, 11] },
-  { type: "match", pair: [7, 10] },
-  { type: "bye", seed: 2 }
-];
 
 function normalizeTournamentSex(sex) {
   const s = String(sex || "").trim().toLowerCase();
@@ -6647,38 +6610,10 @@ function sortByPointsThenSOSDesc(players) {
   });
 }
 
-// Seeds 1..topCount = top players by points (tie: SOS desc) — pure points,
-// unchanged. Seeds topCount+1..totalCount ("Tier 2") are next by points for
-// pool selection, then re-ordered by dynamic_rating ASC and routed to
-// specific bracket slots via tier2SlotSeeds — NOT assigned sequentially.
-// tier2SlotSeeds[i] is the seed number that the i-th lowest-rated Tier 2
-// player fills (see TOURNAMENT_MEN_OPEN_TIER2_SLOTS / _WOMEN_ for the exact
-// routing and why). This is what makes every seed's expected path get
-// measurably harder going down the seed list, instead of just the R16
-// opponent while leaving the QF opponent pool arbitrary.
-// Missing players are filled with TBD (null) placeholders.
-function buildTournamentSeeds(players, topCount, totalCount, tier2SlotSeeds) {
-  const sorted = sortByPointsThenSOSDesc(players);
-  const topTier = sorted.slice(0, topCount);
-  const lowerTier = sorted
-    .slice(topCount, totalCount)
-    .slice()
-    .sort((a, b) => (Number(a.dynamic_rating) || 0) - (Number(b.dynamic_rating) || 0));
-
-  const seeds = [];
-  for (let i = 0; i < totalCount; i++) {
-    seeds.push({ seed: i + 1, player: null });
-  }
-  topTier.forEach((player, i) => { seeds[i].player = player; });
-  lowerTier.forEach((player, i) => {
-    const targetSeed = tier2SlotSeeds[i];
-    if (targetSeed >= 1 && targetSeed <= totalCount) seeds[targetSeed - 1].player = player;
-  });
-  return seeds;
-}
-
-// Straight seeding by points (tie: SOS desc), no tier re-sort — used for
-// the small, fixed-membership Men's Club bracket.
+// Seeds 1..totalCount = players ranked by points (tie: SOS desc) — pure
+// participation, no rating involved anywhere. Used for the Men's Open,
+// Women's Open, and Men's Club brackets alike. Missing players are filled
+// with TBD (null) placeholders.
 function buildSimpleTournamentSeeds(players, totalCount) {
   const sorted = sortByPointsThenSOSDesc(players);
   const seeds = [];
@@ -6706,13 +6641,6 @@ function renderTournamentSeedRow(seed, player) {
     </div>`;
 }
 
-function renderTournamentByeLabelRow() {
-  return `
-    <div class="bm-player">
-      <span class="bm-name bm-bye-text">BYE</span>
-    </div>`;
-}
-
 function renderTournamentPlaceholderRow(label) {
   return `
     <div class="bm-player bm-placeholder">
@@ -6720,18 +6648,14 @@ function renderTournamentPlaceholderRow(label) {
     </div>`;
 }
 
-// A "side" for QF/SF/Final rounds is either a concrete seed (advanced via a
-// bye) or a placeholder pointing at the match still deciding who fills it.
+// A "side" for QF/SF/Final rounds is a placeholder pointing at the match
+// still deciding who fills it.
 function renderTournamentSide(side) {
   if (!side) return renderTournamentPlaceholderRow("TBD");
-  if (side.concrete) return renderTournamentSeedRow(side.seed, side.player);
   return renderTournamentPlaceholderRow(side.label);
 }
 
 function tournamentSideFromRound1Slot(slot) {
-  if (slot.type === "bye") {
-    return { concrete: true, seed: slot.top.seed, player: slot.top.player };
-  }
   const topName = slot.top.player ? slot.top.player.name : "TBD";
   const botName = slot.bottom.player ? slot.bottom.player.name : "TBD";
   return {
@@ -6766,8 +6690,8 @@ function buildTournamentBracketRounds(round1Slots, laterRoundAbbrevs) {
   return rounds;
 }
 
-function buildTournamentMenRound1(seedMap) {
-  return TOURNAMENT_MEN_R16_PAIRS.map(([topSeed, botSeed]) => ({
+function buildTournamentOpenRound1(seedMap) {
+  return TOURNAMENT_OPEN_R16_PAIRS.map(([topSeed, botSeed]) => ({
     type: "match",
     top: { seed: topSeed, player: seedMap.get(topSeed) || null },
     bottom: { seed: botSeed, player: seedMap.get(botSeed) || null }
@@ -6782,24 +6706,9 @@ function buildTournamentMenClubRound1(seedMap) {
   }));
 }
 
-function buildTournamentWomenRound1(seedMap) {
-  return TOURNAMENT_WOMEN_R16_BOXES.map((box) => {
-    if (box.type === "bye") {
-      return { type: "bye", top: { seed: box.seed, player: seedMap.get(box.seed) || null } };
-    }
-    return {
-      type: "match",
-      top: { seed: box.pair[0], player: seedMap.get(box.pair[0]) || null },
-      bottom: { seed: box.pair[1], player: seedMap.get(box.pair[1]) || null }
-    };
-  });
-}
-
 function renderTournamentMatchCard(slot, isFirstRound, id, feedsId) {
   let bodyHtml;
-  if (isFirstRound && slot.type === "bye") {
-    bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentByeLabelRow()}`;
-  } else if (isFirstRound) {
+  if (isFirstRound) {
     bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentSeedRow(slot.bottom.seed, slot.bottom.player)}`;
   } else {
     bodyHtml = `${renderTournamentSide(slot.top)}<div class="bm-divider"></div>${renderTournamentSide(slot.bottom)}`;
@@ -6911,29 +6820,19 @@ async function loadTournamentBracket() {
     const men = players.filter((p) => normalizeTournamentSex(p.sex) === "M");
     const women = players.filter((p) => normalizeTournamentSex(p.sex) === "F");
 
-    const womenOpen = women.filter(
-      (p) => !TOURNAMENT_WOMEN_OPEN_EXCLUDED_NAMES.some((n) => normalizeTournamentName(n) === normalizeTournamentName(p.name))
-    );
-
     const clubNamesLower = TOURNAMENT_MEN_CLUB_NAMES.map(normalizeTournamentName);
     const isClubPlayer = (p) => clubNamesLower.includes(normalizeTournamentName(p.name));
     const menClub = men.filter(isClubPlayer);
+    const menOpenEligible = men.filter((p) => !isClubPlayer(p));
 
-    const ratingExceptionLower = normalizeTournamentName(TOURNAMENT_MEN_OPEN_RATING_EXCEPTION);
-    const menOpenEligible = men.filter((p) => {
-      if (isClubPlayer(p)) return false;
-      if (normalizeTournamentName(p.name) === ratingExceptionLower) return true;
-      return (Number(p.dynamic_rating) || 0) < TOURNAMENT_MEN_OPEN_RATING_CAP;
-    });
-
-    const womenSeeds = buildTournamentSeeds(womenOpen, 8, 14, TOURNAMENT_WOMEN_OPEN_TIER2_SLOTS);
+    const womenSeeds = buildSimpleTournamentSeeds(women, 16);
     const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
-    const menOpenSeeds = buildTournamentSeeds(menOpenEligible, 8, 16, TOURNAMENT_MEN_OPEN_TIER2_SLOTS);
+    const menOpenSeeds = buildSimpleTournamentSeeds(menOpenEligible, 16);
 
     renderTournamentBracket(
       "bracket-women-open",
       womenSeeds,
-      buildTournamentWomenRound1,
+      buildTournamentOpenRound1,
       ["Round of 16", "Quarterfinals", "Semifinals", "Final"],
       ["QF", "SF", "F"]
     );
@@ -6947,7 +6846,7 @@ async function loadTournamentBracket() {
     renderTournamentBracket(
       "bracket-men-open",
       menOpenSeeds,
-      buildTournamentMenRound1,
+      buildTournamentOpenRound1,
       ["Round of 16", "Quarterfinals", "Semifinals", "Final"],
       ["QF", "SF", "F"]
     );
