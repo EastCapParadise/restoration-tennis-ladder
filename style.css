@@ -5879,14 +5879,15 @@ th[data-sort]:hover {
   min-width: 520px;
 }
 
+/* Compact on every screen: 13px cells, 12px headers. */
 .club-table th,
 .club-table td {
-  padding: 10px 10px;
-  font-size: var(--tourn-body);
+  padding: 7px 10px;
+  font-size: 13px;
 }
 
 .club-table th {
-  font-size: var(--tourn-meta);
+  font-size: 12px;
 }
 
 .club-table td.num,
@@ -5923,12 +5924,12 @@ th[data-sort]:hover {
 
 .club-h2h-table th,
 .club-h2h-table td {
-  padding: 9px 5px;
-  font-size: var(--tourn-body);
+  padding: 7px 5px;
+  font-size: 13px;
 }
 
 .club-h2h-table th {
-  font-size: var(--tourn-meta);
+  font-size: 12px;
 }
 
 .club-h2h-table td:first-child,
@@ -5936,6 +5937,11 @@ th[data-sort]:hover {
   white-space: nowrap;
   font-weight: 600;
   padding-left: 10px;
+}
+
+/* Five short columns: fits a phone without scrolling. */
+.club-h2h-table {
+  min-width: 0;
 }
 
 .club-h2h-table th.num,
@@ -5964,7 +5970,7 @@ th[data-sort]:hover {
 
 .club-h2h-score {
   font-weight: 500;
-  font-size: var(--tourn-meta);
+  font-size: 11px;
   color: var(--muted);
 }
 
