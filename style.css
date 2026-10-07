@@ -5840,6 +5840,12 @@ th[data-sort]:hover {
   letter-spacing: 0.05em;
 }
 
+/* The site-wide `table { min-width: 900px }` is for the rankings grid; the
+   timeline is two short columns and should fit the card, phones included. */
+.tourn-timeline {
+  min-width: 0;
+}
+
 .tourn-timeline th {
   font-size: var(--tourn-meta);
 }
@@ -6030,7 +6036,17 @@ th[data-sort]:hover {
 }
 
 @media (max-width: 767px) {
-  .tourn-timeline td:first-child {
-    width: auto;
+  .tourn-timeline th,
+  .tourn-timeline td {
+    padding: 9px 10px;
+  }
+
+  .tourn-timeline th {
+    font-size: 12px;
+  }
+
+  .tourn-timeline td {
+    font-size: 13px;
+    line-height: 1.4;
   }
 }
