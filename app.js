@@ -6830,7 +6830,7 @@ function renderTournamentSeedSource(field) {
     ? ` (captured ${captured.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })})`
     : "";
   el.className = "tournament-note tournament-note-locked";
-  el.innerHTML = `<strong>Seeds locked.</strong> All seeding and the Club 4 come from the frozen ${escapeHtml(asOf)} standings snapshot${escapeHtml(capturedText)}. The live ladder keeps accruing points through Nov 1 — it no longer moves this draw.`;
+  el.innerHTML = `<strong>Seeds locked.</strong> All seeding comes from the frozen ${escapeHtml(asOf)} standings snapshot${escapeHtml(capturedText)}. The live ladder keeps accruing points through Nov 1 — it no longer moves this draw.`;
 }
 
 /* ── Admin: capture the seeding snapshot ─────────────────────────────────── */

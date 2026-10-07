@@ -30,8 +30,9 @@
     it's the only one that knows the snapshot date.)
 
    Until the snapshot is captured, the page shows PROVISIONAL seeds off the live
-   ladder and says so. Once `snapshot.players` is non-empty, seeding, men's
-   backfill, and the Club 4 all read from it and only from it.
+   ladder and says so. Once `snapshot.players` is non-empty, seeding and men's
+   backfill read from it and only from it. The Club 4 are the fixed
+   `clubRoster` list below.
 
    ---------------------------------------------------------------------------
    HOW TO ENTER A RESULT
@@ -165,6 +166,13 @@ window.TOURNAMENT_DATA = {
     // { id, name, sex, ladder_points, sos, display_rating, matches_played }
     players: []
   },
+
+  /* ---------------------------------------------------------------------------
+     MEN'S CLUB ROSTER — the four Club players, by name as on the ladder.
+     Fixed list, not picked by rating or points. These four are left out of
+     the Men's Open; every other man is an Open candidate on ladder points.
+     ------------------------------------------------------------------------ */
+  clubRoster: ["Endel Liias", "James Janis", "Jed Royal", "Travis Hubbs"],
 
   /* ---------------------------------------------------------------------------
      WITHDRAWALS — names (as on the ladder) of players who opted out by Oct 13.

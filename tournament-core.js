@@ -190,8 +190,8 @@ function sortByPointsThenSOSDesc(players) {
   });
 }
 
-// display_rating desc — the Club 4 are the highest-rated men, not the highest
-// point earners. Points then SOS break a rating tie.
+// display_rating desc — orders the fixed Club roster into Club seeds 1-4.
+// Points then SOS break a rating tie.
 function sortByRatingDesc(players) {
   return players.slice().sort((a, b) => {
     const rating = tournamentPlayerRating(b) - tournamentPlayerRating(a);
@@ -617,8 +617,16 @@ async function loadTournamentField(fetchLiveStandings) {
   const men = tournamentPool(players, "M");
   const women = tournamentPool(players, "F");
 
-  // Club 4 = highest display_rating, independent of points.
-  const clubFour = sortByRatingDesc(men).slice(0, 4);
+  // Club 4 = the fixed roster in tournament-data.js, looked up among all men
+  // so ladder points play no part. Seeds 1-4 within the Club go by rating.
+  const menByName = new Map(
+    players
+      .filter((player) => normalizeTournamentSex(player.sex) === "M")
+      .map((player) => [normalizeTournamentName(player.name), player])
+  );
+  const clubFour = sortByRatingDesc(
+    (data.clubRoster || []).slice(0, 4).map((name) => menByName.get(normalizeTournamentName(name)) || { name })
+  );
   const clubNames = new Set(clubFour.map((player) => normalizeTournamentName(player.name)));
   const menOpenPool = rules.clubPlayersInOpenDraw
     ? men
