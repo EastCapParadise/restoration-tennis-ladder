@@ -10,7 +10,10 @@
                     then never edited. The live ladder keeps running after this;
                     the tournament stops looking at it.
      2. withdrawals — people who opted out by Oct 13.
-     3. matches   — results and dates, added as they come in.
+     3. matches   — legacy/fallback results. Results are normally entered in
+                    the admin panel (Tournament Match Results), which saves
+                    them to the Supabase tournament_results table; a row
+                    there wins over an entry here for the same match id.
 
    ---------------------------------------------------------------------------
    HOW TO CAPTURE THE Oct 11 SNAPSHOT
@@ -33,7 +36,11 @@
    ---------------------------------------------------------------------------
    HOW TO ENTER A RESULT
    ---------------------------------------------------------------------------
-   Add an entry to `matches` keyed by match id. Match ids are stable:
+   Use admin.html → Tournament Match Results. It writes the same fields
+   described below to the tournament_results table (winner saved by name).
+
+   Hand-editing still works as a fallback: add an entry to `matches` keyed by
+   match id. Match ids are stable:
 
      women-r16-1 … women-r16-8   men-r16-1 … men-r16-8
      women-qf-1  … women-qf-4    men-qf-1  … men-qf-4

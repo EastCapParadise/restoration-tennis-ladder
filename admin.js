@@ -893,6 +893,211 @@ async function removePlayer(playerId) {
   await loadPlayers();
 }
 
+// ─── Section 2b: Tournament Match Results ────────────────────────────────────
+// Writes the tournament_results table that tournament.html reads. Matchups
+// come from tournament-core.js, the same code that draws the public bracket,
+// so the players offered for each match are exactly the ones shown there.
+
+const TOURN_ROUNDS = {
+  men:   [['r16', 'Round of 16'], ['qf', 'Quarterfinals'], ['sf', 'Semifinals'], ['f', 'Final']],
+  women: [['r16', 'Round of 16'], ['qf', 'Quarterfinals'], ['sf', 'Semifinals'], ['f', 'Final']],
+  club:  [['r1', 'Round 1'], ['r2', 'Round 2'], ['r3', 'Round 3'], ['f', 'Club Final']]
+};
+
+const TOURN_DRAW_NAMES = { men: "Men's Open", women: "Women's Open", club: "Men's Club" };
+
+// Every match by draw, in bracket order, rebuilt on each load.
+let tournMatches = { men: [], women: [], club: [] };
+
+function tournMatchById(id) {
+  for (const draw of Object.keys(tournMatches)) {
+    const match = tournMatches[draw].find(m => m.id === id);
+    if (match) return match;
+  }
+  return null;
+}
+
+function tournResultText(match) {
+  if (!match.result) return match.date ? `set for ${formatTournamentDate(match.date)}` : '';
+  const winner = match[match.result.winnerSide];
+  if (match.result.walkover) return `${winner.label} W.O.`;
+  return `${winner.label}${match.result.score ? ' ' + match.result.score : ''}`;
+}
+
+async function loadTournamentAdmin() {
+  setStatus('tourn-admin-status', '');
+  await loadTournamentResults(db);
+  // No live-standings fallback here: until the snapshot is in
+  // tournament-data.js there is no draw to enter results against.
+  const field = await loadTournamentField();
+
+  if (field.provisional) {
+    tournMatches = { men: [], women: [], club: [] };
+    setStatus('tourn-admin-status', `Seeds aren't locked yet — capture the ${formatTournamentDateLong(field.asOf)} snapshot into tournament-data.js first. Results can be entered once the draws exist.`, 'error');
+  } else {
+    const club = buildTournamentClub(field.club);
+    tournMatches = {
+      men: buildTournamentDraw('men', field.men).flat(),
+      women: buildTournamentDraw('women', field.women).flat(),
+      club: [...club.fixtures, club.final]
+    };
+  }
+
+  const selected = document.getElementById('tr-match')?.value;
+  populateTournRounds(selected);
+  renderTournResultsTable();
+}
+
+function populateTournRounds(keepMatchId) {
+  const draw = document.getElementById('tr-draw').value;
+  const roundEl = document.getElementById('tr-round');
+  const keep = keepMatchId ? tournMatchById(keepMatchId) : null;
+  const current = keep && keep.drawKey === draw ? keep.round : roundEl.value;
+  roundEl.innerHTML = TOURN_ROUNDS[draw].map(([key, label]) => `<option value="${key}">${esc(label)}</option>`).join('');
+  if (current && TOURN_ROUNDS[draw].some(([key]) => key === current)) roundEl.value = current;
+  populateTournMatches(keepMatchId);
+}
+
+function populateTournMatches(keepMatchId) {
+  const draw = document.getElementById('tr-draw').value;
+  const round = document.getElementById('tr-round').value;
+  const matchEl = document.getElementById('tr-match');
+  const matches = tournMatches[draw].filter(m => m.round === round);
+
+  if (!matches.length) {
+    matchEl.innerHTML = '<option value="">No draw yet</option>';
+  } else {
+    matchEl.innerHTML = matches.map(m => {
+      const ready = m.a.known && m.b.known;
+      const status = tournResultText(m);
+      const label = `${m.label} — ${tournamentSideText(m.a)} vs ${tournamentSideText(m.b)}${status ? ` (${status})` : ''}`;
+      return `<option value="${esc(m.id)}"${ready ? '' : ' disabled'}>${esc(label)}</option>`;
+    }).join('');
+    const firstReady = matches.find(m => m.a.known && m.b.known);
+    if (keepMatchId && matches.some(m => m.id === keepMatchId)) matchEl.value = keepMatchId;
+    else if (firstReady) matchEl.value = firstReady.id;
+  }
+  fillTournForm();
+}
+
+// Prefills the winner/score/date/note fields from what's saved for the match.
+function fillTournForm() {
+  const match = tournMatchById(document.getElementById('tr-match').value);
+  const winnerEl = document.getElementById('tr-winner');
+  const ready = !!match && match.a.known && match.b.known;
+  const entry = match ? tournamentMatchEntry(match.id) || {} : {};
+
+  winnerEl.innerHTML = '<option value="">— Not played yet —</option>' + (ready
+    ? ['a', 'b'].map(side => `<option value="${side}">${esc(tournamentSideText(match[side]))}</option>`).join('')
+    : '');
+  winnerEl.value = ready && match.result && ['played', 'walkover'].includes(match.result.reason) ? match.result.winnerSide : '';
+
+  document.getElementById('tr-score').value = entry.score || '';
+  document.getElementById('tr-date').value = entry.date || '';
+  document.getElementById('tr-note').value = entry.note || '';
+  document.getElementById('tr-walkover').checked = !!entry.walkover;
+
+  ['tr-winner', 'tr-score', 'tr-date', 'tr-note', 'tr-walkover', 'tr-save', 'tr-clear'].forEach(id => {
+    document.getElementById(id).disabled = !ready;
+  });
+  setStatus('tourn-form-status', '');
+}
+
+async function saveTournResult(e) {
+  e.preventDefault();
+  const match = tournMatchById(document.getElementById('tr-match').value);
+  if (!match || !match.a.known || !match.b.known) {
+    setStatus('tourn-form-status', 'Pick a match with both players decided.', 'error'); return;
+  }
+
+  const side     = document.getElementById('tr-winner').value;
+  const walkover = document.getElementById('tr-walkover').checked;
+  const score    = document.getElementById('tr-score').value.trim();
+  const date     = document.getElementById('tr-date').value || null;
+  const note     = document.getElementById('tr-note').value.trim() || null;
+
+  if (!side && (score || walkover)) {
+    setStatus('tourn-form-status', 'Choose the winner, or clear the score/walkover to save just a date.', 'error'); return;
+  }
+  if (side && !walkover && !tournamentScoreSets(score).length) {
+    setStatus('tourn-form-status', 'Enter a score like 6-3 (winner first), or tick Walkover.', 'error'); return;
+  }
+  if (!side && !date && !note) {
+    setStatus('tourn-form-status', 'Nothing to save — choose a winner or set a date.', 'error'); return;
+  }
+
+  const payload = {
+    match_id: match.id,
+    winner:   side ? match[side].player.name : null,
+    score:    side && !walkover ? score : null,
+    date,
+    walkover: !!side && walkover,
+    note,
+    updated_at: new Date().toISOString()
+  };
+
+  setStatus('tourn-form-status', 'Saving…');
+  const { error } = await db.from(TOURNAMENT_RESULTS_TABLE).upsert(payload, { onConflict: 'match_id' });
+  if (error) { setStatus('tourn-form-status', `Save failed: ${error.message}`, 'error'); return; }
+
+  await loadTournamentAdmin();
+  setStatus('tourn-form-status', `Saved ${TOURN_DRAW_NAMES[match.drawKey]} ${match.label}. The tournament page is updated.`, 'success');
+}
+
+async function clearTournResult(matchId) {
+  const match = tournMatchById(matchId);
+  if (!match) return;
+  const confirmed = await showConfirm('Clear Tournament Result',
+    `Remove the saved result for ${TOURN_DRAW_NAMES[match.drawKey]} ${match.label}? Any later-round results that depend on it will stop showing until this is re-entered.`);
+  if (!confirmed) return;
+
+  const { error } = await db.from(TOURNAMENT_RESULTS_TABLE).delete().eq('match_id', matchId);
+  if (error) { setStatus('tourn-form-status', `Clear failed: ${error.message}`, 'error'); return; }
+
+  await loadTournamentAdmin();
+  setStatus('tourn-form-status', `Cleared ${TOURN_DRAW_NAMES[match.drawKey]} ${match.label}.`, 'success');
+}
+
+function editTournResult(matchId) {
+  const match = tournMatchById(matchId);
+  if (!match) return;
+  document.getElementById('tr-draw').value = match.drawKey;
+  populateTournRounds(matchId);
+  document.getElementById('tourn-result-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTournResultsTable() {
+  const tbody = document.getElementById('tourn-results-body');
+  if (!tbody) return;
+
+  const rows = [];
+  ['men', 'women', 'club'].forEach(draw => {
+    tournMatches[draw].forEach(match => {
+      if (!tournamentResultRows[match.id]) return;
+      const entry = tournamentResultRows[match.id];
+      // A saved winner who isn't in the match any more — an earlier round was
+      // changed after this one was entered — is ignored by the bracket.
+      const stale = entry.winner && !(match.result && ['played', 'walkover'].includes(match.result.reason));
+      const winner = stale ? `⚠ ${entry.winner} — not in this match` : (entry.winner || '—');
+      rows.push(`<tr>
+        <td>${esc(TOURN_DRAW_NAMES[draw])} ${esc(match.label)}</td>
+        <td>${esc(tournamentSideText(match.a))} vs ${esc(tournamentSideText(match.b))}</td>
+        <td>${esc(winner)}</td>
+        <td>${esc(entry.walkover ? 'W.O.' : entry.score || '—')}</td>
+        <td>${esc(entry.date ? formatTournamentDate(entry.date) : '—')}</td>
+        <td style="white-space:nowrap;">
+          <button class="adm-btn adm-btn-sm adm-btn-secondary" data-tourn-edit="${esc(match.id)}">Edit</button>
+          <button class="adm-btn adm-btn-sm adm-btn-danger" data-tourn-clear="${esc(match.id)}">Clear</button>
+        </td>
+      </tr>`);
+    });
+  });
+
+  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="6">No tournament results saved yet.</td></tr>';
+  tbody.querySelectorAll('[data-tourn-edit]').forEach(btn => btn.addEventListener('click', () => editTournResult(btn.dataset.tournEdit)));
+  tbody.querySelectorAll('[data-tourn-clear]').forEach(btn => btn.addEventListener('click', () => clearTournResult(btn.dataset.tournClear)));
+}
+
 // ─── Section 3: Event Management ─────────────────────────────────────────────
 
 // Convert "19:30" (from <input type="time">) → "7:30 PM"
@@ -1361,6 +1566,14 @@ function wireEvents() {
     if (e.target.id === 'adjust-rating-modal') closeAdjustRating();
   });
 
+  // Tournament results
+  document.getElementById('refresh-tourn-btn')?.addEventListener('click', loadTournamentAdmin);
+  document.getElementById('tr-draw')?.addEventListener('change', () => populateTournRounds());
+  document.getElementById('tr-round')?.addEventListener('change', () => populateTournMatches());
+  document.getElementById('tr-match')?.addEventListener('change', fillTournForm);
+  document.getElementById('tourn-result-form')?.addEventListener('submit', saveTournResult);
+  document.getElementById('tr-clear')?.addEventListener('click', () => clearTournResult(document.getElementById('tr-match').value));
+
   // Drop-in log
   document.getElementById('refresh-dropin-btn')?.addEventListener('click', loadDropInLog);
 
@@ -1387,7 +1600,7 @@ function wireEvents() {
 // ─── Load everything ──────────────────────────────────────────────────────────
 
 async function loadAll() {
-  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary(), loadDropInLog()]);
+  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary(), loadDropInLog(), loadTournamentAdmin()]);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────

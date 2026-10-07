@@ -22,7 +22,7 @@
   <meta name="robots" content="index, follow">
   <meta property="og:site_name" content="Restoration Tennis Ladder">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="style.css?v=54">
+  <link rel="stylesheet" href="style.css?v=55">
 </head>
 <body>
   <header class="site-header">
@@ -64,7 +64,7 @@
       <h2>End of Season Tournament</h2>
       <p class="tournament-subtitle">Men's Open · Women's Open · Men's Club — finals night Friday, Nov 6 at Stratford Park, Arlington</p>
       <p>Three draws close out the season. The <strong>Men's Open</strong> and <strong>Women's Open</strong> are 16-player single-elimination draws, seeded 1–16 by ladder points. The <strong>Men's Club</strong> is a four-player round robin for our four highest-rated men, with the top two meeting in a club final.</p>
-      <p>Open seeds come from ladder points alone, with strength of schedule breaking ties — the same rule as the rankings page — and are frozen at the Oct 11 standings snapshot. Everything before finals night is self-scheduled, and tournament matches count for the ladder like any other match.</p>
+      <p>Open seeds come from ladder points alone, with strength of schedule breaking ties — the same rule as the rankings page — and are frozen at the Oct 11 standings snapshot. Everything before finals night is self-scheduled.</p>
       <p id="tournament-seed-source" class="tournament-note">Loading seeding source…</p>
     </section>
 
@@ -99,7 +99,7 @@
     <section class="card">
       <h2>Men's Club<span class="draw-live-note">4 players · round robin</span></h2>
       <p class="bracket-elite-label">Elite Division</p>
-      <p>The four highest-rated men by display rating — this draw is decided by rating, not points. Everyone plays everyone once: six matches, three each, self-scheduled with a hard deadline of Nov 4. The top two meet in the club final, the Nov 6 nightcap.</p>
+      <p>Four highest-rated men, round robin by Nov 4, top two meet in the final on Nov 6.</p>
 
       <p class="tourn-subhead">Standings</p>
       <div class="table-wrap" id="club-standings"></div>
@@ -107,21 +107,6 @@
 
       <p class="tourn-subhead">Head-to-head</p>
       <div class="table-wrap" id="club-h2h"></div>
-
-      <p class="tourn-subhead">Fixtures</p>
-      <div class="qf-groups" id="club-fixtures">
-        <p class="small-text">Loading fixtures…</p>
-      </div>
-
-      <p class="tourn-subhead">Club Final — Nov 6, 9:15 PM</p>
-      <div class="bracket-scroll">
-        <div class="bracket bracket-compact" id="bracket-men-club-final">
-          <div class="bracket-rounds">
-            <p class="small-text">Loading club final…</p>
-          </div>
-          <svg class="bracket-lines"></svg>
-        </div>
-      </div>
     </section>
 
     <section class="card">
@@ -131,7 +116,7 @@
         <dd>One set is the default for every match through the semifinals. Players may mutually agree to play more — a pro set or a full match — if both want it. Finals night is 8-game pro sets, no exceptions.</dd>
 
         <dt>Self-scheduling</dt>
-        <dd>The Round of 16, quarterfinals, and semifinals are all self-scheduled. Find your opponent in the <a href="contacts.html">directory</a>, agree on a court and a time, play, and report it through <a href="report.html">Report Match</a>. Only finals night is fixed.</dd>
+        <dd>The Round of 16, quarterfinals, and semifinals are all self-scheduled. Find your opponent in the <a href="contacts.html">directory</a>, agree on a court and a time, and play. Only finals night is fixed.</dd>
 
         <dt>Quarterfinal pods</dt>
         <dd>Each quarter of the Open draws is a pod of four players — seeds 1, 8, 9, 16 / 4, 5, 12, 13 / 3, 6, 11, 14 / 2, 7, 10, 15. The pod is only a scheduling convenience so the four of you can coordinate court time together. It's still straight single elimination: two Round of 16 matches, then a quarterfinal between the two winners.</dd>
@@ -140,7 +125,7 @@
         <dd>Any match not played by its deadline goes to the higher seed.</dd>
 
         <dt>Coordinating with Michael</dt>
-        <dd>In addition to you scheduling among yourselves — not instead of it — Michael, the tournament director, will text each quarterfinal pod's group chat (or each of you individually) to help get matches on the calendar. Text him the result of every Round of 16 and quarterfinal match as soon as it's played, as well as entering it in Report Match, so he isn't left to find out later.</dd>
+        <dd>In addition to you scheduling among yourselves — not instead of it — Michael, the tournament director, will text each quarterfinal pod's group chat (or each of you individually) to help get matches on the calendar. Michael enters every tournament result himself, so text him the score of each Round of 16 and quarterfinal match as soon as it's played rather than leaving him to find out later. Tournament matches aren't ladder matches, so don't submit them through Report Match.</dd>
 
       </dl>
     </section>
@@ -205,8 +190,9 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="tournament-data.js?v=1"></script>
-  <script src="app.js?v=63"></script>
+  <script src="tournament-data.js?v=2"></script>
+  <script src="tournament-core.js?v=1"></script>
+  <script src="app.js?v=64"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

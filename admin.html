@@ -215,6 +215,80 @@
         </div>
       </div>
 
+      <!-- Section 2b: Tournament Match Results -->
+      <div class="card" id="tourn-admin">
+        <div class="adm-section-header">
+          <h2>🏆 Tournament Match Results</h2>
+          <button id="refresh-tourn-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p class="small-text" style="margin-bottom:12px;">Results saved here go straight to the tournament page — brackets, Club standings, and head-to-head. They don't touch the ladder. Pick a match, choose the winner, and enter the score winner-first (e.g. 6-3). Leave the winner blank to just publish a scheduled date.</p>
+        <p id="tourn-admin-status" class="adm-status-text"></p>
+
+        <form id="tourn-result-form" autocomplete="off">
+          <div class="adm-events-form">
+            <div class="form-group">
+              <label for="tr-draw">Draw</label>
+              <select id="tr-draw" class="adm-input">
+                <option value="men">Men's Open</option>
+                <option value="women">Women's Open</option>
+                <option value="club">Men's Club</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="tr-round">Round</label>
+              <select id="tr-round" class="adm-input"></select>
+            </div>
+            <div class="form-group form-group-full">
+              <label for="tr-match">Match</label>
+              <select id="tr-match" class="adm-input"></select>
+            </div>
+            <div class="form-group">
+              <label for="tr-winner">Winner</label>
+              <select id="tr-winner" class="adm-input"></select>
+            </div>
+            <div class="form-group">
+              <label for="tr-score">Score (winner first)</label>
+              <input type="text" id="tr-score" class="adm-input" placeholder="6-3  or  6-4, 3-6, 10-7">
+            </div>
+            <div class="form-group">
+              <label for="tr-date">Date played / scheduled</label>
+              <input type="date" id="tr-date" class="adm-input">
+            </div>
+            <div class="form-group">
+              <label for="tr-note">Note (optional)</label>
+              <input type="text" id="tr-note" class="adm-input" placeholder="e.g. moved to Marcey">
+            </div>
+            <div class="form-group form-group-full">
+              <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="tr-walkover" style="width:auto;margin:0;"> Walkover — not played (no score)</label>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+            <button type="submit" id="tr-save" class="adm-btn adm-btn-primary">Save result</button>
+            <button type="button" id="tr-clear" class="adm-btn adm-btn-danger">Clear this match</button>
+          </div>
+          <p id="tourn-form-status" class="adm-status-text"></p>
+        </form>
+
+        <h3 style="font-size:15px;margin:20px 0 10px;color:var(--green-dark);">Saved results</h3>
+        <div class="table-wrap">
+          <table class="adm-table" id="tourn-results-table">
+            <thead>
+              <tr>
+                <th>Match</th>
+                <th>Players</th>
+                <th>Winner</th>
+                <th>Score</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tourn-results-body">
+              <tr><td colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Section 3: Event Management -->
       <div class="card">
         <div class="adm-section-header">
@@ -373,7 +447,9 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="admin.js?v=6"></script>
+  <script src="tournament-data.js?v=2"></script>
+  <script src="tournament-core.js?v=1"></script>
+  <script src="admin.js?v=7"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';
