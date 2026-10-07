@@ -179,8 +179,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadPlayerMatchHistory();
     }
 
-    if (document.getElementById("bracket-women-open") || document.getElementById("bracket-men-club") || document.getElementById("bracket-men-open")) {
-      await loadTournamentBracket();
+    if (document.getElementById("tournament-page")) {
+      await loadTournamentPage();
       window.addEventListener("resize", () => {
         clearTimeout(state.tournament._resizeTimer);
         state.tournament._resizeTimer = setTimeout(redrawTournamentBrackets, 200);
@@ -6537,8 +6537,8 @@ function setupRealtimeSubscriptions() {
           if (document.getElementById("directory-body")) await loadDirectory();
           if (document.getElementById("report-form")) await populatePlayerDropdowns();
           if (document.getElementById("player-profile")) await loadPlayerProfile();
-          if (document.getElementById("bracket-women-open") || document.getElementById("bracket-men-club") || document.getElementById("bracket-men-open")) {
-            await loadTournamentBracket();
+          if (document.getElementById("tournament-page")) {
+            await loadTournamentPage();
           }
         }
       )
@@ -6567,27 +6567,83 @@ function setupRealtimeSubscriptions() {
 }
 
 /* =========================
-   TOURNAMENT BRACKET
+   TOURNAMENT
    (tournament.html)
+
+   Seeding reads the frozen Oct 11 standings snapshot in tournament-data.js,
+   never live standings — the live ladder keeps accruing points through Nov 1
+   and no longer moves this draw. Results and dates come from the same file.
+   Nothing in here writes to Supabase or touches the rating model.
 ========================= */
 
-// Standard bracket pairing for a 16-player single-elim draw, in render order.
-// Consecutive pairs merge into the next round (1&2 -> QF1, 3&4 -> QF2, ...).
-// Used for both the Men's Open and Women's Open draws.
-const TOURNAMENT_OPEN_R16_PAIRS = [
-  [1, 16], [8, 9],
-  [5, 12], [4, 13],
-  [3, 14], [6, 11],
-  [7, 10], [2, 15]
+// Quarters of a 16-draw, in bracket render order: R16 slots 1&2 feed QF1,
+// 3&4 feed QF2, and so on; QF1/QF2 feed SF1, QF3/QF4 feed SF2. Either list
+// produces the same four quarterfinal groups (1,8,9,16 / 4,5,12,13 /
+// 3,6,11,14 / 2,7,10,15) — they differ only in who meets whom in the R16.
+const TOURNAMENT_R16_PAIRS = {
+  // Standard seed protection: inside each quarter the top seed meets the
+  // weakest and the quarter's #2 meets its #3.
+  standard: [[1, 16], [8, 9], [5, 12], [4, 13], [3, 14], [6, 11], [7, 10], [2, 15]],
+  // Group-order variant: the group's 1st seed meets its 2nd, 3rd meets its 4th.
+  ordered: [[1, 8], [9, 16], [4, 5], [12, 13], [3, 6], [11, 14], [2, 7], [10, 15]]
+};
+
+// One set is the default through the semifinals; finals night is 8-game pro
+// sets. Rounds of a 16-draw, outermost first, each with the config.deadlines
+// key that governs it.
+const TOURNAMENT_ROUNDS = [
+  { key: "r16", label: "Round of 16", abbrev: "R16", count: 8, deadlineKey: "groupPlay" },
+  { key: "qf", label: "Quarterfinals", abbrev: "QF", count: 4, deadlineKey: "groupPlay" },
+  { key: "sf", label: "Semifinals", abbrev: "SF", count: 2, deadlineKey: "semifinals" },
+  { key: "f", label: "Final", abbrev: "F", count: 1, deadlineKey: null }
 ];
 
-// Men's Club: 4-player single-elim draw. SF1: #1 vs #4, SF2: #2 vs #3.
-const TOURNAMENT_MEN_CLUB_PAIRS = [
-  [1, 4], [2, 3]
+// Men's Club: 4 players, everyone plays everyone once, three rounds of two.
+const TOURNAMENT_CLUB_FIXTURES = [
+  { id: "club-r1-1", round: 1, label: "M1", a: 1, b: 2 },
+  { id: "club-r1-2", round: 1, label: "M2", a: 3, b: 4 },
+  { id: "club-r2-1", round: 2, label: "M3", a: 1, b: 3 },
+  { id: "club-r2-2", round: 2, label: "M4", a: 2, b: 4 },
+  { id: "club-r3-1", round: 3, label: "M5", a: 1, b: 4 },
+  { id: "club-r3-2", round: 3, label: "M6", a: 2, b: 3 }
 ];
 
-// Hardcoded Men's Club roster — fixed membership regardless of points/rating.
-const TOURNAMENT_MEN_CLUB_NAMES = ["Endel Liias", "James Janis", "Jed Royal", "Mac McCullough"];
+const TOURNAMENT_DEFAULT_RULES = {
+  r16Pairing: "standard",
+  clubPlayersInOpenDraw: false,
+  menBackfillMode: "reseed",
+  autoAdvanceAfterDeadline: false,
+  minLadderPoints: 1,
+  minMatchesPlayed: 0
+};
+
+/* ── Data-file accessors ─────────────────────────────────────────────────── */
+
+function tournamentData() {
+  return window.TOURNAMENT_DATA || {};
+}
+
+function tournamentConfig() {
+  return tournamentData().config || {};
+}
+
+function tournamentRules() {
+  return Object.assign({}, TOURNAMENT_DEFAULT_RULES, tournamentConfig().rules || {});
+}
+
+function tournamentDeadlines() {
+  return tournamentConfig().deadlines || {};
+}
+
+function tournamentFinalsNight() {
+  return tournamentConfig().finalsNight || {};
+}
+
+function tournamentMatchEntry(matchId) {
+  return (tournamentData().matches || {})[matchId] || null;
+}
+
+/* ── Small shared helpers ────────────────────────────────────────────────── */
 
 function normalizeTournamentName(name) {
   return String(name || "").trim().toLowerCase();
@@ -6600,138 +6656,550 @@ function normalizeTournamentSex(sex) {
   return null;
 }
 
-// Ranks by ladder_points desc, ties broken by SOS desc — the same tiebreak
-// used for ties in the main ladder standings.
+function tournamentPlayerRating(player) {
+  const value = Number(player?.display_rating ?? player?.dynamic_rating);
+  return Number.isFinite(value) ? value : 0;
+}
+
+// Scores in tournament-data.js are hand-typed and always WINNER-FIRST, so a
+// loose "number-dash-number" scan is more forgiving than splitting on commas.
+function tournamentScoreSets(score) {
+  const sets = String(score || "").match(/\d+\s*-\s*\d+/g);
+  if (!sets) return [];
+  return sets.map((set) => set.split("-").map((n) => Number(n.trim())));
+}
+
+// Total games [winner, loser] across every set — feeds the club round-robin
+// "fewest games lost" tiebreak.
+function tournamentScoreGames(score) {
+  const sets = tournamentScoreSets(score);
+  if (!sets.length) return null;
+  return sets.reduce(([w, l], [a, b]) => [w + a, l + b], [0, 0]);
+}
+
+// One side's games per set, for the right-hand slot of a bracket card.
+function tournamentSetGames(score, isWinner) {
+  return tournamentScoreSets(score).map(([a, b]) => (isWinner ? a : b)).join(" ");
+}
+
+// A winner-first score read from the loser's side, for the head-to-head grid.
+function tournamentFlipScore(score) {
+  const sets = tournamentScoreSets(score);
+  if (!sets.length) return "";
+  return sets.map(([a, b]) => `${b}-${a}`).join(", ");
+}
+
+function tournamentDeadlinePassed(dateStr) {
+  if (!dateStr) return false;
+  const end = new Date(`${dateStr}T23:59:59`);
+  return !Number.isNaN(end.getTime()) && Date.now() > end.getTime();
+}
+
+function formatTournamentDate(dateStr) {
+  if (!dateStr) return "";
+  const date = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(dateStr);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatTournamentDateLong(dateStr) {
+  if (!dateStr) return "the snapshot date";
+  const date = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(dateStr);
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+/* ── Seeding (frozen snapshot only) ──────────────────────────────────────── */
+
+// Ladder points desc, SOS desc — the same tiebreak the main rankings use.
+// Name asc is only a final stable fallback so the draw never reshuffles.
 function sortByPointsThenSOSDesc(players) {
   return players.slice().sort((a, b) => {
-    const pointsDiff = (Number(b.ladder_points) || 0) - (Number(a.ladder_points) || 0);
-    if (pointsDiff !== 0) return pointsDiff;
-    return (Number(b.sos) || 0) - (Number(a.sos) || 0);
+    const points = (Number(b.ladder_points) || 0) - (Number(a.ladder_points) || 0);
+    if (points !== 0) return points;
+    const sos = (Number(b.sos) || 0) - (Number(a.sos) || 0);
+    if (sos !== 0) return sos;
+    return String(a.name || "").localeCompare(String(b.name || ""));
   });
 }
 
-// Seeds 1..totalCount = players ranked by points (tie: SOS desc) — pure
-// participation, no rating involved anywhere. Used for the Men's Open,
-// Women's Open, and Men's Club brackets alike. Missing players are filled
-// with TBD (null) placeholders.
-function buildSimpleTournamentSeeds(players, totalCount) {
-  const sorted = sortByPointsThenSOSDesc(players);
-  const seeds = [];
-  for (let i = 0; i < totalCount; i++) {
-    seeds.push({ seed: i + 1, player: sorted[i] || null });
+// display_rating desc — the Club 4 are the highest-rated men, not the highest
+// point earners. Points then SOS break a rating tie.
+function sortByRatingDesc(players) {
+  return players.slice().sort((a, b) => {
+    const rating = tournamentPlayerRating(b) - tournamentPlayerRating(a);
+    if (rating !== 0) return rating;
+    const points = (Number(b.ladder_points) || 0) - (Number(a.ladder_points) || 0);
+    if (points !== 0) return points;
+    const sos = (Number(b.sos) || 0) - (Number(a.sos) || 0);
+    if (sos !== 0) return sos;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+}
+
+// Snapshot rows for one ladder, filtered to tournament participants. On the
+// ladder, points are what "participating" means — they include drop-in game
+// points, so someone can be on 0 recorded matches and still be in the season.
+function tournamentPool(players, sexCode) {
+  const rules = tournamentRules();
+  const minPoints = Number(rules.minLadderPoints) || 0;
+  const minPlayed = Number(rules.minMatchesPlayed) || 0;
+  return players.filter((player) => {
+    if (normalizeTournamentSex(player.sex) !== sexCode) return false;
+    if ((Number(player.ladder_points) || 0) < minPoints) return false;
+    if (player.matches_played == null) return true;
+    return (Number(player.matches_played) || 0) >= minPlayed;
+  });
+}
+
+// Seeds 1..size for one draw. `mode` decides how a withdrawal is absorbed:
+//   "keep"    — the withdrawal holds her seed slot and her opponent takes a
+//               walkover (the women's draw: 16 participants, no alternates)
+//   "reseed"  — drop withdrawals and re-seed from the snapshot order, so the
+//               next players in line (17, 18, …) join at the bottom
+//   "slot-in" — keep every seed number and drop the next unused player
+//               straight into the vacated slot
+function buildTournamentSeeds(pool, size, options) {
+  const opts = options || {};
+  const withdrawn = new Set((opts.withdrawals || []).map(normalizeTournamentName));
+  const isOut = (player) => !!player && withdrawn.has(normalizeTournamentName(player.name));
+  const ordered = opts.order === "rating" ? sortByRatingDesc(pool) : sortByPointsThenSOSDesc(pool);
+
+  if (Array.isArray(opts.override) && opts.override.length) {
+    const byName = new Map(pool.map((player) => [normalizeTournamentName(player.name), player]));
+    const picked = opts.override
+      .slice(0, size)
+      .map((name) => byName.get(normalizeTournamentName(name)) || { name });
+    return tournamentSeedSlots(picked, size, isOut);
   }
-  return seeds;
+
+  if (opts.mode === "reseed") {
+    return tournamentSeedSlots(ordered.filter((player) => !isOut(player)), size, () => false);
+  }
+
+  if (opts.mode === "slot-in") {
+    const bench = ordered.slice(size).filter((player) => !isOut(player));
+    const filled = ordered.slice(0, size).map((player) => (isOut(player) ? bench.shift() || null : player));
+    return tournamentSeedSlots(filled, size, () => false);
+  }
+
+  return tournamentSeedSlots(ordered, size, isOut);
 }
 
-function tournamentSeedStats(player) {
-  if (!player) return "";
-  const pts = Number(player.ladder_points) || 0;
-  return `${pts} pts · ${formatDisplayRating(player.dynamic_rating)}`;
+function tournamentSeedSlots(players, size, isOut) {
+  const slots = [];
+  for (let i = 0; i < size; i++) {
+    const player = players[i] || null;
+    slots.push({ seed: i + 1, player, withdrawn: !!(player && isOut(player)) });
+  }
+  return slots;
 }
 
-function renderTournamentSeedRow(seed, player) {
-  const name = player ? escapeHtml(player.name) : "TBD";
-  const stats = tournamentSeedStats(player);
-  const topSeedClass = seed <= 4 ? " bm-top-seed" : "";
-  return `
-    <div class="bm-player${topSeedClass}">
-      <span class="bm-seed">#${seed}</span>
-      <span class="bm-name">${name}</span>
-      ${stats ? `<span class="bm-stats">${escapeHtml(stats)}</span>` : ""}
-    </div>`;
-}
+/* ── Match graph: sides, results, propagation ────────────────────────────── */
 
-function renderTournamentPlaceholderRow(label) {
-  return `
-    <div class="bm-player bm-placeholder">
-      <span class="bm-name">${escapeHtml(label)}</span>
-    </div>`;
-}
-
-// A "side" for QF/SF/Final rounds is a placeholder pointing at the match
-// still deciding who fills it.
-function renderTournamentSide(side) {
-  if (!side) return renderTournamentPlaceholderRow("TBD");
-  return renderTournamentPlaceholderRow(side.label);
-}
-
-function tournamentSideFromRound1Slot(slot) {
-  const topName = slot.top.player ? slot.top.player.name : "TBD";
-  const botName = slot.bottom.player ? slot.bottom.player.name : "TBD";
+// A "side" of a match: a seeded player once known, otherwise a placeholder
+// pointing at whatever still has to decide it.
+function tournamentSideFromSeed(slot) {
+  if (!slot) return { known: false, label: "TBD" };
   return {
-    concrete: false,
-    label: `Winner of #${slot.top.seed} ${topName} vs #${slot.bottom.seed} ${botName}`
+    known: !!slot.player,
+    seed: slot.seed,
+    player: slot.player || null,
+    withdrawn: !!slot.withdrawn,
+    label: slot.player ? slot.player.name : "TBD"
   };
 }
 
-function tournamentSideFromPriorMatch(prevMatch) {
-  return { concrete: false, label: `Winner of ${prevMatch.roundAbbrev}${prevMatch.matchNum}` };
+function tournamentSideFromMatch(previous) {
+  if (!previous) return { known: false, label: "TBD" };
+  if (previous.result) {
+    const winner = previous[previous.result.winnerSide];
+    if (winner && winner.known) {
+      return {
+        known: true,
+        seed: winner.seed,
+        player: winner.player,
+        withdrawn: false,
+        label: winner.label
+      };
+    }
+  }
+  return { known: false, label: `Winner of ${previous.label}` };
 }
 
-// Builds every later round (QF, SF, Final, ...) from the Round-of-16 slots by
-// merging consecutive pairs. The first later round reads real seed numbers
-// off the R16 slots; every round after that just references "Winner of <prev
-// match>" since we don't try to compose nested "winner of winner of" text.
-function buildTournamentBracketRounds(round1Slots, laterRoundAbbrevs) {
-  const rounds = [round1Slots];
-  let current = round1Slots;
-  laterRoundAbbrevs.forEach((abbrev, roundIdx) => {
-    const next = [];
-    for (let i = 0; i < current.length; i += 2) {
-      const a = current[i];
-      const b = current[i + 1];
-      const top = roundIdx === 0 ? tournamentSideFromRound1Slot(a) : tournamentSideFromPriorMatch(a);
-      const bottom = roundIdx === 0 ? tournamentSideFromRound1Slot(b) : tournamentSideFromPriorMatch(b);
-      next.push({ matchNum: next.length + 1, roundAbbrev: abbrev, top, bottom });
+function tournamentRoundDeadline(round) {
+  if (round.key === "f") return tournamentFinalsNight().date || null;
+  return round.deadlineKey ? tournamentDeadlines()[round.deadlineKey] || null : null;
+}
+
+// Maps a `winner` value from the data file onto a side. Accepts the player's
+// name, their seed number, or "a"/"b" as a last resort.
+function tournamentWinnerSide(key, match) {
+  if (key == null) return null;
+
+  if (typeof key === "number") {
+    if (match.a.seed === key) return "a";
+    if (match.b.seed === key) return "b";
+    return null;
+  }
+
+  const want = normalizeTournamentName(key);
+  if (want === "a" || want === "top") return "a";
+  if (want === "b" || want === "bottom") return "b";
+  if (match.a.player && normalizeTournamentName(match.a.player.name) === want) return "a";
+  if (match.b.player && normalizeTournamentName(match.b.player.name) === want) return "b";
+
+  const asSeed = Number(want);
+  if (Number.isFinite(asSeed)) {
+    if (match.a.seed === asSeed) return "a";
+    if (match.b.seed === asSeed) return "b";
+  }
+  return null;
+}
+
+// Decides a match from the data file first, then from the published default
+// rules: a withdrawal hands the opponent a walkover, and an unplayed match
+// past its deadline goes to the higher seed.
+function resolveTournamentMatch(match) {
+  const entry = tournamentMatchEntry(match.id) || {};
+  match.date = entry.date || null;
+  match.note = entry.note || null;
+  match.result = null;
+  match.defaultPending = false;
+
+  if (entry.winner != null) {
+    const side = tournamentWinnerSide(entry.winner, match);
+    if (side) {
+      match.result = {
+        winnerSide: side,
+        score: entry.walkover ? null : entry.score || null,
+        walkover: !!entry.walkover,
+        reason: entry.walkover ? "walkover" : "played"
+      };
+      return match;
     }
-    rounds.push(next);
-    current = next;
+    console.warn(`Tournament: "${entry.winner}" in match ${match.id} doesn't match either side (${match.a.label} / ${match.b.label}).`);
+  }
+
+  // Nothing below can fire until we know who is actually in the match.
+  if (!match.a.known || !match.b.known) return match;
+
+  if (match.a.withdrawn !== match.b.withdrawn) {
+    match.result = {
+      winnerSide: match.a.withdrawn ? "b" : "a",
+      score: null,
+      walkover: true,
+      reason: "withdrawal"
+    };
+    return match;
+  }
+
+  if (tournamentDeadlinePassed(match.deadline)) {
+    if (tournamentRules().autoAdvanceAfterDeadline) {
+      match.result = {
+        winnerSide: tournamentHigherSeedSide(match),
+        score: null,
+        walkover: true,
+        reason: "default"
+      };
+      return match;
+    }
+    match.defaultPending = true;
+  }
+
+  return match;
+}
+
+// Higher seed = lower seed number. If the seeds themselves tie — a snapshot
+// tie that seeding couldn't separate — SOS desc decides, the same rule the
+// ladder uses.
+function tournamentHigherSeedSide(match) {
+  const aSeed = Number(match.a.seed) || Infinity;
+  const bSeed = Number(match.b.seed) || Infinity;
+  if (aSeed !== bSeed) return aSeed < bSeed ? "a" : "b";
+  const aSOS = Number(match.a.player?.sos) || 0;
+  const bSOS = Number(match.b.player?.sos) || 0;
+  return bSOS > aSOS ? "b" : "a";
+}
+
+// Every match of a 16-draw with both sides resolved as far as the recorded
+// results allow. Returns an array of rounds, outermost first.
+function buildTournamentDraw(drawKey, seeds) {
+  const seedMap = new Map(seeds.map((slot) => [slot.seed, slot]));
+  const pairs = TOURNAMENT_R16_PAIRS[tournamentRules().r16Pairing] || TOURNAMENT_R16_PAIRS.standard;
+  const rounds = [];
+  let previous = null;
+
+  TOURNAMENT_ROUNDS.forEach((round, roundIdx) => {
+    const matches = [];
+    for (let i = 0; i < round.count; i++) {
+      const match = {
+        id: round.count === 1 ? `${drawKey}-${round.key}` : `${drawKey}-${round.key}-${i + 1}`,
+        drawKey,
+        round: round.key,
+        roundLabel: round.label,
+        num: i + 1,
+        label: round.count === 1 ? round.label : `${round.abbrev} ${i + 1}`,
+        deadline: tournamentRoundDeadline(round),
+        finalsSlot: round.key === "f" ? tournamentFinalsNight().openFinalsTime || null : null,
+        a: roundIdx === 0 ? tournamentSideFromSeed(seedMap.get(pairs[i][0])) : tournamentSideFromMatch(previous[i * 2]),
+        b: roundIdx === 0 ? tournamentSideFromSeed(seedMap.get(pairs[i][1])) : tournamentSideFromMatch(previous[i * 2 + 1])
+      };
+      matches.push(resolveTournamentMatch(match));
+    }
+    rounds.push(matches);
+    previous = matches;
   });
+
   return rounds;
 }
 
-function buildTournamentOpenRound1(seedMap) {
-  return TOURNAMENT_OPEN_R16_PAIRS.map(([topSeed, botSeed]) => ({
-    type: "match",
-    top: { seed: topSeed, player: seedMap.get(topSeed) || null },
-    bottom: { seed: botSeed, player: seedMap.get(botSeed) || null }
-  }));
+// Each quarter of the draw is a self-scheduling group of four: two R16
+// matches plus the QF between their winners, producing one semifinalist.
+function buildTournamentGroups(rounds) {
+  const [r16, qf] = rounds;
+  return qf.map((qfMatch, idx) => {
+    const first = r16[idx * 2];
+    const second = r16[idx * 2 + 1];
+    const slots = [first.a, first.b, second.a, second.b]
+      .slice()
+      .sort((a, b) => (Number(a.seed) || 99) - (Number(b.seed) || 99));
+    return {
+      num: idx + 1,
+      semifinal: Math.floor(idx / 2) + 1,
+      slots,
+      matches: [first, second, qfMatch]
+    };
+  });
 }
 
-function buildTournamentMenClubRound1(seedMap) {
-  return TOURNAMENT_MEN_CLUB_PAIRS.map(([topSeed, botSeed]) => ({
-    type: "match",
-    top: { seed: topSeed, player: seedMap.get(topSeed) || null },
-    bottom: { seed: botSeed, player: seedMap.get(botSeed) || null }
-  }));
+/* ── Men's Club round robin ──────────────────────────────────────────────── */
+
+function buildTournamentClub(clubSeeds) {
+  const bySeed = new Map(clubSeeds.map((slot) => [slot.seed, slot]));
+  const deadline = tournamentDeadlines().clubRoundRobin || null;
+
+  const fixtures = TOURNAMENT_CLUB_FIXTURES.map((fixture) =>
+    resolveTournamentMatch({
+      id: fixture.id,
+      drawKey: "club",
+      round: `r${fixture.round}`,
+      roundLabel: `Round ${fixture.round}`,
+      num: fixture.round,
+      label: fixture.label,
+      deadline,
+      a: tournamentSideFromSeed(bySeed.get(fixture.a)),
+      b: tournamentSideFromSeed(bySeed.get(fixture.b))
+    })
+  );
+
+  const standings = computeTournamentClubStandings(clubSeeds, fixtures);
+  const complete = fixtures.every((match) => !!match.result);
+  const started = fixtures.some((match) => !!match.result);
+
+  const final = resolveTournamentMatch({
+    id: "club-f",
+    drawKey: "club",
+    round: "f",
+    roundLabel: "Club Final",
+    num: 1,
+    label: "Club Final",
+    deadline: tournamentFinalsNight().date || null,
+    finalsSlot: tournamentFinalsNight().clubFinalTime || null,
+    a: tournamentClubFinalSide(standings[0], complete, started, 1),
+    b: tournamentClubFinalSide(standings[1], complete, started, 2)
+  });
+
+  return { fixtures, standings, final, complete, started, deadline };
 }
 
-function renderTournamentMatchCard(slot, isFirstRound, id, feedsId) {
-  let bodyHtml;
-  if (isFirstRound) {
-    bodyHtml = `${renderTournamentSeedRow(slot.top.seed, slot.top.player)}<div class="bm-divider"></div>${renderTournamentSeedRow(slot.bottom.seed, slot.bottom.player)}`;
+// Top two of the round robin meet on finals night. Until all six matches are
+// in, the current leaders show as provisional and nothing propagates.
+function tournamentClubFinalSide(row, complete, started, place) {
+  if (!row || !row.player || !started) return { known: false, label: `Round robin #${place}` };
+  if (!complete) return { known: false, label: `${row.player.name} (RR #${place} so far)` };
+  return { known: true, seed: row.seed, player: row.player, withdrawn: row.withdrawn, label: row.player.name };
+}
+
+// Tiebreak order: wins → head-to-head → fewest games lost. Head-to-head is a
+// mini round robin among exactly the players tied on wins; club seed (rating
+// order) is only a last resort so the table never renders unordered.
+function computeTournamentClubStandings(clubSeeds, fixtures) {
+  const rows = new Map();
+  clubSeeds.forEach((slot) => {
+    if (!slot.player) return;
+    rows.set(slot.seed, {
+      seed: slot.seed,
+      player: slot.player,
+      withdrawn: !!slot.withdrawn,
+      played: 0,
+      wins: 0,
+      losses: 0,
+      gamesWon: 0,
+      gamesLost: 0,
+      beat: new Set(),
+      h2h: new Map(),
+      h2hWins: 0,
+      tied: false,
+      tiebreak: null
+    });
+  });
+
+  fixtures.forEach((match) => {
+    if (!match.result) return;
+    const winnerKey = match.result.winnerSide;
+    const loserKey = winnerKey === "a" ? "b" : "a";
+    const winner = rows.get(match[winnerKey].seed);
+    const loser = rows.get(match[loserKey].seed);
+    if (!winner || !loser) return;
+
+    winner.wins++;
+    loser.losses++;
+    winner.played++;
+    loser.played++;
+    winner.beat.add(loser.seed);
+    winner.h2h.set(loser.seed, { result: "W", score: match.result.score || "", walkover: match.result.walkover });
+    loser.h2h.set(winner.seed, { result: "L", score: tournamentFlipScore(match.result.score), walkover: match.result.walkover });
+
+    const games = tournamentScoreGames(match.result.score);
+    if (games) {
+      winner.gamesWon += games[0];
+      winner.gamesLost += games[1];
+      loser.gamesWon += games[1];
+      loser.gamesLost += games[0];
+    }
+  });
+
+  const list = [...rows.values()];
+
+  // Head-to-head only counts wins against the other players tied on wins.
+  const byWins = new Map();
+  list.forEach((row) => {
+    if (!byWins.has(row.wins)) byWins.set(row.wins, []);
+    byWins.get(row.wins).push(row);
+  });
+  byWins.forEach((group) => {
+    const groupSeeds = new Set(group.map((row) => row.seed));
+    group.forEach((row) => {
+      row.h2hWins = [...row.beat].filter((seed) => groupSeeds.has(seed)).length;
+      row.tied = group.length > 1;
+    });
+  });
+
+  list.sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.h2hWins !== a.h2hWins) return b.h2hWins - a.h2hWins;
+    if (a.gamesLost !== b.gamesLost) return a.gamesLost - b.gamesLost;
+    return a.seed - b.seed;
+  });
+
+  // Name the criterion that actually separated each tie, by comparing a row
+  // with its neighbour inside the same wins group. Before the first result
+  // everyone is level at 0-0, which is nobody's tie to break.
+  const started = fixtures.some((match) => !!match.result);
+  list.forEach((row, idx) => {
+    row.rank = idx + 1;
+    row.advances = idx < 2;
+    row.tiebreak = null;
+    if (!row.tied || !started) return;
+    const above = list[idx - 1];
+    if (above && above.wins === row.wins) {
+      row.tiebreak = tournamentClubTiebreakLabel(above, row);
+      return;
+    }
+    const below = list[idx + 1];
+    if (below && below.wins === row.wins) row.tiebreak = tournamentClubTiebreakLabel(row, below);
+  });
+
+  return list;
+}
+
+function tournamentClubTiebreakLabel(higher, lower) {
+  if (higher.h2hWins !== lower.h2hWins) return "Head-to-head";
+  if (higher.gamesLost !== lower.gamesLost) return "Games lost";
+  return "Club seed";
+}
+
+/* ── Rendering: bracket cards ────────────────────────────────────────────── */
+
+function tournamentSeedStats(player) {
+  if (!player) return "";
+  const points = Number(player.ladder_points) || 0;
+  return `${points} pts · SOS ${player.sos != null ? formatDisplayRating(player.sos) : "—"}`;
+}
+
+function tournamentSideText(side) {
+  if (!side) return "TBD";
+  if (!side.known) return side.label;
+  const name = side.withdrawn ? `${side.label} (withdrew)` : side.label;
+  return side.seed ? `#${side.seed} ${name}` : name;
+}
+
+// One player row inside a bracket card. The right-hand slot carries the
+// player's games once a result is in, and seeding stats before that.
+function renderTournamentSideRow(side, result, sideKey, showStats) {
+  const classes = ["bm-player"];
+  let right = "";
+
+  if (!side.known) {
+    classes.push("bm-placeholder");
   } else {
-    bodyHtml = `${renderTournamentSide(slot.top)}<div class="bm-divider"></div>${renderTournamentSide(slot.bottom)}`;
+    if (side.seed && side.seed <= 4) classes.push("bm-top-seed");
+    if (side.withdrawn) classes.push("bm-withdrawn");
   }
+
+  if (result) {
+    const isWinner = result.winnerSide === sideKey;
+    classes.push(isWinner ? "bm-winner" : "bm-loser");
+    if (result.walkover) {
+      if (isWinner) right = `<span class="bm-tag">W.O.</span>`;
+    } else {
+      const games = tournamentSetGames(result.score, isWinner);
+      if (games) right = `<span class="bm-score">${escapeHtml(games)}</span>`;
+    }
+  } else if (showStats && side.player) {
+    right = `<span class="bm-stats">${escapeHtml(tournamentSeedStats(side.player))}</span>`;
+  }
+
+  const seedHtml = side.seed ? `<span class="bm-seed">#${side.seed}</span>` : "";
+  const name = side.known && side.withdrawn ? `${side.label} (withdrew)` : side.label;
+  return `<div class="${classes.join(" ")}">${seedHtml}<span class="bm-name">${escapeHtml(name)}</span>${right}</div>`;
+}
+
+function tournamentCardFooter(match) {
+  if (match.result) {
+    if (match.result.reason === "withdrawal") return "Walkover — opponent withdrew";
+    if (match.result.reason === "default") return "Default — higher seed advanced";
+    if (match.result.walkover) return "Walkover";
+    return match.date ? formatTournamentDate(match.date) : "Final";
+  }
+  if (match.date) return formatTournamentDate(match.date);
+  if (match.finalsSlot) return `${formatTournamentDate(match.deadline)} · ${match.finalsSlot}`;
+  if (match.defaultPending) return "Past deadline — default applies";
+  if (match.deadline) return `Play by ${formatTournamentDate(match.deadline)}`;
+  return "Date: TBD";
+}
+
+function renderTournamentMatchCard(match, showStats, feedsId) {
   const feedsAttr = feedsId ? ` data-feeds="${feedsId}"` : "";
+  const noteHtml = match.note ? `<div class="bm-note">${escapeHtml(match.note)}</div>` : "";
   return `
-    <div class="bracket-match" id="${id}"${feedsAttr}>
-      ${bodyHtml}
-      <div class="bm-date">Date: TBD</div>
+    <div class="bracket-match${match.result ? " bm-decided" : ""}" id="${match.id}"${feedsAttr}>
+      ${renderTournamentSideRow(match.a, match.result, "a", showStats)}
+      <div class="bm-divider"></div>
+      ${renderTournamentSideRow(match.b, match.result, "b", showStats)}
+      <div class="bm-date">${escapeHtml(tournamentCardFooter(match))}</div>
+      ${noteHtml}
     </div>`;
 }
 
-function renderTournamentRoundColumn(label, slots, isFirstRound, prefix, roundIdx, isLastRound) {
-  const cards = slots
-    .map((slot, idx) => {
-      const id = `${prefix}-r${roundIdx}-${idx}`;
-      const feedsId = isLastRound ? null : `${prefix}-r${roundIdx + 1}-${Math.floor(idx / 2)}`;
-      return renderTournamentMatchCard(slot, isFirstRound, id, feedsId);
-    })
+function renderTournamentRoundColumn(matches, isFirstRound, nextRound) {
+  const cards = matches
+    .map((match, idx) => renderTournamentMatchCard(match, isFirstRound, nextRound ? nextRound[Math.floor(idx / 2)].id : null))
     .join("");
   return `
     <div class="bracket-round">
-      <div class="bracket-round-label">${escapeHtml(label)}</div>
+      <div class="bracket-round-label">${escapeHtml(matches[0].roundLabel)}</div>
       <div class="bracket-round-matches">${cards}</div>
     </div>`;
 }
@@ -6769,95 +7237,424 @@ function drawTournamentBracketConnectors(bracketEl) {
   });
 }
 
-function renderTournamentBracket(containerId, seeds, buildRound1Fn, roundLabels, laterRoundAbbrevs) {
+function renderTournamentBracket(containerId, rounds) {
   const container = document.getElementById(containerId);
   if (!container) return;
-
-  const seedMap = new Map(seeds.map((s) => [s.seed, s.player]));
-  const round1 = buildRound1Fn(seedMap);
-  const rounds = buildTournamentBracketRounds(round1, laterRoundAbbrevs);
-
-  const roundsHtml = rounds
-    .map((slots, idx) =>
-      renderTournamentRoundColumn(roundLabels[idx], slots, idx === 0, containerId, idx, idx === rounds.length - 1)
-    )
-    .join("");
-
   const roundsContainer = container.querySelector(".bracket-rounds");
-  if (roundsContainer) roundsContainer.innerHTML = roundsHtml;
-
+  if (roundsContainer) {
+    roundsContainer.innerHTML = rounds
+      .map((matches, idx) => renderTournamentRoundColumn(matches, idx === 0, rounds[idx + 1] || null))
+      .join("");
+  }
   requestAnimationFrame(() => drawTournamentBracketConnectors(container));
 }
 
 function redrawTournamentBrackets() {
-  ["bracket-women-open", "bracket-men-club", "bracket-men-open"].forEach((id) => {
+  ["bracket-women-open", "bracket-men-open", "bracket-men-club-final"].forEach((id) => {
     const el = document.getElementById(id);
     if (el && el.querySelector(".bracket-round")) drawTournamentBracketConnectors(el);
   });
 }
 
-async function loadTournamentBracket() {
-  const womenContainer = document.getElementById("bracket-women-open");
-  const menClubContainer = document.getElementById("bracket-men-club");
-  const menOpenContainer = document.getElementById("bracket-men-open");
-  if (!womenContainer && !menClubContainer && !menOpenContainer) return;
+/* ── Rendering: quarterfinal groups ──────────────────────────────────────── */
 
-  try {
-    const [{ data, error }, sosMatches] = await Promise.all([
-      supabaseClient
-        .from("players")
-        .select("id, name, sex, ladder_points, dynamic_rating, wins, losses")
-        .order("ladder_points", { ascending: false }),
-      fetchAllMatchesForSOS()
-    ]);
-    if (error) throw error;
+function tournamentMatchStatus(match) {
+  if (match.result) {
+    const winner = match[match.result.winnerSide];
+    const name = winner.player ? winner.player.name : winner.label;
+    if (match.result.reason === "withdrawal") return `${name} — walkover`;
+    if (match.result.reason === "default") return `${name} — default`;
+    if (match.result.walkover) return `${name} — W.O.`;
+    return match.result.score ? `${name} ${match.result.score}` : `${name} won`;
+  }
+  if (match.date) return `Set for ${formatTournamentDate(match.date)}`;
+  if (match.finalsSlot) return `${formatTournamentDate(match.deadline)} · ${match.finalsSlot}`;
+  if (match.defaultPending) return "Past deadline — default applies";
+  if (match.deadline) return `Play by ${formatTournamentDate(match.deadline)}`;
+  return "To be scheduled";
+}
 
-    const players = data || [];
-    const sexMap = {};
-    players.forEach((p) => { sexMap[p.id] = p.sex; });
-    players.forEach((p) => { p.sos = calculatePlayerSOS(p.id, sosMatches, sexMap); });
+function renderTournamentGroupMatchRow(match) {
+  const done = match.result ? " qf-match-done" : "";
+  return `
+    <li class="qf-match${done}">
+      <span class="qf-match-label">${escapeHtml(match.label)}</span>
+      <span class="qf-match-players">${escapeHtml(tournamentSideText(match.a))} <span class="qf-vs">vs</span> ${escapeHtml(tournamentSideText(match.b))}</span>
+      <span class="qf-match-status">${escapeHtml(tournamentMatchStatus(match))}</span>
+    </li>`;
+}
 
-    const men = players.filter((p) => normalizeTournamentSex(p.sex) === "M");
-    const women = players.filter((p) => normalizeTournamentSex(p.sex) === "F");
+function renderTournamentGroups(containerId, groups) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = groups
+    .map(
+      (group) => `
+      <div class="qf-group">
+        <div class="qf-group-head">
+          <span class="qf-group-title">Group ${group.num}</span>
+          <span class="qf-group-meta">Winner → Semifinal ${group.semifinal}</span>
+        </div>
+        <ul class="qf-group-players">
+          ${group.slots
+            .map(
+              (slot) => `
+            <li${slot.withdrawn ? ' class="qf-player-out"' : ""}>
+              <span class="qf-seed">#${slot.seed ?? "—"}</span>
+              <span class="qf-name">${escapeHtml(slot.known ? slot.label : "TBD")}${slot.withdrawn ? " (withdrew)" : ""}</span>
+              <span class="qf-meta">${escapeHtml(slot.player ? tournamentSeedStats(slot.player) : "")}</span>
+            </li>`
+            )
+            .join("")}
+        </ul>
+        <ul class="qf-group-matches">${group.matches.map(renderTournamentGroupMatchRow).join("")}</ul>
+      </div>`
+    )
+    .join("");
+}
 
-    const clubNamesLower = TOURNAMENT_MEN_CLUB_NAMES.map(normalizeTournamentName);
-    const isClubPlayer = (p) => clubNamesLower.includes(normalizeTournamentName(p.name));
-    const menClub = men.filter(isClubPlayer);
-    const menOpenEligible = men.filter((p) => !isClubPlayer(p));
+/* ── Rendering: club round robin ─────────────────────────────────────────── */
 
-    const womenSeeds = buildSimpleTournamentSeeds(women, 16);
-    const menClubSeeds = buildSimpleTournamentSeeds(menClub, 4);
-    const menOpenSeeds = buildSimpleTournamentSeeds(menOpenEligible, 16);
+function renderTournamentClub(club) {
+  const fixturesEl = document.getElementById("club-fixtures");
+  if (fixturesEl) {
+    const byRound = [1, 2, 3].map((round) => club.fixtures.filter((match) => match.num === round));
+    fixturesEl.innerHTML = byRound
+      .map(
+        (matches, idx) => `
+      <div class="qf-group">
+        <div class="qf-group-head">
+          <span class="qf-group-title">Round ${idx + 1}</span>
+          <span class="qf-group-meta">${escapeHtml(club.deadline ? `By ${formatTournamentDate(club.deadline)}` : "Self-scheduled")}</span>
+        </div>
+        <ul class="qf-group-matches">${matches.map(renderTournamentGroupMatchRow).join("")}</ul>
+      </div>`
+      )
+      .join("");
+  }
 
-    renderTournamentBracket(
-      "bracket-women-open",
-      womenSeeds,
-      buildTournamentOpenRound1,
-      ["Round of 16", "Quarterfinals", "Semifinals", "Final"],
-      ["QF", "SF", "F"]
-    );
-    renderTournamentBracket(
-      "bracket-men-club",
-      menClubSeeds,
-      buildTournamentMenClubRound1,
-      ["Semifinals", "Final"],
-      ["F"]
-    );
-    renderTournamentBracket(
-      "bracket-men-open",
-      menOpenSeeds,
-      buildTournamentOpenRound1,
-      ["Round of 16", "Quarterfinals", "Semifinals", "Final"],
-      ["QF", "SF", "F"]
-    );
-  } catch (error) {
-    console.error("Failed to load tournament bracket:", error);
-    [womenContainer, menClubContainer, menOpenContainer].forEach((el) => {
-      if (!el) return;
-      const roundsEl = el.querySelector(".bracket-rounds");
-      if (roundsEl) {
-        roundsEl.innerHTML = `<p class="small-text">Unable to load the tournament bracket right now. Please try again later.</p>`;
-      }
-    });
+  const standingsEl = document.getElementById("club-standings");
+  if (standingsEl) {
+    const rows = club.standings.length
+      ? club.standings
+          .map(
+            (row) => `
+        <tr${row.advances ? ' class="club-advances"' : ""}>
+          <td>${row.rank}</td>
+          <td>${escapeHtml(row.player.name)}${row.withdrawn ? ' <span class="club-out">withdrew</span>' : ""}${row.advances ? ' <span class="club-badge">Club Final</span>' : ""}</td>
+          <td class="num">${formatDisplayRating(row.player.display_rating ?? row.player.dynamic_rating)}</td>
+          <td class="num">${row.wins}</td>
+          <td class="num">${row.losses}</td>
+          <td class="num">${row.gamesWon}</td>
+          <td class="num">${row.gamesLost}</td>
+          <td>${escapeHtml(row.tiebreak || "—")}</td>
+        </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="8" class="small-text">Club 4 not set yet — they come from the ${escapeHtml(formatTournamentDateLong(tournamentConfig().snapshotDate))} snapshot.</td></tr>`;
+
+    standingsEl.innerHTML = `
+      <table class="club-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th class="num">Rating</th>
+            <th class="num" title="Round-robin wins">W</th>
+            <th class="num" title="Round-robin losses">L</th>
+            <th class="num" title="Games won">Games W</th>
+            <th class="num" title="Games lost — the third tiebreak">Games L</th>
+            <th title="Criterion that separated a tie on wins">Tiebreak</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  const h2hEl = document.getElementById("club-h2h");
+  if (h2hEl) {
+    if (!club.standings.length) {
+      h2hEl.innerHTML = "";
+    } else {
+      const seeds = club.standings.map((row) => row.seed).sort((a, b) => a - b);
+      const header = seeds.map((seed) => `<th class="num">#${seed}</th>`).join("");
+      const body = club.standings
+        .map((row) => {
+          const cells = seeds
+            .map((seed) => {
+              if (seed === row.seed) return `<td class="club-h2h-self">—</td>`;
+              const entry = row.h2h.get(seed);
+              if (!entry) return `<td class="num club-h2h-pending">·</td>`;
+              const detail = entry.walkover ? "W.O." : entry.score || "";
+              return `<td class="num club-h2h-${entry.result === "W" ? "win" : "loss"}">${entry.result}${detail ? ` <span class="club-h2h-score">${escapeHtml(detail)}</span>` : ""}</td>`;
+            })
+            .join("");
+          return `<tr><td>#${row.seed} ${escapeHtml(row.player.name)}</td>${cells}</tr>`;
+        })
+        .join("");
+      h2hEl.innerHTML = `
+        <table class="club-table club-h2h-table">
+          <thead><tr><th>Head-to-head</th>${header}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>`;
+    }
+  }
+
+  const finalEl = document.getElementById("bracket-men-club-final");
+  if (finalEl) {
+    const roundsContainer = finalEl.querySelector(".bracket-rounds");
+    if (roundsContainer) {
+      roundsContainer.innerHTML = renderTournamentRoundColumn([club.final], false, null);
+    }
+    requestAnimationFrame(() => drawTournamentBracketConnectors(finalEl));
   }
 }
+
+/* ── Seed source: frozen snapshot, or provisional live standings ─────────── */
+
+// Live standings, shaped exactly like a snapshot row. Only used before the
+// snapshot exists, so the page is useful in the run-up to Oct 11.
+async function fetchLiveTournamentStandings() {
+  const [{ data, error }, sosMatches] = await Promise.all([
+    supabaseClient
+      .from("players")
+      .select("id, name, sex, ladder_points, display_rating, dynamic_rating, matches_played")
+      .order("ladder_points", { ascending: false }),
+    fetchAllMatchesForSOS()
+  ]);
+  if (error) throw error;
+
+  const players = data || [];
+  const sexMap = {};
+  players.forEach((player) => { sexMap[player.id] = player.sex; });
+
+  return players.map((player) => ({
+    id: player.id,
+    name: player.name,
+    sex: player.sex,
+    ladder_points: Number(player.ladder_points) || 0,
+    sos: calculatePlayerSOS(player.id, sosMatches, sexMap),
+    display_rating: Number(player.display_rating ?? player.dynamic_rating) || null,
+    matches_played: Number(player.matches_played) || 0
+  }));
+}
+
+// The three seeded fields. Seeds come from the frozen snapshot whenever it
+// exists; `provisional` says the page is still showing live standings.
+async function loadTournamentField() {
+  const data = tournamentData();
+  const snapshot = data.snapshot || {};
+  const rules = tournamentRules();
+  const withdrawals = data.withdrawals || [];
+  const overrides = data.seedOverrides || {};
+
+  let players = Array.isArray(snapshot.players) ? snapshot.players : [];
+  let provisional = false;
+  if (!players.length) {
+    players = await fetchLiveTournamentStandings();
+    provisional = true;
+  }
+
+  const men = tournamentPool(players, "M");
+  const women = tournamentPool(players, "F");
+
+  // Club 4 = highest display_rating, independent of points.
+  const clubFour = sortByRatingDesc(men).slice(0, 4);
+  const clubNames = new Set(clubFour.map((player) => normalizeTournamentName(player.name)));
+  const menOpenPool = rules.clubPlayersInOpenDraw
+    ? men
+    : men.filter((player) => !clubNames.has(normalizeTournamentName(player.name)));
+
+  return {
+    provisional,
+    asOf: snapshot.asOf || tournamentConfig().snapshotDate || null,
+    capturedAt: snapshot.capturedAt || null,
+    players,
+    // Women: 16 participants, no alternates — a dropout keeps her slot.
+    women: buildTournamentSeeds(women, 16, { withdrawals, mode: "keep", override: overrides.women }),
+    // Men: dropouts are backfilled from the next seeds (17, 18, …).
+    men: buildTournamentSeeds(menOpenPool, 16, { withdrawals, mode: rules.menBackfillMode, override: overrides.men }),
+    club: buildTournamentSeeds(clubFour, 4, { withdrawals, mode: "keep", override: overrides.club, order: "rating" })
+  };
+}
+
+function renderTournamentSeedSource(field) {
+  const el = document.getElementById("tournament-seed-source");
+  if (!el) return;
+  const asOf = formatTournamentDateLong(field.asOf);
+
+  if (field.provisional) {
+    el.className = "tournament-note tournament-note-provisional";
+    el.innerHTML = `<strong>Provisional seeds.</strong> The seeding snapshot is taken on ${escapeHtml(asOf)}. Until then these are live ladder standings and they will move. Once the snapshot is taken the seeds are frozen and will not change — the ladder itself keeps running through Nov 1.`;
+    return;
+  }
+
+  const captured = field.capturedAt ? new Date(field.capturedAt) : null;
+  const capturedText = captured && !Number.isNaN(captured.getTime())
+    ? ` (captured ${captured.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })})`
+    : "";
+  el.className = "tournament-note tournament-note-locked";
+  el.innerHTML = `<strong>Seeds locked.</strong> All seeding, the men's backfill order, and the Club 4 come from the frozen ${escapeHtml(asOf)} standings snapshot${escapeHtml(capturedText)}. The live ladder keeps accruing points through Nov 1 — it no longer moves this draw.`;
+}
+
+/* ── Admin: capture the seeding snapshot ─────────────────────────────────── */
+
+// Serializes the current standings as the `snapshot` block of
+// tournament-data.js. Run on the snapshot date, paste the result over the
+// existing block, commit — that's the freeze.
+async function captureTournamentSnapshot() {
+  const asOf = tournamentConfig().snapshotDate || new Date().toISOString().slice(0, 10);
+  const players = await fetchLiveTournamentStandings();
+  const eligible = players.filter((player) => normalizeTournamentSex(player.sex));
+
+  const rows = eligible
+    .map(
+      (player) =>
+        `      { id: ${JSON.stringify(player.id)}, name: ${JSON.stringify(player.name)}, sex: ${JSON.stringify(player.sex)}, ` +
+        `ladder_points: ${Number(player.ladder_points) || 0}, sos: ${player.sos == null ? "null" : player.sos}, ` +
+        `display_rating: ${player.display_rating == null ? "null" : player.display_rating}, ` +
+        `matches_played: ${Number(player.matches_played) || 0} }`
+    )
+    .join(",\n");
+
+  const block = `  snapshot: {\n    asOf: ${JSON.stringify(asOf)},\n    capturedAt: ${JSON.stringify(new Date().toISOString())},\n    players: [\n${rows}\n    ]\n  },`;
+
+  console.log(`Tournament seeding snapshot — ${eligible.length} eligible players as of ${asOf}.`);
+  console.log("Paste this over the `snapshot: { … },` block in tournament-data.js:\n");
+  console.log(block);
+
+  try {
+    await navigator.clipboard.writeText(block);
+    console.log("(copied to clipboard)");
+  } catch (error) {
+    console.warn("Clipboard copy blocked — copy the block above by hand.", error);
+  }
+
+  return { asOf, count: eligible.length, block };
+}
+
+// tournament.html?snapshot=1 reveals the capture button. Hidden otherwise so
+// the public page never shows it.
+function setupTournamentSnapshotTool() {
+  const host = document.getElementById("tournament-snapshot-tool");
+  if (!host) return;
+  if (new URLSearchParams(location.search).get("snapshot") !== "1") return;
+
+  const asOf = formatTournamentDateLong(tournamentConfig().snapshotDate);
+  host.hidden = false;
+  host.innerHTML = `
+    <h3>Snapshot tool</h3>
+    <p class="small-text">Captures the current standings as the ${escapeHtml(asOf)} seeding snapshot and copies a ready-to-paste <code>snapshot</code> block to your clipboard. Paste it over the existing block in <code>tournament-data.js</code> and commit.</p>
+    <button type="button" id="capture-snapshot-btn">Capture seeding snapshot</button>
+    <p class="small-text" id="capture-snapshot-status"></p>
+    <textarea id="capture-snapshot-output" rows="10" readonly hidden></textarea>`;
+
+  const status = host.querySelector("#capture-snapshot-status");
+  const output = host.querySelector("#capture-snapshot-output");
+  host.querySelector("#capture-snapshot-btn").addEventListener("click", async () => {
+    status.textContent = "Capturing…";
+    try {
+      const result = await captureTournamentSnapshot();
+      output.hidden = false;
+      output.value = result.block;
+      status.textContent = `Captured ${result.count} eligible players as of ${result.asOf}. Copied to your clipboard (also shown below).`;
+    } catch (error) {
+      console.error("Snapshot capture failed:", error);
+      status.textContent = "Capture failed — see the browser console.";
+    }
+  });
+}
+
+/* ── Optional draw generator ─────────────────────────────────────────────── */
+
+// Prints the four quarterfinal groups with their three required matches, plus
+// the club round-robin fixture list — the text to paste into an announcement.
+async function generateTournamentDraw() {
+  const field = await loadTournamentField();
+  const lines = [];
+  const output = { provisional: field.provisional, asOf: field.asOf, draws: {}, club: {} };
+
+  lines.push(`${tournamentConfig().seasonLabel || "Tournament"} — draw as of ${field.asOf || "today"}${field.provisional ? " (PROVISIONAL — snapshot not captured yet)" : ""}`);
+
+  [
+    { key: "women", title: "Women's Open" },
+    { key: "men", title: "Men's Open" }
+  ].forEach(({ key, title }) => {
+    const groups = buildTournamentGroups(buildTournamentDraw(key, field[key]));
+    lines.push("", `== ${title} ==`);
+    output.draws[key] = groups.map((group) => ({
+      group: group.num,
+      semifinal: group.semifinal,
+      players: group.slots.map((slot) => ({ seed: slot.seed, name: slot.known ? slot.label : "TBD" })),
+      matches: group.matches.map((match) => ({
+        id: match.id,
+        label: match.label,
+        a: tournamentSideText(match.a),
+        b: tournamentSideText(match.b)
+      }))
+    }));
+    groups.forEach((group) => {
+      lines.push(`  Group ${group.num} (winner → SF ${group.semifinal}): ${group.slots.map((slot) => `#${slot.seed} ${slot.known ? slot.label : "TBD"}`).join(", ")}`);
+      group.matches.forEach((match) => {
+        lines.push(`    ${match.label.padEnd(6)} ${tournamentSideText(match.a)} vs ${tournamentSideText(match.b)}`);
+      });
+    });
+  });
+
+  const club = buildTournamentClub(field.club);
+  lines.push("", "== Men's Club (round robin) ==");
+  output.club = club.fixtures.map((match) => ({
+    id: match.id,
+    round: match.num,
+    a: tournamentSideText(match.a),
+    b: tournamentSideText(match.b)
+  }));
+  [1, 2, 3].forEach((round) => {
+    lines.push(`  Round ${round}:`);
+    club.fixtures
+      .filter((match) => match.num === round)
+      .forEach((match) => lines.push(`    ${tournamentSideText(match.a)} vs ${tournamentSideText(match.b)}`));
+  });
+  lines.push("  Top 2 advance to the club final (wins → head-to-head → fewest games lost).");
+
+  console.log(lines.join("\n"));
+  output.text = lines.join("\n");
+  return output;
+}
+
+/* ── Page entry point ────────────────────────────────────────────────────── */
+
+async function loadTournamentPage() {
+  const page = document.getElementById("tournament-page");
+  if (!page) return;
+
+  try {
+    const field = await loadTournamentField();
+    renderTournamentSeedSource(field);
+    setupTournamentSnapshotTool();
+
+    [
+      { key: "women", groupsId: "groups-women-open", bracketId: "bracket-women-open" },
+      { key: "men", groupsId: "groups-men-open", bracketId: "bracket-men-open" }
+    ].forEach(({ key, groupsId, bracketId }) => {
+      const rounds = buildTournamentDraw(key, field[key]);
+      renderTournamentGroups(groupsId, buildTournamentGroups(rounds));
+      renderTournamentBracket(bracketId, rounds);
+    });
+
+    renderTournamentClub(buildTournamentClub(field.club));
+  } catch (error) {
+    console.error("Failed to load the tournament page:", error);
+    page.querySelectorAll(".bracket-rounds").forEach((el) => {
+      el.innerHTML = `<p class="small-text">Unable to load the tournament draw right now. Please try again later.</p>`;
+    });
+    const sourceEl = document.getElementById("tournament-seed-source");
+    if (sourceEl) {
+      sourceEl.className = "tournament-note";
+      sourceEl.textContent = "Unable to load seeding data right now. Please try again later.";
+    }
+  }
+}
+
+window.captureTournamentSnapshot = captureTournamentSnapshot;
+window.generateTournamentDraw = generateTournamentDraw;

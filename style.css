@@ -5750,3 +5750,399 @@ th[data-sort]:hover {
   .bm-name { font-size: 10px; }
   .bm-stats { font-size: 9px; }
 }
+
+/* =========================
+   TOURNAMENT — FORMAT, GROUPS, RESULTS
+   (tournament.html)
+========================= */
+
+/* Seeding source banner: provisional before the snapshot, locked after. */
+.tournament-note {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 10px;
+  background: #fcfdfc;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tournament-note strong {
+  color: var(--text);
+}
+
+.tournament-note-locked {
+  border-left-color: var(--green);
+  background: var(--green-light);
+}
+
+.tournament-note-provisional {
+  border-left-color: #c9a227;
+  background: #fdf8e7;
+}
+
+/* Format spec: term on the left on desktop, stacked on mobile. */
+.tourn-spec {
+  margin: 0;
+}
+
+.tourn-spec dt {
+  color: var(--green-dark);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 16px;
+}
+
+.tourn-spec dt:first-child {
+  margin-top: 0;
+}
+
+.tourn-spec dd {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.tourn-list {
+  margin: 10px 0 14px;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.tourn-subhead {
+  margin: 22px 0 8px;
+  color: var(--green-dark);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tourn-timeline td:first-child {
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--green-dark);
+  width: 1%;
+}
+
+.tourn-timeline tbody tr.tourn-timeline-key td {
+  background: var(--green-light);
+}
+
+/* A table-wrap the renderer left empty shouldn't draw a stray bordered box. */
+.table-wrap:empty {
+  display: none;
+}
+
+/* ── Quarterfinal groups / club fixture cards ───────────────────────────── */
+
+.qf-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.qf-group {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fcfdfc;
+  padding: 12px 14px;
+}
+
+.qf-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.qf-group-title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--green-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.qf-group-meta {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.qf-group-players {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.qf-group-players li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.qf-seed {
+  flex: 0 0 24px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green-dark);
+}
+
+.qf-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qf-meta {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.qf-player-out .qf-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.qf-group-matches {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--border);
+}
+
+.qf-match {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 2px 8px;
+  padding: 6px 0;
+}
+
+.qf-match + .qf-match {
+  border-top: 1px solid #edf2ee;
+}
+
+.qf-match-label {
+  grid-row: span 2;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 2px;
+}
+
+.qf-match-players {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.qf-vs {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  padding: 0 2px;
+}
+
+.qf-match-status {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.qf-match-done .qf-match-status {
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* ── Men's Club tables ──────────────────────────────────────────────────── */
+
+/* Site-wide `table { min-width: 900px }` is sized for the rankings grid; the
+   club tables are short enough to fit a card on desktop and only need to
+   scroll on a phone. */
+.club-table {
+  min-width: 520px;
+}
+
+.club-table th,
+.club-table td {
+  padding: 10px 10px;
+  font-size: 13px;
+}
+
+.club-table td.num,
+.club-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.club-table tbody tr.club-advances td {
+  background: var(--green-light);
+}
+
+.club-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--green);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.club-out {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.club-h2h-table th,
+.club-h2h-table td {
+  padding: 9px 5px;
+  font-size: 12px;
+}
+
+.club-h2h-table td:first-child,
+.club-h2h-table th:first-child {
+  white-space: nowrap;
+  font-weight: 600;
+  padding-left: 10px;
+}
+
+.club-h2h-table th.num,
+.club-h2h-table td.num {
+  text-align: center;
+}
+
+.club-h2h-self {
+  text-align: center;
+  color: var(--border);
+}
+
+.club-h2h-pending {
+  color: var(--muted);
+}
+
+.club-h2h-win {
+  color: var(--green-dark);
+  font-weight: 800;
+}
+
+.club-h2h-loss {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.club-h2h-score {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Bracket cards with results ─────────────────────────────────────────── */
+
+.bracket-match.bm-decided {
+  border-color: #cadbd1;
+}
+
+.bm-player.bm-winner {
+  background: var(--green-light);
+}
+
+.bm-player.bm-winner .bm-name {
+  color: var(--green-dark);
+  font-weight: 800;
+}
+
+.bm-player.bm-loser .bm-name {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.bm-player.bm-withdrawn .bm-name {
+  text-decoration: line-through;
+}
+
+.bm-score {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.bm-loser .bm-score {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.bm-tag {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--green-dark);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.bm-note {
+  text-align: center;
+  font-size: 10px;
+  font-style: italic;
+  color: var(--muted);
+  padding: 0 6px 4px;
+}
+
+/* ── Snapshot tool (tournament.html?snapshot=1) ─────────────────────────── */
+
+#tournament-snapshot-tool textarea {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  margin-top: 12px;
+}
+
+@media (max-width: 767px) {
+  .qf-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qf-group-players li {
+    flex-wrap: wrap;
+  }
+
+  .qf-meta {
+    flex: 1 0 100%;
+    padding-left: 32px;
+  }
+
+  .tourn-timeline td:first-child {
+    width: auto;
+  }
+}
