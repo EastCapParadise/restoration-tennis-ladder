@@ -17,12 +17,12 @@
     gtag('config', 'G-DM3ZPBMBXE');
   </script>
   <title>End of Season Tournament | Restoration Tennis Ladder</title>
-  <meta name="description" content="Men's Open, Women's Open, and Men's Club end of season singles brackets for the Restoration Tennis Ladder. Format, quarterfinal groups, timeline, live results, and finals night Friday Nov 6 at Stratford Park, Arlington.">
+  <meta name="description" content="Men's Open, Women's Open, and Men's Club end of season singles brackets for the Restoration Tennis Ladder. Live brackets, format, timeline, and finals night Friday Nov 6 at Stratford Park, Arlington.">
   <meta name="google-site-verification" content="-WUQhE0nQxDcyfe0bvAdXng_w1UqHmoKCN-p1qYuMEE" />
   <meta name="robots" content="index, follow">
   <meta property="og:site_name" content="Restoration Tennis Ladder">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="style.css?v=52">
+  <link rel="stylesheet" href="style.css?v=54">
 </head>
 <body>
   <header class="site-header">
@@ -62,43 +62,86 @@
   <main id="tournament-page">
     <section class="card">
       <h2>End of Season Tournament</h2>
-      <p class="small-text tournament-subtitle">Men's Open · Women's Open · Men's Club — finals night Friday, Nov 6 at Stratford Park, Arlington</p>
-      <p>Three draws close out the season: a 16-player Men's Open, a 16-player Women's Open, and the Men's Club, a four-player round robin for our highest-rated men. Seeds 1–16 in both Open draws are set entirely by ladder points, with strength of schedule breaking ties — the same tiebreak the rankings page uses. Rating has no effect on Open seeding or bracket placement. The Club 4 are picked the other way round: by rating alone.</p>
-      <p class="small-text">Every round before finals night is self-scheduled. Find your opponent in the <a href="contacts.html">directory</a>, agree on a court and a time, play, and report it through <a href="report.html">Report Match</a> — tournament matches count for the ladder like any other match.</p>
+      <p class="tournament-subtitle">Men's Open · Women's Open · Men's Club — finals night Friday, Nov 6 at Stratford Park, Arlington</p>
+      <p>Three draws close out the season. The <strong>Men's Open</strong> and <strong>Women's Open</strong> are 16-player single-elimination draws, seeded 1–16 by ladder points. The <strong>Men's Club</strong> is a four-player round robin for our four highest-rated men, with the top two meeting in a club final.</p>
+      <p>Open seeds come from ladder points alone, with strength of schedule breaking ties — the same rule as the rankings page — and are frozen at the Oct 11 standings snapshot. Everything before finals night is self-scheduled, and tournament matches count for the ladder like any other match.</p>
       <p id="tournament-seed-source" class="tournament-note">Loading seeding source…</p>
     </section>
 
     <section class="card" id="tournament-snapshot-tool" hidden></section>
 
     <section class="card">
+      <h2>Men's Open<span class="draw-live-note">16 draw · single elimination</span></h2>
+      <p>Seeds 1–16 by ladder points. Round of 16 and quarterfinals by Oct 25, semifinals by Nov 5, final on Nov 6.</p>
+      <div class="bracket-scroll">
+        <div class="bracket" id="bracket-men-open">
+          <div class="bracket-rounds">
+            <p class="small-text">Loading bracket…</p>
+          </div>
+          <svg class="bracket-lines"></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Women's Open<span class="draw-live-note">16 draw · single elimination</span></h2>
+      <p>Seeds 1–16 by ladder points. Round of 16 and quarterfinals by Oct 25, semifinals by Nov 5, final on Nov 6.</p>
+      <div class="bracket-scroll">
+        <div class="bracket" id="bracket-women-open">
+          <div class="bracket-rounds">
+            <p class="small-text">Loading bracket…</p>
+          </div>
+          <svg class="bracket-lines"></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Men's Club<span class="draw-live-note">4 players · round robin</span></h2>
+      <p class="bracket-elite-label">Elite Division</p>
+      <p>The four highest-rated men by display rating — this draw is decided by rating, not points. Everyone plays everyone once: six matches, three each, self-scheduled with a hard deadline of Nov 4. The top two meet in the club final, the Nov 6 nightcap.</p>
+
+      <p class="tourn-subhead">Standings</p>
+      <div class="table-wrap" id="club-standings"></div>
+      <p class="tourn-meta">Tiebreak order: wins, then head-to-head among the tied players, then fewest games lost. The Tiebreak column names the criterion that actually separated a tie.</p>
+
+      <p class="tourn-subhead">Head-to-head</p>
+      <div class="table-wrap" id="club-h2h"></div>
+
+      <p class="tourn-subhead">Fixtures</p>
+      <div class="qf-groups" id="club-fixtures">
+        <p class="small-text">Loading fixtures…</p>
+      </div>
+
+      <p class="tourn-subhead">Club Final — Nov 6, 9:15 PM</p>
+      <div class="bracket-scroll">
+        <div class="bracket bracket-compact" id="bracket-men-club-final">
+          <div class="bracket-rounds">
+            <p class="small-text">Loading club final…</p>
+          </div>
+          <svg class="bracket-lines"></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Format</h2>
       <dl class="tourn-spec">
-        <dt>Draws</dt>
-        <dd>16 men and 16 women, single elimination, seeded 1–16. Plus the Men's Club: the four highest-rated men by display rating, round robin.</dd>
-
-        <dt>Seeding</dt>
-        <dd>Ladder points, highest first. Ties break on strength of schedule (SOS), highest first — the same rule as the main rankings. Seeds are frozen at the Oct 11 standings snapshot and do not move after that, even though the ladder keeps running through Nov 1.</dd>
-
-        <dt>Quarterfinal groups</dt>
-        <dd>Each quarter of the draw is a self-scheduling group of four — seeds 1, 8, 9, 16 / 4, 5, 12, 13 / 3, 6, 11, 14 / 2, 7, 10, 15. Three matches per group (two Round of 16, then the quarterfinal between their winners) produce one semifinalist. Sort your three matches out among yourselves; there is no assigned order beyond playing the Round of 16 before the quarterfinal.</dd>
-
         <dt>Match length</dt>
         <dd>One set is the default for every match through the semifinals. Players may mutually agree to play more — a pro set or a full match — if both want it. Finals night is 8-game pro sets, no exceptions.</dd>
 
-        <dt>Scheduling</dt>
-        <dd>The Round of 16, quarterfinals, and semifinals are all self-scheduled by the players, at a court and time you agree on. Only finals night is fixed.</dd>
+        <dt>Self-scheduling</dt>
+        <dd>The Round of 16, quarterfinals, and semifinals are all self-scheduled. Find your opponent in the <a href="contacts.html">directory</a>, agree on a court and a time, play, and report it through <a href="report.html">Report Match</a>. Only finals night is fixed.</dd>
 
-        <dt>Defaults and walkovers</dt>
-        <dd>Any match not played by its deadline goes to the higher seed. This applies inside the quarterfinal groups too. If a walkover decision ever runs into a seed tie, SOS breaks it — same rule as seeding.</dd>
+        <dt>Quarterfinal pods</dt>
+        <dd>Each quarter of the Open draws is a pod of four players — seeds 1, 8, 9, 16 / 4, 5, 12, 13 / 3, 6, 11, 14 / 2, 7, 10, 15. The pod is only a scheduling convenience so the four of you can coordinate court time together. It's still straight single elimination: two Round of 16 matches, then a quarterfinal between the two winners.</dd>
 
-        <dt>Dropouts — Women's Open</dt>
-        <dd>The women's draw has exactly 16 ladder participants and no alternates. A dropout is a walkover: her opponent advances and nothing is re-drawn.</dd>
+        <dt>Deadlines</dt>
+        <dd>Any match not played by its deadline goes to the higher seed.</dd>
 
-        <dt>Dropouts — Men's Open</dt>
-        <dd>The men's draw backfills dropouts with the next seeds — 17, 18, and so on, in the same ladder-points-then-SOS order. Backfill happens on Oct 13, once opt-outs are in.</dd>
+        <dt>Coordinating with Michael</dt>
+        <dd>In addition to you scheduling among yourselves — not instead of it — Michael, the tournament director, will text each quarterfinal pod's group chat (or each of you individually) to help get matches on the calendar. Text him the result of every Round of 16 and quarterfinal match as soon as it's played, as well as entering it in Report Match, so he isn't left to find out later.</dd>
 
-        <dt>Men's Club round robin</dt>
-        <dd>Four players, everyone plays everyone once: six matches, three per player, hard deadline Nov 4. Standings break ties in this order — wins, then head-to-head, then fewest games lost. The top two advance to the club final.</dd>
       </dl>
     </section>
 
@@ -122,12 +165,8 @@
               <td>Draws published, with participation opt-out — reply by Oct 13 if you can't play.</td>
             </tr>
             <tr>
-              <td>Oct 13</td>
-              <td>Men's dropouts backfilled with alternates.</td>
-            </tr>
-            <tr>
               <td>Oct 12 – 25</td>
-              <td>Quarterfinal groups play their three matches (Round of 16 and quarterfinal).</td>
+              <td>Round of 16 and quarterfinals, self-scheduled within each quarterfinal pod.</td>
             </tr>
             <tr>
               <td>Oct 12 – Nov 4</td>
@@ -161,75 +200,13 @@
         <li><strong>8:00 PM</strong> — Women's Open final and Men's Open final, played simultaneously on both courts. 8-game pro sets.</li>
         <li><strong>9:15 PM</strong> — Men's Club final as the nightcap, one court, everyone watching.</li>
       </ul>
-      <p class="small-text">Semifinalists must confirm their Nov 6 availability by <strong>Nov 4</strong>. If a finalist can't make it, the semifinal loser steps in. Rain date is <strong>Saturday, Nov 7</strong>, same times and same venue.</p>
-    </section>
-
-    <section class="card">
-      <h3>Women's Open<span class="draw-live-note">16 draw · single elimination</span></h3>
-      <p class="small-text">Four quarterfinal groups, three matches each, all self-scheduled between Oct 12 and Oct 25.</p>
-      <div class="qf-groups" id="groups-women-open">
-        <p class="small-text">Loading groups…</p>
-      </div>
-      <hr>
-      <div class="bracket-scroll">
-        <div class="bracket" id="bracket-women-open">
-          <div class="bracket-rounds">
-            <p class="small-text">Loading bracket…</p>
-          </div>
-          <svg class="bracket-lines"></svg>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h3>Men's Open<span class="draw-live-note">16 draw · single elimination</span></h3>
-      <p class="small-text">Four quarterfinal groups, three matches each, all self-scheduled between Oct 12 and Oct 25. Dropouts are backfilled from seed 17 down.</p>
-      <div class="qf-groups" id="groups-men-open">
-        <p class="small-text">Loading groups…</p>
-      </div>
-      <hr>
-      <div class="bracket-scroll">
-        <div class="bracket" id="bracket-men-open">
-          <div class="bracket-rounds">
-            <p class="small-text">Loading bracket…</p>
-          </div>
-          <svg class="bracket-lines"></svg>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h3>Men's Club<span class="draw-live-note">4 players · round robin</span></h3>
-      <p class="small-text bracket-elite-label">Elite Division</p>
-      <p class="small-text">The four highest-rated men by display rating — this draw is decided by rating, not points. Everyone plays everyone once: six matches, three each, self-scheduled with a hard deadline of Nov 4. The top two meet in the club final, the Nov 6 nightcap.</p>
-
-      <p class="tourn-subhead">Standings</p>
-      <div class="table-wrap" id="club-standings"></div>
-      <p class="small-text">Tiebreak order: wins, then head-to-head among the tied players, then fewest games lost. The Tiebreak column names the criterion that actually separated a tie.</p>
-
-      <p class="tourn-subhead">Head-to-head</p>
-      <div class="table-wrap" id="club-h2h"></div>
-
-      <p class="tourn-subhead">Fixtures</p>
-      <div class="qf-groups" id="club-fixtures">
-        <p class="small-text">Loading fixtures…</p>
-      </div>
-
-      <p class="tourn-subhead">Club Final — Nov 6, 9:15 PM</p>
-      <div class="bracket-scroll">
-        <div class="bracket bracket-compact" id="bracket-men-club-final">
-          <div class="bracket-rounds">
-            <p class="small-text">Loading club final…</p>
-          </div>
-          <svg class="bracket-lines"></svg>
-        </div>
-      </div>
+      <p>Semifinalists must confirm their Nov 6 availability by <strong>Nov 4</strong>. Rain date is <strong>Saturday, Nov 7</strong>, same times and same venue.</p>
     </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="tournament-data.js?v=1"></script>
-  <script src="app.js?v=62"></script>
+  <script src="app.js?v=63"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

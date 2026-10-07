@@ -7125,7 +7125,7 @@ function tournamentClubTiebreakLabel(higher, lower) {
 function tournamentSeedStats(player) {
   if (!player) return "";
   const points = Number(player.ladder_points) || 0;
-  return `${points} pts · SOS ${player.sos != null ? formatDisplayRating(player.sos) : "—"}`;
+  return `${points} pts · Rtg ${formatDisplayRating(player.display_rating)}`;
 }
 
 function tournamentSideText(side) {
@@ -7282,35 +7282,6 @@ function renderTournamentGroupMatchRow(match) {
       <span class="qf-match-players">${escapeHtml(tournamentSideText(match.a))} <span class="qf-vs">vs</span> ${escapeHtml(tournamentSideText(match.b))}</span>
       <span class="qf-match-status">${escapeHtml(tournamentMatchStatus(match))}</span>
     </li>`;
-}
-
-function renderTournamentGroups(containerId, groups) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = groups
-    .map(
-      (group) => `
-      <div class="qf-group">
-        <div class="qf-group-head">
-          <span class="qf-group-title">Group ${group.num}</span>
-          <span class="qf-group-meta">Winner → Semifinal ${group.semifinal}</span>
-        </div>
-        <ul class="qf-group-players">
-          ${group.slots
-            .map(
-              (slot) => `
-            <li${slot.withdrawn ? ' class="qf-player-out"' : ""}>
-              <span class="qf-seed">#${slot.seed ?? "—"}</span>
-              <span class="qf-name">${escapeHtml(slot.known ? slot.label : "TBD")}${slot.withdrawn ? " (withdrew)" : ""}</span>
-              <span class="qf-meta">${escapeHtml(slot.player ? tournamentSeedStats(slot.player) : "")}</span>
-            </li>`
-            )
-            .join("")}
-        </ul>
-        <ul class="qf-group-matches">${group.matches.map(renderTournamentGroupMatchRow).join("")}</ul>
-      </div>`
-    )
-    .join("");
 }
 
 /* ── Rendering: club round robin ─────────────────────────────────────────── */
@@ -7494,7 +7465,7 @@ function renderTournamentSeedSource(field) {
     ? ` (captured ${captured.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })})`
     : "";
   el.className = "tournament-note tournament-note-locked";
-  el.innerHTML = `<strong>Seeds locked.</strong> All seeding, the men's backfill order, and the Club 4 come from the frozen ${escapeHtml(asOf)} standings snapshot${escapeHtml(capturedText)}. The live ladder keeps accruing points through Nov 1 — it no longer moves this draw.`;
+  el.innerHTML = `<strong>Seeds locked.</strong> All seeding and the Club 4 come from the frozen ${escapeHtml(asOf)} standings snapshot${escapeHtml(capturedText)}. The live ladder keeps accruing points through Nov 1 — it no longer moves this draw.`;
 }
 
 /* ── Admin: capture the seeding snapshot ─────────────────────────────────── */
@@ -7634,12 +7605,10 @@ async function loadTournamentPage() {
     setupTournamentSnapshotTool();
 
     [
-      { key: "women", groupsId: "groups-women-open", bracketId: "bracket-women-open" },
-      { key: "men", groupsId: "groups-men-open", bracketId: "bracket-men-open" }
-    ].forEach(({ key, groupsId, bracketId }) => {
-      const rounds = buildTournamentDraw(key, field[key]);
-      renderTournamentGroups(groupsId, buildTournamentGroups(rounds));
-      renderTournamentBracket(bracketId, rounds);
+      { key: "women", bracketId: "bracket-women-open" },
+      { key: "men", bracketId: "bracket-men-open" }
+    ].forEach(({ key, bracketId }) => {
+      renderTournamentBracket(bracketId, buildTournamentDraw(key, field[key]));
     });
 
     renderTournamentClub(buildTournamentClub(field.club));

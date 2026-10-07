@@ -5573,25 +5573,50 @@ th[data-sort]:hover {
    TOURNAMENT BRACKET
 ========================= */
 
+/* Tournament page type scale — one size each for section headings, body copy,
+   and small/meta text. The bracket cards (.bracket …) and the Men's Club
+   tables and fixture cards keep their own sizes. */
+#tournament-page {
+  --tourn-heading: 22px;
+  --tourn-body: 15px;
+  --tourn-meta: 13px;
+}
+
+#tournament-page .card > h2 {
+  font-size: var(--tourn-heading);
+}
+
+/* Zero specificity so the meta-sized classes below win on the same elements. */
+:where(#tournament-page .card > p, #tournament-page .card > ul) {
+  font-size: var(--tourn-body);
+  line-height: 1.55;
+}
+
 .draw-live-note {
-  font-size: 11px;
+  font-size: var(--tourn-meta);
   font-weight: normal;
   color: var(--muted);
   margin-left: 10px;
   vertical-align: middle;
 }
 
-.tournament-subtitle {
-  font-size: 11px;
-  margin-bottom: 6px;
+#tournament-page .tournament-subtitle {
+  font-size: var(--tourn-meta);
+  color: var(--muted);
+  margin: -6px 0 14px;
 }
 
-.bracket-elite-label {
+#tournament-page .tourn-meta {
+  font-size: var(--tourn-meta);
+  color: var(--muted);
+}
+
+#tournament-page .bracket-elite-label {
   margin-top: -8px;
   margin-bottom: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-size: var(--tourn-meta);
   font-weight: 700;
   color: var(--muted);
 }
@@ -5765,7 +5790,7 @@ th[data-sort]:hover {
   border-radius: 10px;
   background: #fcfdfc;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--tourn-meta);
   line-height: 1.5;
 }
 
@@ -5791,7 +5816,7 @@ th[data-sort]:hover {
 .tourn-spec dt {
   color: var(--green-dark);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--tourn-meta);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-top: 16px;
@@ -5803,24 +5828,32 @@ th[data-sort]:hover {
 
 .tourn-spec dd {
   margin: 5px 0 0;
-  font-size: 14px;
+  font-size: var(--tourn-body);
   line-height: 1.55;
 }
 
 .tourn-list {
   margin: 10px 0 14px;
   padding-left: 20px;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: var(--tourn-body);
+  line-height: 1.55;
 }
 
 .tourn-subhead {
   margin: 22px 0 8px;
   color: var(--green-dark);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--tourn-meta);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.tourn-timeline th {
+  font-size: var(--tourn-meta);
+}
+
+.tourn-timeline td {
+  font-size: var(--tourn-body);
 }
 
 .tourn-timeline td:first-child {
@@ -5839,7 +5872,7 @@ th[data-sort]:hover {
   display: none;
 }
 
-/* ── Quarterfinal groups / club fixture cards ───────────────────────────── */
+/* ── Club fixture cards ───────────────────────────── */
 
 .qf-groups {
   display: grid;
@@ -5876,49 +5909,6 @@ th[data-sort]:hover {
   font-size: 11px;
   color: var(--muted);
   text-align: right;
-}
-
-.qf-group-players {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-}
-
-.qf-group-players li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 3px 0;
-}
-
-.qf-seed {
-  flex: 0 0 24px;
-  text-align: right;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--green-dark);
-}
-
-.qf-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.qf-meta {
-  flex: 0 0 auto;
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.qf-player-out .qf-name {
-  color: var(--muted);
-  text-decoration: line-through;
 }
 
 .qf-group-matches {
@@ -5983,7 +5973,11 @@ th[data-sort]:hover {
 .club-table th,
 .club-table td {
   padding: 10px 10px;
-  font-size: 13px;
+  font-size: var(--tourn-body);
+}
+
+.club-table th {
+  font-size: var(--tourn-meta);
 }
 
 .club-table td.num,
@@ -6021,7 +6015,11 @@ th[data-sort]:hover {
 .club-h2h-table th,
 .club-h2h-table td {
   padding: 9px 5px;
-  font-size: 12px;
+  font-size: var(--tourn-body);
+}
+
+.club-h2h-table th {
+  font-size: var(--tourn-meta);
 }
 
 .club-h2h-table td:first-child,
@@ -6057,7 +6055,7 @@ th[data-sort]:hover {
 
 .club-h2h-score {
   font-weight: 500;
-  font-size: 11px;
+  font-size: var(--tourn-meta);
   color: var(--muted);
 }
 
@@ -6131,15 +6129,6 @@ th[data-sort]:hover {
 @media (max-width: 767px) {
   .qf-groups {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .qf-group-players li {
-    flex-wrap: wrap;
-  }
-
-  .qf-meta {
-    flex: 1 0 100%;
-    padding-left: 32px;
   }
 
   .tourn-timeline td:first-child {
