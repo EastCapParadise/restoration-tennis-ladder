@@ -5,7 +5,7 @@
    (via app.js) and the admin panel (via admin.js). No DOM work and no Supabase
    client of its own: callers pass theirs to loadTournamentResults().
 
-   Seeding reads the frozen Oct 11 standings snapshot in tournament-data.js,
+   Seeding reads the frozen Oct 12 standings snapshot in tournament-data.js,
    never live standings — the live ladder keeps accruing points through Nov 1
    and no longer moves this draw. Results come from the tournament_results
    table (entered in the admin panel), falling back to tournament-data.js.

@@ -6,7 +6,7 @@
 
    Three things live in here:
 
-     1. snapshot  — the frozen Oct 11 standings used for seeding. Captured once,
+     1. snapshot  — the frozen Oct 12 standings used for seeding. Captured once,
                     then never edited. The live ladder keeps running after this;
                     the tournament stops looking at it.
      2. withdrawals — people who opted out by Oct 13.
@@ -84,7 +84,7 @@ window.TOURNAMENT_DATA = {
     seasonLabel: "2026 End of Season Tournament",
 
     // Seeding snapshot date. The live ladder keeps accruing after this.
-    snapshotDate: "2026-10-11",
+    snapshotDate: "2026-10-12",
 
     deadlines: {
       drawsPublished: "2026-10-12",
@@ -156,15 +156,76 @@ window.TOURNAMENT_DATA = {
   },
 
   /* ---------------------------------------------------------------------------
-     SNAPSHOT — frozen standings as of Oct 11, 2026. Seeding reads ONLY this.
-     Leave `players` empty until Oct 11; the page falls back to provisional
-     live seeds and labels them as such. Do not hand-edit once captured.
+     SNAPSHOT — frozen standings, captured Oct 12, 2026 after the duplicate
+     match-row cleanup and the Travis Hubbs / Chris Donahoe rating corrections.
+     Seeding reads ONLY this; it never refreshes from the live ladder. Do not
+     hand-edit or re-capture.
      ------------------------------------------------------------------------ */
   snapshot: {
-    asOf: "2026-10-11",
-    capturedAt: null,  // ISO timestamp, filled in by the capture tool
-    // { id, name, sex, ladder_points, sos, display_rating, matches_played }
-    players: []
+    asOf: "2026-10-12",
+    capturedAt: "2026-10-12T14:46:17.584Z",
+    players: [
+      { id: 5, name: "Michael Strickland", sex: "Man", ladder_points: 294, sos: 3.19, display_rating: 3.35, matches_played: 23 },
+      { id: 20, name: "Marisa Swab", sex: "Woman", ladder_points: 287, sos: 2.8, display_rating: 2.86, matches_played: 20 },
+      { id: 9, name: "Matt Farrell", sex: "Man", ladder_points: 204, sos: 2.94, display_rating: 2.53, matches_played: 19 },
+      { id: 36, name: "Kenny Swab", sex: "Man", ladder_points: 192, sos: 3.05, display_rating: 2.75, matches_played: 14 },
+      { id: 24, name: "Mallory Kuchem", sex: "Woman", ladder_points: 173, sos: 2.72, display_rating: 2.94, matches_played: 11 },
+      { id: 33, name: "Katie Farrell", sex: "Woman", ladder_points: 167, sos: 2.79, display_rating: 3.1, matches_played: 13 },
+      { id: 6, name: "Brett Wierenga", sex: "Man", ladder_points: 136, sos: 2.85, display_rating: 2.96, matches_played: 13 },
+      { id: 7, name: "Chad Kuchem", sex: "Man", ladder_points: 136, sos: 2.87, display_rating: 2.53, matches_played: 12 },
+      { id: 11, name: "Hannah Royal", sex: "Woman", ladder_points: 135, sos: 2.97, display_rating: 2.38, matches_played: 11 },
+      { id: 38, name: "Endel Liias", sex: "Man", ladder_points: 131, sos: 4.32, display_rating: 4.66, matches_played: 9 },
+      { id: 21, name: "Amy Layman", sex: "Woman", ladder_points: 124, sos: 2.74, display_rating: 2.27, matches_played: 10 },
+      { id: 15, name: "Maria Strickland", sex: "Woman", ladder_points: 122, sos: 2.74, display_rating: 2.82, matches_played: 6 },
+      { id: 10, name: "Jed Royal", sex: "Man", ladder_points: 112, sos: 4.44, display_rating: 4.41, matches_played: 10 },
+      { id: 32, name: "Rachel Penney", sex: "Woman", ladder_points: 104, sos: 2.88, display_rating: 2.91, matches_played: 7 },
+      { id: 23, name: "Avery Phillips", sex: "Woman", ladder_points: 87, sos: 2.91, display_rating: 3.47, matches_played: 8 },
+      { id: 25, name: "James Janis", sex: "Man", ladder_points: 81, sos: 4.17, display_rating: 4.49, matches_played: 5 },
+      { id: 34, name: "Kate Liias", sex: "Woman", ladder_points: 73, sos: 2.75, display_rating: 3.5, matches_played: 4 },
+      { id: 27, name: "Bryan Layman", sex: "Man", ladder_points: 64, sos: 2.71, display_rating: 2.78, matches_played: 6 },
+      { id: 37, name: "Carter Phillips", sex: "Man", ladder_points: 61, sos: 3.2, display_rating: 2.94, matches_played: 5 },
+      { id: 14, name: "Beth Tipps", sex: "Woman", ladder_points: 48, sos: 2.62, display_rating: 4.02, matches_played: 2 },
+      { id: 46, name: "Tommy Downs", sex: "Man", ladder_points: 47, sos: 2.7, display_rating: 3.05, matches_played: 3 },
+      { id: 49, name: "Israel Ortega", sex: "Man", ladder_points: 41, sos: 3.39, display_rating: 2.06, matches_played: 4 },
+      { id: 4, name: "Michael C Harper", sex: "Man", ladder_points: 40, sos: 2.82, display_rating: 2.88, matches_played: 3 },
+      { id: 26, name: "Irby Thompson", sex: "Man", ladder_points: 40, sos: 2.92, display_rating: 2.96, matches_played: 4 },
+      { id: 8, name: "Danny Crouch", sex: "Man", ladder_points: 35, sos: 2.74, display_rating: 3.38, matches_played: 4 },
+      { id: 50, name: "Bala Chandran", sex: "Man", ladder_points: 32, sos: 2.93, display_rating: 2.98, matches_played: 3 },
+      { id: 19, name: "Katie Thompson", sex: "Woman", ladder_points: 32, sos: 3.07, display_rating: 3.05, matches_played: 3 },
+      { id: 41, name: "Chris Donahoe", sex: "Man", ladder_points: 29, sos: 3.33, display_rating: 3.5, matches_played: 1 },
+      { id: 17, name: "Kendall Twining", sex: "Woman", ladder_points: 23, sos: 2.55, display_rating: 3.68, matches_played: 2 },
+      { id: 54, name: "Sarah Crouch", sex: "Woman", ladder_points: 22, sos: 2.9, display_rating: 2.64, matches_played: 3 },
+      { id: 13, name: "Steven Feldstein", sex: "Man", ladder_points: 21, sos: 3.21, display_rating: 3.44, matches_played: 2 },
+      { id: 18, name: "Becky Corby", sex: "Woman", ladder_points: 20, sos: 2.79, display_rating: 1.95, matches_played: 2 },
+      { id: 12, name: "Wray Fitch", sex: "Man", ladder_points: 17, sos: 2.95, display_rating: 3.51, matches_played: 1 },
+      { id: 28, name: "Parker Schmidt", sex: "Man", ladder_points: 17, sos: 3, display_rating: 2.74, matches_played: 2 },
+      { id: 42, name: "Brendan Sorem", sex: "Man", ladder_points: 15, sos: 1.98, display_rating: 2.38, matches_played: 1 },
+      { id: 56, name: "Evan Neuwirth", sex: "Man", ladder_points: 13, sos: 2.97, display_rating: 3.03, matches_played: 1 },
+      { id: 29, name: "Dan Vogel", sex: "Man", ladder_points: 12, sos: 2.98, display_rating: 3.65, matches_played: 2 },
+      { id: 60, name: "Travis Hubbs", sex: "Man", ladder_points: 12, sos: 2.1, display_rating: 4, matches_played: 1 },
+      { id: 53, name: "Tennyson Crouch", sex: "Man", ladder_points: 9, sos: 3.52, display_rating: 3.04, matches_played: 1 },
+      { id: 57, name: "Corie Dean", sex: "Woman", ladder_points: 8, sos: null, display_rating: 2.75, matches_played: 0 },
+      { id: 58, name: "Daniel Liberto", sex: "Man", ladder_points: 7, sos: null, display_rating: 3.5, matches_played: 0 },
+      { id: 59, name: "Anna Wade", sex: "Woman", ladder_points: 7, sos: null, display_rating: 3, matches_played: 0 },
+      { id: 35, name: "Gibby Preston", sex: "Man", ladder_points: 5, sos: null, display_rating: 3, matches_played: 0 },
+      { id: 22, name: "Marcus Cave", sex: "Man", ladder_points: 5, sos: 3, display_rating: 3.4, matches_played: 1 },
+      { id: 31, name: "Mac McCullough", sex: "Man", ladder_points: 5, sos: 4.61, display_rating: 4.46, matches_played: 1 },
+      { id: 62, name: "Colt Harper", sex: "Man", ladder_points: 5, sos: 2.83, display_rating: 2.45, matches_played: 1 },
+      { id: 16, name: "Maggie Dean", sex: "Woman", ladder_points: 0, sos: null, display_rating: 2, matches_played: 0 },
+      { id: 39, name: "Kristen Zarkowsky", sex: "Woman", ladder_points: 0, sos: null, display_rating: 3.5, matches_played: 0 },
+      { id: 61, name: "Anna Isbell", sex: "Woman", ladder_points: 0, sos: null, display_rating: 2.5, matches_played: 0 },
+      { id: 30, name: "Hannah Howe", sex: "Woman", ladder_points: 0, sos: null, display_rating: 3, matches_played: 0 },
+      { id: 40, name: "Priya B Madrecki", sex: "Woman", ladder_points: 0, sos: null, display_rating: 3.25, matches_played: 0 },
+      { id: 51, name: "Kelly Sheppard", sex: "Woman", ladder_points: 0, sos: null, display_rating: 5, matches_played: 0 },
+      { id: 55, name: "Jeff Pickering", sex: "Man", ladder_points: 0, sos: null, display_rating: 3.75, matches_played: 0 },
+      { id: 52, name: "Jack Bryson", sex: "Man", ladder_points: 0, sos: null, display_rating: 3, matches_played: 0 },
+      { id: 48, name: "Claudius Modesti", sex: "Man", ladder_points: 0, sos: null, display_rating: 3.75, matches_played: 0 },
+      { id: 64, name: "Liz Shipley", sex: "Woman", ladder_points: 0, sos: null, display_rating: 3, matches_played: 0 },
+      { id: 63, name: "Hans Liu", sex: "Man", ladder_points: 0, sos: null, display_rating: 3.5, matches_played: 0 },
+      { id: 43, name: "Scott Jacob", sex: "Man", ladder_points: 0, sos: null, display_rating: 4.25, matches_played: 0 },
+      { id: 45, name: "Brendon Smith", sex: "Man", ladder_points: 0, sos: null, display_rating: 4, matches_played: 0 },
+      { id: 44, name: "Andrew Hicks", sex: "Man", ladder_points: 0, sos: null, display_rating: 3.25, matches_played: 0 }
+    ]
   },
 
   /* ---------------------------------------------------------------------------
@@ -172,7 +233,7 @@ window.TOURNAMENT_DATA = {
      Fixed list, not picked by rating or points. These four are left out of
      the Men's Open; every other man is an Open candidate on ladder points.
      ------------------------------------------------------------------------ */
-  clubRoster: ["Endel Liias", "James Janis", "Jed Royal", "Travis Hubbs"],
+  clubRoster: ["Endel Liias", "James Janis", "Jed Royal", "Mac McCullough"],
 
   /* ---------------------------------------------------------------------------
      WITHDRAWALS — names (as on the ladder) of players who opted out by Oct 13.
