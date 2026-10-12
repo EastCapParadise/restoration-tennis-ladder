@@ -159,63 +159,7 @@
   <main>
     <section id="admin-page" class="hidden">
 
-      <!-- Section 1: Match Management -->
-      <div class="card">
-        <div class="adm-section-header">
-          <h2>Match Management</h2>
-          <button id="refresh-matches-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
-        </div>
-        <p class="small-text" style="margin-bottom:12px;">Void a match to delete it and trigger a full recalculation. Edit Score to correct set scores without deleting.</p>
-        <p id="match-mgmt-status" class="adm-status-text"></p>
-        <div class="table-wrap">
-          <table class="adm-table" id="admin-match-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Players</th>
-                <th>Score</th>
-                <th>Type</th>
-                <th>Winner</th>
-                <th>Points (W/L)</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admin-match-body">
-              <tr><td colspan="7">Loading matches…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Section 2: Player Management -->
-      <div class="card">
-        <div class="adm-section-header">
-          <h2>Player Management</h2>
-          <button id="refresh-players-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
-        </div>
-        <p id="player-mgmt-status" class="adm-status-text"></p>
-        <div class="table-wrap">
-          <table class="adm-table" id="admin-player-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th class="num">Rating</th>
-                <th class="num">Initial</th>
-                <th class="num">W</th>
-                <th class="num">L</th>
-                <th class="num">Pts</th>
-                <th class="num">MP</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admin-player-body">
-              <tr><td colspan="8">Loading players…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Section 2b: Tournament Match Results -->
+      <!-- Tournament Match Results (first, while the tournament runs) -->
       <div class="card" id="tourn-admin">
         <div class="adm-section-header">
           <h2>🏆 Tournament Match Results</h2>
@@ -284,6 +228,62 @@
             </thead>
             <tbody id="tourn-results-body">
               <tr><td colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 1: Match Management -->
+      <div class="card">
+        <div class="adm-section-header">
+          <h2>Match Management</h2>
+          <button id="refresh-matches-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p class="small-text" style="margin-bottom:12px;">Void a match to delete it and trigger a full recalculation. Edit Score to correct set scores without deleting.</p>
+        <p id="match-mgmt-status" class="adm-status-text"></p>
+        <div class="table-wrap">
+          <table class="adm-table" id="admin-match-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Players</th>
+                <th>Score</th>
+                <th>Type</th>
+                <th>Winner</th>
+                <th>Points (W/L)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-match-body">
+              <tr><td colspan="7">Loading matches…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 2: Player Management -->
+      <div class="card">
+        <div class="adm-section-header">
+          <h2>Player Management</h2>
+          <button id="refresh-players-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p id="player-mgmt-status" class="adm-status-text"></p>
+        <div class="table-wrap">
+          <table class="adm-table" id="admin-player-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th class="num">Rating</th>
+                <th class="num">Initial</th>
+                <th class="num">W</th>
+                <th class="num">L</th>
+                <th class="num">Pts</th>
+                <th class="num">MP</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-player-body">
+              <tr><td colspan="8">Loading players…</td></tr>
             </tbody>
           </table>
         </div>
