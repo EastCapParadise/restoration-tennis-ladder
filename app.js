@@ -2036,6 +2036,68 @@ async function setupReportForm() {
     message.innerHTML = `<p class="form-error">${text}</p>`;
   }
 
+  // Copies the score already typed into the report form into the Complete
+  // Match modal, flipping sides if the incomplete row has the teams reversed.
+  function prefillCompleteModalFromReport(pending) {
+    const fd = readMatchForm();
+    const flipped = String(pending.team1_player1_id) !== String(fd.team1Player1Id) &&
+      String(pending.team1_player2_id || "") !== String(fd.team1Player1Id);
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    const pairs = [
+      ["cmpl-s1t1", "cmpl-s1t2", fd.set1Team1Games, fd.set1Team2Games],
+      ["cmpl-s2t1", "cmpl-s2t2", fd.set2Team1Games, fd.set2Team2Games],
+      ["cmpl-s3t1", "cmpl-s3t2", fd.set3Team1Games, fd.set3Team2Games],
+    ];
+    pairs.forEach(([a, b, v1, v2]) => { set(a, flipped ? v2 : v1); set(b, flipped ? v1 : v2); });
+    if (fd.winnerTeam === 1 || fd.winnerTeam === 2) {
+      set("cmpl-winner", flipped ? 3 - fd.winnerTeam : fd.winnerTeam);
+    }
+    set("cmpl-date", fd.datePlayed || null);
+  }
+
+  // Set when the user confirms a result is a separate match from their
+  // pending incomplete one, so the next submit skips the lookup.
+  let skipPendingCheck = false;
+
+  function showPendingIncompletePrompt(pending) {
+    const when = pending.date_played ? ` from ${escapeHtml(pending.date_played)}` : "";
+    const score = pending.score_text && pending.score_text !== "Incomplete"
+      ? ` (stopped at ${escapeHtml(pending.score_text)})` : "";
+    message.innerHTML = `
+      <div class="pending-incomplete-prompt">
+        <p style="margin:0 0 10px"><strong>🏳️ These players have an incomplete match pending${when}${score}.</strong>
+        If this is that match finished, complete it instead — logging it as a new match would leave the old one counting on the ladder.</p>
+        <div class="confirmation-links" style="justify-content:flex-start">
+          <button type="button" class="button" id="pending-complete-btn">✅ Complete the Incomplete Match</button>
+          <button type="button" class="button-secondary" id="pending-separate-btn">No, this is a separate match</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("pending-complete-btn")?.addEventListener("click", async () => {
+      await openCompleteMatchModal(pending.id, pending, {
+        onComplete: () => {
+          form.style.display = "none";
+          message.innerHTML = `
+            <div class="form-confirmation">
+              <div class="confirmation-icon">✓</div>
+              <h3>Match Completed!</h3>
+              <p>The incomplete match now has its final result. Points and ratings have been updated.</p>
+              <div class="confirmation-links">
+                <a href="history.html" class="button">View Match History</a>
+                <a href="report.html" class="button-secondary">Report Another Match</a>
+              </div>
+            </div>
+          `;
+        },
+      });
+      prefillCompleteModalFromReport(pending);
+    });
+    document.getElementById("pending-separate-btn")?.addEventListener("click", () => {
+      skipPendingCheck = true;
+      form.requestSubmit();
+    });
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     message.innerHTML = '<p class="small-text">Submitting match…</p>';
@@ -2059,6 +2121,20 @@ async function setupReportForm() {
         showReportError(validationError);
         return;
       }
+
+      if (!skipPendingCheck) {
+        const isDoubles = formData.matchType === "Doubles";
+        const pending = await findPendingIncompleteMatch({
+          isDoubles,
+          team1Ids: [formData.team1Player1Id, isDoubles ? formData.team1Player2Id : null].filter(Boolean),
+          team2Ids: [formData.team2Player1Id, isDoubles ? formData.team2Player2Id : null].filter(Boolean),
+        });
+        if (pending) {
+          showPendingIncompletePrompt(pending);
+          return;
+        }
+      }
+      skipPendingCheck = false;
 
       const playersById = await fetchSelectedPlayers(formData);
       const hydrated = hydrateMatchPlayers(formData, playersById);
@@ -5361,7 +5437,7 @@ async function loadPlayerMatchHistory() {
    COMPLETE RETIRED MATCH
 ========================= */
 
-async function openCompleteMatchModal(matchId, retiredMatch) {
+async function openCompleteMatchModal(matchId, retiredMatch, { onComplete } = {}) {
   document.getElementById("complete-match-overlay")?.remove();
 
   // Fetch fresh player names
@@ -5433,10 +5509,38 @@ async function openCompleteMatchModal(matchId, retiredMatch) {
   overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
   document.getElementById("cmpl-cancel-btn").addEventListener("click", () => overlay.remove());
   document.getElementById("cmpl-submit-btn").addEventListener("click", () =>
-    handleCompleteMatch(matchId, retiredMatch, overlay, isDoubles));
+    handleCompleteMatch(matchId, retiredMatch, overlay, isDoubles, onComplete));
 }
 
-async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles) {
+// Finds a pending incomplete match between exactly the same sides (either
+// orientation) so the report form can offer to complete it instead of logging
+// a separate row that would leave the 5-pt participation credit behind.
+async function findPendingIncompleteMatch({ isDoubles, team1Ids, team2Ids }) {
+  const sideKey = ids => ids.map(Number).sort((a, b) => a - b).join(",");
+  const want = [sideKey(team1Ids), sideKey(team2Ids)].sort().join("|");
+  const allIds = [...team1Ids, ...team2Ids].map(Number);
+
+  const { data, error } = await supabaseClient
+    .from("matches")
+    .select("id, date_played, score_text, submitted_by_name, match_notes, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id")
+    .eq("match_type", "retired")
+    .eq("is_completed", false)
+    .in("team1_player1_id", allIds)
+    .order("date_played", { ascending: false });
+  if (error) {
+    console.error("Pending incomplete match lookup error:", error);
+    return null;
+  }
+
+  return (data || []).find(m => {
+    if (!!m.team1_player2_id !== isDoubles) return false;
+    const t1 = [m.team1_player1_id, m.team1_player2_id].filter(Boolean);
+    const t2 = [m.team2_player1_id, m.team2_player2_id].filter(Boolean);
+    return [sideKey(t1), sideKey(t2)].sort().join("|") === want;
+  }) || null;
+}
+
+async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles, onComplete) {
   const winnerTeam = parseInt(document.getElementById("cmpl-winner")?.value, 10);
   const s1t1 = toNumberOrNull(document.getElementById("cmpl-s1t1")?.value);
   const s1t2 = toNumberOrNull(document.getElementById("cmpl-s1t2")?.value);
@@ -5489,7 +5593,7 @@ async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles) {
 
     const scoreText = buildScoreText(s1t1, s1t2, s2t1, s2t2, has3Set ? s3t1 : null, has3Set ? s3t2 : null);
 
-    const newMatchPayload = {
+    const completedMatchPayload = {
       match_type: matchFmt, is_completed: true, winner_team: winnerTeam,
       score_text: scoreText, date_played: datePlayed,
       submitted_by_name: originalMatch.submitted_by_name || null,
@@ -5538,11 +5642,22 @@ async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles) {
       buildUpd(t2p2, scoringResult.ratingChanges[3], scoringResult.ladderPoints[3], t2Won, t2Std, t1Std),
     ].filter(Boolean);
 
-    // Delete retired match, insert completed match
-    const { error: delErr } = await supabaseClient.from("matches").delete().eq("id", matchId);
-    if (delErr) throw delErr;
-    const { error: insErr } = await supabaseClient.from("matches").insert([newMatchPayload]);
-    if (insErr) throw insErr;
+    // Convert the incomplete row into the completed match in place (same id) so
+    // its flat 5-pt participation credit can never linger beside the real result.
+    // The retired/is_completed filters make a stale card or double-click a no-op,
+    // and .select() lets us confirm a row actually changed — Supabase reports
+    // success even when RLS or the filters match nothing.
+    const { data: updatedRows, error: updErr } = await supabaseClient
+      .from("matches")
+      .update(completedMatchPayload)
+      .eq("id", matchId)
+      .eq("match_type", "retired")
+      .eq("is_completed", false)
+      .select("id");
+    if (updErr) throw updErr;
+    if (!updatedRows || updatedRows.length !== 1) {
+      throw new Error("This match was already completed or could not be updated. Please refresh the page — no points were changed.");
+    }
 
     // Update player stats
     for (const upd of playerUpdates) {
@@ -5553,6 +5668,7 @@ async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles) {
 
     overlay.remove();
     showShareToast("Match completed! Full points and ratings updated.");
+    if (onComplete) { onComplete(); return; }
     if (document.getElementById("history-list")) await loadMatchHistory();
     if (document.getElementById("player-match-history")) await loadPlayerMatchHistory();
   } catch (err) {

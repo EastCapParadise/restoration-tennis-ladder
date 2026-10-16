@@ -234,7 +234,9 @@ async function runRecalculation(log) {
       .eq('match_type', 'mini'),
     db.from('matches')
       .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id')
-      .eq('match_type', 'retired'),
+      .eq('match_type', 'retired')
+      // Only still-pending rows earn the flat 5 — a completed one must never add it on top of the real result
+      .eq('is_completed', false),
   ]);
 
   if (miniMatchRes.error) return { success: false, error: `Mini match fetch: ${miniMatchRes.error.message}` };
