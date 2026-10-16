@@ -24,8 +24,7 @@ const TOURNAMENT_R16_PAIRS = {
   ordered: [[1, 8], [9, 16], [4, 5], [12, 13], [3, 6], [11, 14], [2, 7], [10, 15]]
 };
 
-// One set is the default through the semifinals; finals night is 8-game pro
-// sets. Rounds of a 16-draw, outermost first, each with the config.deadlines
+// Every match is one set (6 games, tiebreak at 6-6), finals included. Rounds of a 16-draw, outermost first, each with the config.deadlines
 // key that governs it.
 const TOURNAMENT_ROUNDS = [
   { key: "r16", label: "Round of 16", abbrev: "R16", count: 8, deadlineKey: "groupPlay" },
@@ -408,7 +407,7 @@ function buildTournamentDraw(drawKey, seeds) {
         num: i + 1,
         label: round.count === 1 ? round.label : `${round.abbrev} ${i + 1}`,
         deadline: tournamentRoundDeadline(round),
-        finalsSlot: round.key === "f" ? tournamentFinalsNight().openFinalsTime || null : null,
+        finalsSlot: round.key === "f" ? tournamentFinalsNight().time || null : null,
         a: roundIdx === 0 ? tournamentSideFromSeed(seedMap.get(pairs[i][0])) : tournamentSideFromMatch(previous[i * 2]),
         b: roundIdx === 0 ? tournamentSideFromSeed(seedMap.get(pairs[i][1])) : tournamentSideFromMatch(previous[i * 2 + 1])
       };
@@ -472,7 +471,7 @@ function buildTournamentClub(clubSeeds) {
     num: 1,
     label: "Club Final",
     deadline: tournamentFinalsNight().date || null,
-    finalsSlot: tournamentFinalsNight().clubFinalTime || null,
+    finalsSlot: tournamentFinalsNight().time || null,
     a: tournamentClubFinalSide(standings[0], complete, started, 1),
     b: tournamentClubFinalSide(standings[1], complete, started, 2)
   });

@@ -99,9 +99,9 @@ window.TOURNAMENT_DATA = {
     finalsNight: {
       date: "2026-11-06",
       dayLabel: "Friday, Nov 6",
-      openFinalsTime: "8:00 PM",
-      clubFinalTime: "9:15 PM",
-      venue: "Stratford Park, Arlington",
+      time: "7:00–10:00 PM",
+      venue: "Fitzgerald Stadium Court",
+      address: "4850 Colorado Ave NW, Washington, DC 20011",
       rainDate: "2026-11-07",
       rainDateLabel: "Saturday, Nov 7"
     },
