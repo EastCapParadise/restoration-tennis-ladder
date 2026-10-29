@@ -5580,6 +5580,32 @@ th[data-sort]:hover {
 }
 
 /* =========================
+   SEASON CLOSE + ARCHIVE
+========================= */
+
+/* After the regular season closes, ladder match reporting is gone sitewide. */
+.season-closed .btn-complete-match,
+.season-closed .profile-report-btn {
+  display: none !important;
+}
+
+/* The site-wide `table { min-width: 900px }` is for the rankings grid; the
+   archive has fewer columns. */
+.archive-table {
+  min-width: 640px;
+}
+
+.archive-table td.num,
+.archive-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#season-archive-filters {
+  margin-bottom: 14px;
+}
+
+/* =========================
    TOURNAMENT BRACKET
 ========================= */
 

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DM3ZPBMBXE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-DM3ZPBMBXE');
+  </script>
+  <title>Season 2026 Final Standings | Restoration Tennis Ladder</title>
+  <meta name="description" content="Final regular-season standings for the 2026 Restoration Tennis Ladder season — points, records, and ratings as of October 31, 2026.">
+  <meta name="google-site-verification" content="-WUQhE0nQxDcyfe0bvAdXng_w1UqHmoKCN-p1qYuMEE" />
+  <meta name="robots" content="index, follow">
+  <meta property="og:site_name" content="Restoration Tennis Ladder">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="style.css?v=60">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="header-brand">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="header-logo">
+        <span class="header-title">Restoration Tennis Ladder</span>
+      </a>
+      <nav class="desktop-nav">
+        <a href="index.html">Home</a>
+        <a href="rules.html">About</a>
+        <a href="join.html">Join</a>
+        <a href="ladder.html">Rankings</a>
+        <a href="tournament.html">Tournament</a>
+        <a href="report.html">Report Match</a>
+        <a href="history.html">Match History</a>
+        <a href="events.html">Events</a>
+        <a href="photos.html">Photos</a>
+        <a href="contacts.html">Directory</a>
+      </nav>
+      <button class="hamburger-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+    </div>
+    <div class="mobile-nav-menu" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="tournament.html">Tournament</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="events.html">Events</a>
+      <a href="photos.html">Photos</a>
+      <a href="contacts.html">Directory</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="season-archive">
+      <h2>Season 2026 Final Standings</h2>
+      <p class="small-text">Regular season · final as of October 31, 2026. The <a href="tournament.html">End of Season Tournament</a> is separate and doesn't change these standings.</p>
+      <p id="season-archive-note" class="tournament-note">Loading…</p>
+    </section>
+
+    <section class="card" id="season-archive-capture" hidden></section>
+
+    <section class="card" id="season-archive-standings" hidden>
+      <div class="button-group ladder-filters" id="season-archive-filters">
+        <button type="button" class="filter-btn active" data-filter="All">All Players</button>
+        <button type="button" class="filter-btn" data-filter="Man">Men's Ladder</button>
+        <button type="button" class="filter-btn" data-filter="Woman">Women's Ladder</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="archive-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Name</th>
+              <th class="num" title="Includes drop-in game points">Points</th>
+              <th class="num">W</th>
+              <th class="num">L</th>
+              <th class="num">Win%</th>
+              <th class="num">Played</th>
+              <th class="num">Rating</th>
+              <th class="num" title="Average rating of opponents faced">SOS</th>
+              <th class="num">Games W</th>
+              <th class="num">Games L</th>
+            </tr>
+          </thead>
+          <tbody id="season-archive-body"></tbody>
+        </table>
+      </div>
+      <p class="small-text" style="margin-top:12px;">Rank is the overall season rank: points, then rating, wins, and strength of schedule.</p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="season-2026-standings.js?v=1"></script>
+  <script src="app.js?v=68"></script>
+<script>
+  (function() {
+    var p = location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.desktop-nav a').forEach(function(a) {
+      if (a.getAttribute('href').split('/').pop() === p) a.classList.add('nav-active');
+    });
+  }());
+</script>
+</body>
+</html>

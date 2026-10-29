@@ -125,7 +125,10 @@ function showMatchCardModal(matchData) {
 document.addEventListener("DOMContentLoaded", async () => {
   setupMobileMenu();
   initMyLadderNav(); // always — injects button and sets label from localStorage
+  document.body.classList.toggle("season-closed", isRegularSeasonClosed());
   try {
+    if (document.getElementById("season-callout")) applySeasonCallout();
+    if (document.getElementById("season-archive")) await loadSeasonArchivePage();
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
     if (document.getElementById("phone")) setupPhoneFormatting();
@@ -193,6 +196,61 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("Bootstrap failed:", error);
   }
 });
+
+/* =========================
+   REGULAR SEASON CLOSE
+========================= */
+
+// The 2026 regular ladder season ends with Oct 31. From midnight Eastern on
+// Nov 1, ladder match reporting (Report Match and Complete Match) is closed
+// and the homepage points at the frozen final standings. The tournament runs
+// its own track and is unaffected. Ratings are never touched here.
+// ?preview=season-closed shows the closed state early, for that viewer only.
+const REGULAR_SEASON = {
+  year: 2026,
+  lastDay: "2026-10-31",
+  closesAt: "2026-11-01T00:00:00-04:00",
+  archivePage: "season-2026.html"
+};
+
+function isRegularSeasonClosed() {
+  if (new URLSearchParams(window.location.search).get("preview") === "season-closed") return true;
+  return regularSeasonCutoffPassed();
+}
+
+// The real clock only — the preview flag never unlocks the archive capture.
+function regularSeasonCutoffPassed() {
+  return Date.now() >= Date.parse(REGULAR_SEASON.closesAt);
+}
+
+const SEASON_CLOSED_MESSAGE = "Season 2026 has wrapped up — thanks for a great year! Match reporting will reopen when Season 2027 begins.";
+
+function showSeasonClosedReportMessage(form, message) {
+  form.style.display = "none";
+  const intro = document.querySelector(".report-card .page-intro");
+  if (intro) intro.style.display = "none";
+  message.innerHTML = `
+    <div class="form-confirmation">
+      <div class="confirmation-icon">🏁</div>
+      <h3>Season 2026 has wrapped up</h3>
+      <p>Thanks for a great year! Match reporting will reopen when Season 2027 begins.</p>
+      <div class="confirmation-links">
+        <a href="${REGULAR_SEASON.archivePage}" class="button">Final Standings</a>
+        <a href="tournament.html" class="button-secondary">Tournament</a>
+      </div>
+    </div>
+  `;
+}
+
+function applySeasonCallout() {
+  const el = document.getElementById("season-callout");
+  if (!el || !isRegularSeasonClosed()) return;
+  el.innerHTML = `
+    🏁 Season 2026 has wrapped up — thanks for a great year!<br>
+    <a href="${REGULAR_SEASON.archivePage}" style="color:inherit;font-weight:700;">See the final standings</a>
+    · <a href="tournament.html" style="color:inherit;font-weight:700;">End of Season Tournament</a> finals Friday, Nov 6
+  `;
+}
 
 /* =========================
    SHARED HELPERS
@@ -1284,9 +1342,8 @@ async function loadHomeStats() {
   if (!container) return;
 
   // Days Left is pure math — always calculate regardless of Supabase
-  const seasonEnd = new Date("2026-11-01");
-  const today = new Date();
-  const daysLeft = Math.max(0, Math.ceil((seasonEnd - today) / (1000 * 60 * 60 * 24)));
+  const seasonClosed = isRegularSeasonClosed();
+  const daysLeft = Math.max(0, Math.ceil((Date.parse(REGULAR_SEASON.closesAt) - Date.now()) / (1000 * 60 * 60 * 24)));
 
   let playerCount = 0;
   let matchCount = 0;
@@ -1311,10 +1368,15 @@ async function loadHomeStats() {
       <div class="stat-value">${matchCount}</div>
       <div class="stat-label">Matches Played</div>
     </a>
+    ${seasonClosed ? `
+    <a href="${REGULAR_SEASON.archivePage}" class="stat-card">
+      <div class="stat-value">Final</div>
+      <div class="stat-label">Season Complete</div>
+    </a>` : `
     <a href="ladder.html" class="stat-card">
       <div class="stat-value">${daysLeft}</div>
       <div class="stat-label">Days Left</div>
-    </a>
+    </a>`}
   `;
 }
 
@@ -1875,6 +1937,10 @@ async function setupReportForm() {
   const form = document.getElementById("report-form");
   const message = document.getElementById("report-message");
   if (!form || !message) return;
+  if (isRegularSeasonClosed()) {
+    showSeasonClosedReportMessage(form, message);
+    return;
+  }
 
   const matchTypeSelect = document.getElementById("match-type");
   const team1Player2Wrap = document.getElementById("team1-player2-wrap");
@@ -2100,6 +2166,11 @@ async function setupReportForm() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    // The page may have been opened before midnight and submitted after.
+    if (isRegularSeasonClosed()) {
+      showSeasonClosedReportMessage(form, message);
+      return;
+    }
     message.innerHTML = '<p class="small-text">Submitting match…</p>';
 
     // Mini-game has a completely separate, simpler submission path
@@ -4554,7 +4625,7 @@ async function loadPlayerProfile() {
       </div>
 
       <div class="profile-actions">
-        <a href="report.html?opponentId=${player.id}" class="button">Report a Match Against ${escapeHtml(player.name || "Player")}</a>
+        <a href="report.html?opponentId=${player.id}" class="button profile-report-btn">Report a Match Against ${escapeHtml(player.name || "Player")}</a>
         <button class="btn-share-mobile" id="share-profile-image-btn">📲 Share Profile</button>
       </div>
     `;
@@ -5439,6 +5510,10 @@ async function loadPlayerMatchHistory() {
 
 async function openCompleteMatchModal(matchId, retiredMatch, { onComplete } = {}) {
   document.getElementById("complete-match-overlay")?.remove();
+  if (isRegularSeasonClosed()) {
+    showShareToast("Season 2026 has wrapped up — match reporting is closed.");
+    return;
+  }
 
   // Fetch fresh player names
   const allIds = [retiredMatch.team1_player1_id, retiredMatch.team1_player2_id,
@@ -5553,6 +5628,7 @@ async function handleCompleteMatch(matchId, originalMatch, overlay, isDoubles, o
   const submitBtn = document.getElementById("cmpl-submit-btn");
   const showErr = msg => { if (statusEl) statusEl.textContent = msg; };
 
+  if (isRegularSeasonClosed()) return showErr(SEASON_CLOSED_MESSAGE);
   if (!winnerTeam) return showErr("Please select a winner.");
   if (s1t1 == null || s1t2 == null || s2t1 == null || s2t2 == null) return showErr("Please enter set scores.");
   if (!datePlayed) return showErr("Please enter the date played.");
@@ -7037,3 +7113,190 @@ async function loadTournamentPage() {
 
 window.captureTournamentSnapshot = captureTournamentSnapshot;
 window.generateTournamentDraw = generateTournamentDraw;
+
+/* =========================
+   SEASON ARCHIVE — final standings
+   (season-2026.html)
+
+   The frozen record lives in season-2026-standings.js, a file in the repo —
+   nothing on the site writes to it. Before it's captured the page says the
+   standings are on their way. season-2026.html?capture=1 shows the capture
+   tool, which only works once the Oct 31 cutoff has passed.
+========================= */
+
+const SEASON_ARCHIVE_STATE = { filter: "All" };
+
+function seasonArchive() {
+  return window.SEASON_ARCHIVE || { players: [] };
+}
+
+// Same numbers and order as the Rankings page's default view: games include
+// in-progress incomplete matches, SOS from every match, rank by points →
+// rating → wins → SOS. Phone numbers and other contact details are left out —
+// the archive file is public.
+async function buildSeasonArchiveRows() {
+  const [players, sosMatches] = await Promise.all([fetchPlayers(), fetchAllMatchesForSOS()]);
+  const sexMap = {};
+  players.forEach((p) => { sexMap[p.id] = p.sex || ""; });
+  const incompleteGamesDelta = computeIncompleteMatchGamesDelta(sosMatches);
+
+  const rows = players.map((p) => {
+    const delta = incompleteGamesDelta.get(Number(p.id)) || { won: 0, lost: 0 };
+    return {
+      id: p.id,
+      name: p.name,
+      sex: p.sex || null,
+      ladder_points: Number(p.ladder_points) || 0,
+      wins: Number(p.wins) || 0,
+      losses: Number(p.losses) || 0,
+      matches_played: Number(p.matches_played) || 0,
+      games_won: Number(p.games_won || 0) + delta.won,
+      games_lost: Number(p.games_lost || 0) + delta.lost,
+      initial_rating: toNumberOrNull(p.initial_rating),
+      dynamic_rating: toNumberOrNull(p.dynamic_rating),
+      display_rating: toNumberOrNull(p.display_rating),
+      sos: calculatePlayerSOS(p.id, sosMatches, sexMap),
+      singles_points: Number(p.singles_points) || 0,
+      singles_wins: Number(p.singles_wins) || 0,
+      singles_losses: Number(p.singles_losses) || 0,
+      doubles_points: Number(p.doubles_points) || 0,
+      doubles_wins: Number(p.doubles_wins) || 0,
+      doubles_losses: Number(p.doubles_losses) || 0,
+      mini_games_won: Number(p.mini_games_won) || 0,
+      mini_games_lost: Number(p.mini_games_lost) || 0,
+      incomplete_matches: Number(p.incomplete_matches) || 0
+    };
+  });
+
+  return sortPlayersForStandings(rows).map((row, idx) => ({ rank: idx + 1, ...row }));
+}
+
+// Serializes the standings as the whole of season-2026-standings.js.
+async function captureSeasonArchive() {
+  if (!regularSeasonCutoffPassed()) {
+    throw new Error("The regular season hasn't closed yet — capture on or after Nov 1.");
+  }
+  const rows = await buildSeasonArchiveRows();
+  const capturedAt = new Date().toISOString();
+  const body = rows.map((row) => `    ${JSON.stringify(row)}`).join(",\n");
+  const file = `/* =============================================================================
+   SEASON ${REGULAR_SEASON.year} FINAL STANDINGS — permanent archive
+   -----------------------------------------------------------------------------
+   Regular-season standings frozen at the ${REGULAR_SEASON.lastDay} cutoff, captured
+   ${capturedAt}. This is the historical record shown on ${REGULAR_SEASON.archivePage}.
+   Do not hand-edit or re-capture. Ratings here are exactly as they stood at
+   the cutoff; Season ${REGULAR_SEASON.year + 1} adjustments happen elsewhere.
+   ========================================================================== */
+
+window.SEASON_ARCHIVE = {
+  season: ${REGULAR_SEASON.year},
+  asOf: ${JSON.stringify(REGULAR_SEASON.lastDay)},
+  capturedAt: ${JSON.stringify(capturedAt)},
+  players: [
+${body}
+  ]
+};
+`;
+  try {
+    await navigator.clipboard.writeText(file);
+  } catch (error) {
+    console.warn("Clipboard copy blocked — copy the file contents by hand.", error);
+  }
+  return { count: rows.length, file };
+}
+
+function renderSeasonArchiveTable() {
+  const body = document.getElementById("season-archive-body");
+  if (!body) return;
+  const archive = seasonArchive();
+  const players = (archive.players || []).filter((p) => {
+    if (SEASON_ARCHIVE_STATE.filter === "All") return true;
+    const sex = String(p.sex || "").toLowerCase();
+    return SEASON_ARCHIVE_STATE.filter === "Man" ? sex.startsWith("m") : sex.startsWith("w");
+  });
+
+  body.innerHTML = players.map((p) => `
+    <tr>
+      <td>${p.rank}</td>
+      <td><a class="player-link" href="player.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.name || "")}</a></td>
+      <td class="num">${p.ladder_points}</td>
+      <td class="num">${p.wins}</td>
+      <td class="num">${p.losses}</td>
+      <td class="num">${formatWinPct(p.wins, p.losses)}</td>
+      <td class="num">${p.matches_played}</td>
+      <td class="num">${formatDisplayRating(p.dynamic_rating)}</td>
+      <td class="num">${p.sos != null ? p.sos : "—"}</td>
+      <td class="num">${p.games_won}</td>
+      <td class="num">${p.games_lost}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="11">No players in this view.</td></tr>`;
+}
+
+function setupSeasonArchiveCaptureTool() {
+  const host = document.getElementById("season-archive-capture");
+  if (!host || new URLSearchParams(location.search).get("capture") !== "1") return;
+
+  const open = regularSeasonCutoffPassed();
+  host.hidden = false;
+  host.innerHTML = `
+    <h3>Capture tool</h3>
+    <p class="small-text">${open
+      ? "Captures the current standings as the permanent Season 2026 record and copies a complete <code>season-2026-standings.js</code> to your clipboard. Replace that file with it and commit."
+      : "Available from midnight Nov 1 (Eastern), once the regular season has closed."}</p>
+    <button type="button" id="capture-archive-btn"${open ? "" : " disabled"}>Capture final standings</button>
+    <p class="small-text" id="capture-archive-status"></p>
+    <textarea id="capture-archive-output" rows="10" readonly hidden></textarea>`;
+
+  const status = host.querySelector("#capture-archive-status");
+  const output = host.querySelector("#capture-archive-output");
+  host.querySelector("#capture-archive-btn").addEventListener("click", async () => {
+    status.textContent = "Capturing…";
+    try {
+      const result = await captureSeasonArchive();
+      output.hidden = false;
+      output.value = result.file;
+      status.textContent = `Captured ${result.count} players. Copied to your clipboard (also shown below).`;
+    } catch (error) {
+      console.error("Season archive capture failed:", error);
+      status.textContent = error.message || "Capture failed — see the browser console.";
+    }
+  });
+}
+
+async function loadSeasonArchivePage() {
+  const archive = seasonArchive();
+  const captured = Array.isArray(archive.players) && archive.players.length > 0;
+  const note = document.getElementById("season-archive-note");
+  const tableSection = document.getElementById("season-archive-standings");
+
+  if (note) {
+    if (captured) {
+      const when = archive.capturedAt ? new Date(archive.capturedAt) : null;
+      const whenText = when && !Number.isNaN(when.getTime())
+        ? ` Captured ${when.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}.`
+        : "";
+      note.className = "tournament-note tournament-note-locked";
+      note.innerHTML = `<strong>Final.</strong> Regular-season standings as of October 31, 2026 — the permanent record. They don't change.${escapeHtml(whenText)}`;
+    } else {
+      note.className = "tournament-note tournament-note-provisional";
+      note.innerHTML = regularSeasonCutoffPassed()
+        ? `<strong>Coming soon.</strong> The regular season closed October 31. The final standings will be posted here shortly — in the meantime, the <a href="ladder.html">Rankings</a> page shows them.`
+        : `<strong>Season in progress.</strong> The regular season runs through October 31. Final standings will be frozen here after the cutoff — see the live <a href="ladder.html">Rankings</a> until then.`;
+    }
+  }
+  if (tableSection) tableSection.hidden = !captured;
+
+  if (captured) {
+    document.querySelectorAll("#season-archive-filters .filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        SEASON_ARCHIVE_STATE.filter = btn.dataset.filter;
+        setActiveFilterButton("#season-archive-filters", SEASON_ARCHIVE_STATE.filter);
+        renderSeasonArchiveTable();
+      });
+    });
+    renderSeasonArchiveTable();
+  }
+  setupSeasonArchiveCaptureTool();
+}
+
+window.captureSeasonArchive = captureSeasonArchive;
