@@ -176,7 +176,12 @@ body {
   .header-title {
     font-size: 14px;
   }
+}
 
+/* Eleven nav links plus My Ladder need about 1340px in one row. Below
+   1101px use the menu button (My Ladder is inside the menu); from 1101px to
+   1360px keep the links and drop the title text beside the logo. */
+@media (max-width: 1100px) {
   .desktop-nav {
     display: none;
   }
@@ -186,13 +191,19 @@ body {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1101px) {
   .hamburger-btn {
     display: none !important;
   }
 
   .mobile-nav-menu {
     display: none !important;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1360px) {
+  .header-title {
+    display: none;
   }
 }
 
