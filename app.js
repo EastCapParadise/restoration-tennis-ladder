@@ -6824,81 +6824,10 @@ function renderTournamentBracket(containerId, rounds) {
 }
 
 function redrawTournamentBrackets() {
-  ["bracket-women-open", "bracket-men-open"].forEach((id) => {
+  ["bracket-women-open", "bracket-men-open", "bracket-men-club"].forEach((id) => {
     const el = document.getElementById(id);
     if (el && el.querySelector(".bracket-round")) drawTournamentBracketConnectors(el);
   });
-}
-
-/* ── Rendering: club round robin ─────────────────────────────────────────── */
-
-function renderTournamentClub(club) {
-  const standingsEl = document.getElementById("club-standings");
-  if (standingsEl) {
-    const rows = club.standings.length
-      ? club.standings
-          .map(
-            (row) => `
-        <tr${row.advances ? ' class="club-advances"' : ""}>
-          <td>${row.rank}</td>
-          <td>${escapeHtml(row.player.name)}${row.withdrawn ? ' <span class="club-out">withdrew</span>' : ""}${row.advances ? ' <span class="club-badge">Club Final</span>' : ""}</td>
-          <td class="num">${formatDisplayRating(row.player.display_rating ?? row.player.dynamic_rating)}</td>
-          <td class="num">${row.wins}</td>
-          <td class="num">${row.losses}</td>
-          <td class="num">${row.gamesWon}</td>
-          <td class="num">${row.gamesLost}</td>
-          <td>${escapeHtml(row.tiebreak || "—")}</td>
-        </tr>`
-          )
-          .join("")
-      : `<tr><td colspan="8" class="small-text">Club 4 not set yet — they come from the ${escapeHtml(formatTournamentDateLong(tournamentConfig().snapshotDate))} snapshot.</td></tr>`;
-
-    standingsEl.innerHTML = `
-      <table class="club-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Player</th>
-            <th class="num">Rating</th>
-            <th class="num" title="Round-robin wins">W</th>
-            <th class="num" title="Round-robin losses">L</th>
-            <th class="num" title="Games won">Games W</th>
-            <th class="num" title="Games lost — the third tiebreak">Games L</th>
-            <th title="Criterion that separated a tie on wins">Tiebreak</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  }
-
-  const h2hEl = document.getElementById("club-h2h");
-  if (h2hEl) {
-    if (!club.standings.length) {
-      h2hEl.innerHTML = "";
-    } else {
-      const seeds = club.standings.map((row) => row.seed).sort((a, b) => a - b);
-      const header = seeds.map((seed) => `<th class="num">#${seed}</th>`).join("");
-      const body = club.standings
-        .map((row) => {
-          const cells = seeds
-            .map((seed) => {
-              if (seed === row.seed) return `<td class="club-h2h-self">—</td>`;
-              const entry = row.h2h.get(seed);
-              if (!entry) return `<td class="num club-h2h-pending">·</td>`;
-              const detail = entry.walkover ? "W.O." : entry.score || "";
-              return `<td class="num club-h2h-${entry.result === "W" ? "win" : "loss"}">${entry.result}${detail ? ` <span class="club-h2h-score">${escapeHtml(detail)}</span>` : ""}</td>`;
-            })
-            .join("");
-          return `<tr><td>#${row.seed} ${escapeHtml(row.player.name)}</td>${cells}</tr>`;
-        })
-        .join("");
-      h2hEl.innerHTML = `
-        <table class="club-table club-h2h-table">
-          <thead><tr><th>Head-to-head</th>${header}</tr></thead>
-          <tbody>${body}</tbody>
-        </table>`;
-    }
-  }
 }
 
 /* ── Seed source: frozen snapshot, or provisional live standings ─────────── */
@@ -7020,7 +6949,7 @@ function setupTournamentSnapshotTool() {
 /* ── Optional draw generator ─────────────────────────────────────────────── */
 
 // Prints the four quarterfinal groups with their three required matches, plus
-// the club round-robin fixture list — the text to paste into an announcement.
+// the club semifinals — the text to paste into an announcement.
 async function generateTournamentDraw() {
   await loadTournamentResults(supabaseClient);
   const field = await loadTournamentField(fetchLiveTournamentStandings);
@@ -7054,21 +6983,18 @@ async function generateTournamentDraw() {
     });
   });
 
-  const club = buildTournamentClub(field.club);
-  lines.push("", "== Men's Club (round robin) ==");
-  output.club = club.fixtures.map((match) => ({
+  const [clubSemis] = buildTournamentDraw("club", field.club);
+  lines.push("", "== Men's Club ==");
+  output.club = clubSemis.map((match) => ({
     id: match.id,
-    round: match.num,
+    label: match.label,
     a: tournamentSideText(match.a),
     b: tournamentSideText(match.b)
   }));
-  [1, 2, 3].forEach((round) => {
-    lines.push(`  Round ${round}:`);
-    club.fixtures
-      .filter((match) => match.num === round)
-      .forEach((match) => lines.push(`    ${tournamentSideText(match.a)} vs ${tournamentSideText(match.b)}`));
+  clubSemis.forEach((match) => {
+    lines.push(`  ${match.label.padEnd(6)} ${tournamentSideText(match.a)} vs ${tournamentSideText(match.b)}`);
   });
-  lines.push("  Top 2 advance to the club final (wins → head-to-head → fewest games lost).");
+  lines.push("  Semifinal winners meet in the club final.");
 
   console.log(lines.join("\n"));
   output.text = lines.join("\n");
@@ -7091,12 +7017,11 @@ async function loadTournamentPage() {
 
     [
       { key: "women", bracketId: "bracket-women-open" },
-      { key: "men", bracketId: "bracket-men-open" }
+      { key: "men", bracketId: "bracket-men-open" },
+      { key: "club", bracketId: "bracket-men-club" }
     ].forEach(({ key, bracketId }) => {
       renderTournamentBracket(bracketId, buildTournamentDraw(key, field[key]));
     });
-
-    renderTournamentClub(buildTournamentClub(field.club));
   } catch (error) {
     console.error("Failed to load the tournament page:", error);
     page.querySelectorAll(".bracket-rounds").forEach((el) => {

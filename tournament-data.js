@@ -32,7 +32,7 @@
    Until the snapshot is captured, the page shows PROVISIONAL seeds off the live
    ladder and says so. Once `snapshot.players` is non-empty, seeding and men's
    backfill read from it and only from it. The Club 4 are the fixed
-   `clubRoster` list below.
+   `clubRoster` list below, seeded by `seedOverrides.club`.
 
    ---------------------------------------------------------------------------
    HOW TO ENTER A RESULT
@@ -47,15 +47,13 @@
      women-qf-1  … women-qf-4    men-qf-1  … men-qf-4
      women-sf-1, women-sf-2      men-sf-1, men-sf-2
      women-f                     men-f
-     club-r1-1, club-r1-2, club-r2-1, club-r2-2, club-r3-1, club-r3-2, club-f
+     club-sf-1 (#1 v #4), club-sf-2 (#2 v #3), club-f
 
    Entry fields (all optional except `winner` once it's played):
 
      winner   Winner's name as it appears on the ladder, OR their seed number.
               For club matches the seed number is their club seed (1-4).
-     score    WINNER-FIRST, e.g. "6-3" or "8-6" or "6-4, 3-6, 10-7".
-              Games here feed the club round-robin "games lost" tiebreak, so
-              keep club scores accurate.
+     score    WINNER-FIRST, e.g. "6-3" or "7-6" or "6-4, 3-6, 10-7".
      date     "YYYY-MM-DD". Set it before a match is played to publish the
               agreed date; it shows on the bracket card.
      walkover true if nobody played it — a default, a no-show, or a withdrawal.
@@ -67,7 +65,7 @@
      "women-r16-3": { date: "2026-10-18" },
      "women-r16-1": { winner: "Jane Doe", score: "6-2", date: "2026-10-14" },
      "men-r16-5":   { winner: 5, walkover: true, note: "opponent no-show" },
-     "club-r1-1":   { winner: "Jed Royal", score: "6-4" },
+     "club-sf-2":   { winner: "Jed Royal", score: "6-4" },
 
    A match with only a `date` is "scheduled". A match with a `winner` is final
    and the winner propagates to the next round automatically.
@@ -91,8 +89,7 @@ window.TOURNAMENT_DATA = {
       optOut: "2026-10-13",
       backfill: "2026-10-13",
       groupPlay: "2026-10-25",      // R16 + QF must be done
-      clubRoundRobin: "2026-11-04", // all 6 club matches done — hard deadline
-      semifinals: "2026-11-05",
+      semifinals: "2026-11-05",     // Open and Club semifinals
       finalsConfirm: "2026-11-04"   // semifinalists confirm Nov 6 availability
     },
 
@@ -232,6 +229,8 @@ window.TOURNAMENT_DATA = {
      MEN'S CLUB ROSTER — the four Club players, by name as on the ladder.
      Fixed list, not picked by rating or points. These four are left out of
      the Men's Open; every other man is an Open candidate on ladder points.
+     They play a four-player single-elimination draw: semifinals #1 v #4 and
+     #2 v #3, then a final. Seeds are fixed in seedOverrides.club.
      ------------------------------------------------------------------------ */
   clubRoster: ["Endel Liias", "James Janis", "Jed Royal", "Mac McCullough"],
 
@@ -251,7 +250,10 @@ window.TOURNAMENT_DATA = {
   seedOverrides: {
     women: null,
     men: null,
-    club: null
+    // Club seeds as published Oct 29 for the switch to single elimination.
+    // Set by the tournament director, not strictly by rating (James 4.49 and
+    // Mac 4.46 sit below Jed 4.41 here).
+    club: ["Endel Liias", "Jed Royal", "James Janis", "Mac McCullough"]
   },
 
   /* ---------------------------------------------------------------------------

@@ -903,7 +903,7 @@ async function removePlayer(playerId) {
 const TOURN_ROUNDS = {
   men:   [['r16', 'Round of 16'], ['qf', 'Quarterfinals'], ['sf', 'Semifinals'], ['f', 'Final']],
   women: [['r16', 'Round of 16'], ['qf', 'Quarterfinals'], ['sf', 'Semifinals'], ['f', 'Final']],
-  club:  [['r1', 'Round 1'], ['r2', 'Round 2'], ['r3', 'Round 3'], ['f', 'Club Final']]
+  club:  [['sf', 'Semifinals'], ['f', 'Final']]
 };
 
 const TOURN_DRAW_NAMES = { men: "Men's Open", women: "Women's Open", club: "Men's Club" };
@@ -937,11 +937,10 @@ async function loadTournamentAdmin() {
     tournMatches = { men: [], women: [], club: [] };
     setStatus('tourn-admin-status', `Seeds aren't locked yet — capture the ${formatTournamentDateLong(field.asOf)} snapshot into tournament-data.js first. Results can be entered once the draws exist.`, 'error');
   } else {
-    const club = buildTournamentClub(field.club);
     tournMatches = {
       men: buildTournamentDraw('men', field.men).flat(),
       women: buildTournamentDraw('women', field.women).flat(),
-      club: [...club.fixtures, club.final]
+      club: buildTournamentDraw('club', field.club).flat()
     };
   }
 

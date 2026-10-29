@@ -24,23 +24,17 @@ const TOURNAMENT_R16_PAIRS = {
   ordered: [[1, 8], [9, 16], [4, 5], [12, 13], [3, 6], [11, 14], [2, 7], [10, 15]]
 };
 
-// Every match is one set (6 games, tiebreak at 6-6), finals included. Rounds of a 16-draw, outermost first, each with the config.deadlines
-// key that governs it.
+// Seeds 1v4 and 2v3 in the semifinals of a four-player draw (Men's Club).
+const TOURNAMENT_FOUR_PAIRS = [[1, 4], [2, 3]];
+
+// Every match is one set (6 games, tiebreak at 6-6), finals included. Rounds
+// of a 16-draw, outermost first, each with the config.deadlines key that
+// governs it. A four-player draw uses just the last two.
 const TOURNAMENT_ROUNDS = [
   { key: "r16", label: "Round of 16", abbrev: "R16", count: 8, deadlineKey: "groupPlay" },
   { key: "qf", label: "Quarterfinals", abbrev: "QF", count: 4, deadlineKey: "groupPlay" },
   { key: "sf", label: "Semifinals", abbrev: "SF", count: 2, deadlineKey: "semifinals" },
   { key: "f", label: "Final", abbrev: "F", count: 1, deadlineKey: null }
-];
-
-// Men's Club: 4 players, everyone plays everyone once, three rounds of two.
-const TOURNAMENT_CLUB_FIXTURES = [
-  { id: "club-r1-1", round: 1, label: "M1", a: 1, b: 2 },
-  { id: "club-r1-2", round: 1, label: "M2", a: 3, b: 4 },
-  { id: "club-r2-1", round: 2, label: "M3", a: 1, b: 3 },
-  { id: "club-r2-2", round: 2, label: "M4", a: 2, b: 4 },
-  { id: "club-r3-1", round: 3, label: "M5", a: 1, b: 4 },
-  { id: "club-r3-2", round: 3, label: "M6", a: 2, b: 3 }
 ];
 
 const TOURNAMENT_DEFAULT_RULES = {
@@ -135,24 +129,9 @@ function tournamentScoreSets(score) {
   return sets.map((set) => set.split("-").map((n) => Number(n.trim())));
 }
 
-// Total games [winner, loser] across every set — feeds the club round-robin
-// "fewest games lost" tiebreak.
-function tournamentScoreGames(score) {
-  const sets = tournamentScoreSets(score);
-  if (!sets.length) return null;
-  return sets.reduce(([w, l], [a, b]) => [w + a, l + b], [0, 0]);
-}
-
 // One side's games per set, for the right-hand slot of a bracket card.
 function tournamentSetGames(score, isWinner) {
   return tournamentScoreSets(score).map(([a, b]) => (isWinner ? a : b)).join(" ");
-}
-
-// A winner-first score read from the loser's side, for the head-to-head grid.
-function tournamentFlipScore(score) {
-  const sets = tournamentScoreSets(score);
-  if (!sets.length) return "";
-  return sets.map(([a, b]) => `${b}-${a}`).join(", ");
 }
 
 function tournamentDeadlinePassed(dateStr) {
@@ -388,15 +367,18 @@ function tournamentHigherSeedSide(match) {
   return bSOS > aSOS ? "b" : "a";
 }
 
-// Every match of a 16-draw with both sides resolved as far as the recorded
-// results allow. Returns an array of rounds, outermost first.
+// Every match of a 16-draw (the Opens) or a 4-draw (the Club, semifinals
+// and final) with both sides resolved as far as the recorded results allow.
+// Returns an array of rounds, outermost first.
 function buildTournamentDraw(drawKey, seeds) {
   const seedMap = new Map(seeds.map((slot) => [slot.seed, slot]));
-  const pairs = TOURNAMENT_R16_PAIRS[tournamentRules().r16Pairing] || TOURNAMENT_R16_PAIRS.standard;
+  const pairs = seeds.length === 4
+    ? TOURNAMENT_FOUR_PAIRS
+    : TOURNAMENT_R16_PAIRS[tournamentRules().r16Pairing] || TOURNAMENT_R16_PAIRS.standard;
   const rounds = [];
   let previous = null;
 
-  TOURNAMENT_ROUNDS.forEach((round, roundIdx) => {
+  TOURNAMENT_ROUNDS.filter((round) => round.count * 2 <= seeds.length).forEach((round, roundIdx) => {
     const matches = [];
     for (let i = 0; i < round.count; i++) {
       const match = {
@@ -439,153 +421,6 @@ function buildTournamentGroups(rounds) {
   });
 }
 
-/* ── Men's Club round robin ──────────────────────────────────────────────── */
-
-function buildTournamentClub(clubSeeds) {
-  const bySeed = new Map(clubSeeds.map((slot) => [slot.seed, slot]));
-  const deadline = tournamentDeadlines().clubRoundRobin || null;
-
-  const fixtures = TOURNAMENT_CLUB_FIXTURES.map((fixture) =>
-    resolveTournamentMatch({
-      id: fixture.id,
-      drawKey: "club",
-      round: `r${fixture.round}`,
-      roundLabel: `Round ${fixture.round}`,
-      num: fixture.round,
-      label: fixture.label,
-      deadline,
-      a: tournamentSideFromSeed(bySeed.get(fixture.a)),
-      b: tournamentSideFromSeed(bySeed.get(fixture.b))
-    })
-  );
-
-  const standings = computeTournamentClubStandings(clubSeeds, fixtures);
-  const complete = fixtures.every((match) => !!match.result);
-  const started = fixtures.some((match) => !!match.result);
-
-  const final = resolveTournamentMatch({
-    id: "club-f",
-    drawKey: "club",
-    round: "f",
-    roundLabel: "Club Final",
-    num: 1,
-    label: "Club Final",
-    deadline: tournamentFinalsNight().date || null,
-    finalsSlot: tournamentFinalsNight().time || null,
-    a: tournamentClubFinalSide(standings[0], complete, started, 1),
-    b: tournamentClubFinalSide(standings[1], complete, started, 2)
-  });
-
-  return { fixtures, standings, final, complete, started, deadline };
-}
-
-// Top two of the round robin meet on finals night. Until all six matches are
-// in, the current leaders show as provisional and nothing propagates.
-function tournamentClubFinalSide(row, complete, started, place) {
-  if (!row || !row.player || !started) return { known: false, label: `Round robin #${place}` };
-  if (!complete) return { known: false, label: `${row.player.name} (RR #${place} so far)` };
-  return { known: true, seed: row.seed, player: row.player, withdrawn: row.withdrawn, label: row.player.name };
-}
-
-// Tiebreak order: wins → head-to-head → fewest games lost. Head-to-head is a
-// mini round robin among exactly the players tied on wins; club seed (rating
-// order) is only a last resort so the table never renders unordered.
-function computeTournamentClubStandings(clubSeeds, fixtures) {
-  const rows = new Map();
-  clubSeeds.forEach((slot) => {
-    if (!slot.player) return;
-    rows.set(slot.seed, {
-      seed: slot.seed,
-      player: slot.player,
-      withdrawn: !!slot.withdrawn,
-      played: 0,
-      wins: 0,
-      losses: 0,
-      gamesWon: 0,
-      gamesLost: 0,
-      beat: new Set(),
-      h2h: new Map(),
-      h2hWins: 0,
-      tied: false,
-      tiebreak: null
-    });
-  });
-
-  fixtures.forEach((match) => {
-    if (!match.result) return;
-    const winnerKey = match.result.winnerSide;
-    const loserKey = winnerKey === "a" ? "b" : "a";
-    const winner = rows.get(match[winnerKey].seed);
-    const loser = rows.get(match[loserKey].seed);
-    if (!winner || !loser) return;
-
-    winner.wins++;
-    loser.losses++;
-    winner.played++;
-    loser.played++;
-    winner.beat.add(loser.seed);
-    winner.h2h.set(loser.seed, { result: "W", score: match.result.score || "", walkover: match.result.walkover });
-    loser.h2h.set(winner.seed, { result: "L", score: tournamentFlipScore(match.result.score), walkover: match.result.walkover });
-
-    const games = tournamentScoreGames(match.result.score);
-    if (games) {
-      winner.gamesWon += games[0];
-      winner.gamesLost += games[1];
-      loser.gamesWon += games[1];
-      loser.gamesLost += games[0];
-    }
-  });
-
-  const list = [...rows.values()];
-
-  // Head-to-head only counts wins against the other players tied on wins.
-  const byWins = new Map();
-  list.forEach((row) => {
-    if (!byWins.has(row.wins)) byWins.set(row.wins, []);
-    byWins.get(row.wins).push(row);
-  });
-  byWins.forEach((group) => {
-    const groupSeeds = new Set(group.map((row) => row.seed));
-    group.forEach((row) => {
-      row.h2hWins = [...row.beat].filter((seed) => groupSeeds.has(seed)).length;
-      row.tied = group.length > 1;
-    });
-  });
-
-  list.sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    if (b.h2hWins !== a.h2hWins) return b.h2hWins - a.h2hWins;
-    if (a.gamesLost !== b.gamesLost) return a.gamesLost - b.gamesLost;
-    return a.seed - b.seed;
-  });
-
-  // Name the criterion that actually separated each tie, by comparing a row
-  // with its neighbour inside the same wins group. Before the first result
-  // everyone is level at 0-0, which is nobody's tie to break.
-  const started = fixtures.some((match) => !!match.result);
-  list.forEach((row, idx) => {
-    row.rank = idx + 1;
-    row.advances = idx < 2;
-    row.tiebreak = null;
-    if (!row.tied || !started) return;
-    const above = list[idx - 1];
-    if (above && above.wins === row.wins) {
-      row.tiebreak = tournamentClubTiebreakLabel(above, row);
-      return;
-    }
-    const below = list[idx + 1];
-    if (below && below.wins === row.wins) row.tiebreak = tournamentClubTiebreakLabel(row, below);
-  });
-
-  return list;
-}
-
-function tournamentClubTiebreakLabel(higher, lower) {
-  if (higher.h2hWins !== lower.h2hWins) return "Head-to-head";
-  if (higher.gamesLost !== lower.gamesLost) return "Games lost";
-  return "Club seed";
-}
-
 /* ── Labels and field ────────────────────────────────────────────────────── */
 
 function tournamentSideText(side) {
@@ -617,7 +452,8 @@ async function loadTournamentField(fetchLiveStandings) {
   const women = tournamentPool(players, "F");
 
   // Club 4 = the fixed roster in tournament-data.js, looked up among all men
-  // so ladder points play no part. Seeds 1-4 within the Club go by rating.
+  // so ladder points play no part. Seeds 1-4 within the Club go by rating
+  // unless seedOverrides.club fixes them.
   const menByName = new Map(
     players
       .filter((player) => normalizeTournamentSex(player.sex) === "M")

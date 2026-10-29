@@ -5584,8 +5584,7 @@ th[data-sort]:hover {
 ========================= */
 
 /* Tournament page type scale — one size each for section headings, body copy,
-   and small/meta text. The bracket cards (.bracket …) and the Men's Club
-   tables and fixture cards keep their own sizes. */
+   and small/meta text. The bracket cards (.bracket …) keep their own sizes. */
 #tournament-page {
   --tourn-heading: 22px;
   --tourn-body: 15px;
@@ -5878,110 +5877,6 @@ th[data-sort]:hover {
 /* A table-wrap the renderer left empty shouldn't draw a stray bordered box. */
 .table-wrap:empty {
   display: none;
-}
-
-/* ── Men's Club tables ──────────────────────────────────────────────────── */
-
-/* Site-wide `table { min-width: 900px }` is sized for the rankings grid; the
-   club tables are short enough to fit a card on desktop and only need to
-   scroll on a phone. */
-.club-table {
-  min-width: 520px;
-}
-
-/* Compact on every screen: 13px cells, 12px headers. */
-.club-table th,
-.club-table td {
-  padding: 7px 10px;
-  font-size: 13px;
-}
-
-.club-table th {
-  font-size: 12px;
-}
-
-.club-table td.num,
-.club-table th.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.club-table tbody tr.club-advances td {
-  background: var(--green-light);
-}
-
-.club-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--green);
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  vertical-align: middle;
-}
-
-.club-out {
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-
-.club-h2h-table th,
-.club-h2h-table td {
-  padding: 7px 5px;
-  font-size: 13px;
-}
-
-.club-h2h-table th {
-  font-size: 12px;
-}
-
-.club-h2h-table td:first-child,
-.club-h2h-table th:first-child {
-  white-space: nowrap;
-  font-weight: 600;
-  padding-left: 10px;
-}
-
-/* Five short columns: fits a phone without scrolling. */
-.club-h2h-table {
-  min-width: 0;
-}
-
-.club-h2h-table th.num,
-.club-h2h-table td.num {
-  text-align: center;
-}
-
-.club-h2h-self {
-  text-align: center;
-  color: var(--border);
-}
-
-.club-h2h-pending {
-  color: var(--muted);
-}
-
-.club-h2h-win {
-  color: var(--green-dark);
-  font-weight: 800;
-}
-
-.club-h2h-loss {
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.club-h2h-score {
-  font-weight: 500;
-  font-size: 11px;
-  color: var(--muted);
 }
 
 /* ── Bracket cards with results ─────────────────────────────────────────── */
