@@ -15,8 +15,8 @@
   <title>Admin Dashboard | Restoration Tennis Ladder</title>
   <meta name="google-site-verification" content="-WUQhE0nQxDcyfe0bvAdXng_w1UqHmoKCN-p1qYuMEE" />
   <meta name="robots" content="noindex, nofollow">
-  <link rel="stylesheet" href="style.css?v=39">
-  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="style.css?v=62">
+  <link rel="stylesheet" href="admin.css?v=3">
 </head>
 <body>
 
@@ -231,6 +231,19 @@
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Season Feedback (read-only) -->
+      <div class="card" id="feedback-admin">
+        <div class="adm-section-header">
+          <h2>📝 Season Feedback</h2>
+          <button id="refresh-feedback-btn" class="adm-btn adm-btn-sm adm-btn-secondary">↻ Refresh</button>
+        </div>
+        <p class="small-text" style="margin-bottom:12px;">Anonymous responses from <a href="feedback.html">feedback.html</a>. Read-only — nothing here identifies who answered.</p>
+        <p id="feedback-admin-status" class="adm-status-text"></p>
+        <div id="feedback-summary"></div>
+        <h3 class="adm-fb-subhead">Written responses <span id="feedback-written-count"></span></h3>
+        <div id="feedback-responses" class="adm-fb-responses"></div>
       </div>
 
       <!-- Section 1: Match Management -->
@@ -449,7 +462,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="tournament-data.js?v=6"></script>
   <script src="tournament-core.js?v=4"></script>
-  <script src="admin.js?v=9"></script>
+  <script src="feedback-options.js?v=1"></script>
+  <script src="admin.js?v=10"></script>
 <script>
   (function() {
     var p = location.pathname.split('/').pop() || 'index.html';

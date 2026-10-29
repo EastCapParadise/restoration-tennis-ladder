@@ -129,6 +129,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     if (document.getElementById("season-callout")) applySeasonCallout();
     if (document.getElementById("season-archive")) await loadSeasonArchivePage();
+    if (document.getElementById("feedback-form")) setupFeedbackForm();
     if (document.getElementById("join-form")) handleJoinForm();
     if (document.getElementById("report-form")) await setupReportForm();
     if (document.getElementById("phone")) setupPhoneFormatting();
@@ -236,6 +237,7 @@ function showSeasonClosedReportMessage(form, message) {
       <p>Thanks for a great year! Match reporting will reopen when Season 2027 begins.</p>
       <div class="confirmation-links">
         <a href="${REGULAR_SEASON.archivePage}" class="button">Final Standings</a>
+        <a href="feedback.html" class="button-secondary">Share Feedback</a>
         <a href="tournament.html" class="button-secondary">Tournament</a>
       </div>
     </div>
@@ -249,6 +251,7 @@ function applySeasonCallout() {
     🏁 Season 2026 has wrapped up — thanks for a great year!<br>
     <a href="${REGULAR_SEASON.archivePage}" style="color:inherit;font-weight:700;">See the final standings</a>
     · <a href="tournament.html" style="color:inherit;font-weight:700;">End of Season Tournament</a> finals Friday, Nov 6
+    <a href="feedback.html" class="season-feedback-cta">📝 Share anonymous feedback on Season 2026 →</a>
   `;
 }
 
@@ -7300,3 +7303,129 @@ async function loadSeasonArchivePage() {
 }
 
 window.captureSeasonArchive = captureSeasonArchive;
+
+/* =========================
+   SEASON FEEDBACK (feedback.html)
+
+   Anonymous by construction: the insert below is built field by field from
+   the form, so nothing else the site knows (the "My Ladder" player saved in
+   this browser, for one) can ride along. The only thing remembered locally is
+   a "this device already submitted" flag, used to show a thank-you note.
+========================= */
+
+const FEEDBACK_SUBMITTED_KEY = "rtl_feedback_2026_submitted";
+const FEEDBACK_STAR_CAPTIONS = ["", "Poor", "Fair", "Good", "Great", "Excellent"];
+
+function feedbackChecked(form, name) {
+  return [...form.querySelectorAll(`input[name="${name}"]:checked`)].map((input) => input.value);
+}
+
+function renderFeedbackChips(form) {
+  form.querySelectorAll(".feedback-chips").forEach((group) => {
+    const name = group.dataset.name;
+    group.innerHTML = FEEDBACK_ASPECTS.map((aspect) => `
+      <label class="feedback-chip">
+        <input type="checkbox" name="${name}" value="${aspect.key}">
+        <span>${escapeHtml(aspect.label)}</span>
+      </label>`).join("");
+  });
+}
+
+// Stars light up to the hovered or chosen value. The radios underneath keep
+// it keyboard-accessible (arrow keys move the selection).
+function setupFeedbackStars(form) {
+  const stars = [...form.querySelectorAll(".star-rating .star")];
+  const caption = document.getElementById("star-caption");
+  const paint = (value) => {
+    stars.forEach((star, idx) => star.classList.toggle("lit", idx < value));
+    if (caption) caption.textContent = FEEDBACK_STAR_CAPTIONS[value] || "";
+  };
+  const chosen = () => Number(form.querySelector('input[name="overall_rating"]:checked')?.value || 0);
+  stars.forEach((star, idx) => {
+    star.addEventListener("mouseenter", () => paint(idx + 1));
+    star.addEventListener("mouseleave", () => paint(chosen()));
+  });
+  form.querySelectorAll('input[name="overall_rating"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      paint(chosen());
+      document.getElementById("fq-rating-error").hidden = true;
+    });
+  });
+}
+
+function setupFeedbackForm() {
+  const form = document.getElementById("feedback-form");
+  const message = document.getElementById("feedback-message");
+  if (!form || !message) return;
+
+  renderFeedbackChips(form);
+  setupFeedbackStars(form);
+
+  try {
+    if (localStorage.getItem(FEEDBACK_SUBMITTED_KEY)) document.getElementById("feedback-repeat-note").hidden = false;
+  } catch (_) { /* storage blocked — the note is only a courtesy */ }
+
+  form.querySelectorAll('input[name="likelihood_return"]').forEach((input) => {
+    input.addEventListener("change", () => { document.getElementById("fq-return-error").hidden = true; });
+  });
+
+  const oneChange = document.getElementById("fb-one-change");
+  const counter = document.getElementById("fb-one-change-count");
+  oneChange.addEventListener("input", () => {
+    counter.textContent = `${oneChange.value.length} / ${FEEDBACK_ONE_CHANGE_MAX}`;
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitBtn = document.getElementById("feedback-submit");
+    const submitErr = document.getElementById("feedback-submit-error");
+    submitErr.hidden = true;
+
+    const rating = Number(feedbackChecked(form, "overall_rating")[0]);
+    const likelihoodRaw = feedbackChecked(form, "likelihood_return")[0];
+    const likelihood = likelihoodRaw == null ? NaN : Number(likelihoodRaw);
+
+    document.getElementById("fq-rating-error").hidden = rating >= 1;
+    document.getElementById("fq-return-error").hidden = Number.isInteger(likelihood);
+    if (!(rating >= 1) || !Number.isInteger(likelihood)) {
+      document.getElementById(!(rating >= 1) ? "fq-rating" : "fq-return").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    const payload = {
+      overall_rating: rating,
+      likelihood_return: likelihood,
+      liked_aspects: feedbackChecked(form, "liked_aspects"),
+      change_aspects: feedbackChecked(form, "change_aspects"),
+      one_change: oneChange.value.trim().slice(0, FEEDBACK_ONE_CHANGE_MAX) || null,
+      other_comments: document.getElementById("fb-other").value.trim().slice(0, FEEDBACK_OTHER_MAX) || null
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting…";
+    const { error } = await supabaseClient.from(FEEDBACK_TABLE).insert([payload]);
+    if (error) {
+      console.error("Feedback submit error:", error);
+      submitErr.textContent = "Something went wrong sending your feedback — please try again in a moment.";
+      submitErr.hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit Feedback";
+      return;
+    }
+
+    try { localStorage.setItem(FEEDBACK_SUBMITTED_KEY, "1"); } catch (_) { /* fine */ }
+    form.style.display = "none";
+    document.getElementById("feedback-repeat-note").hidden = true;
+    message.innerHTML = `
+      <div class="form-confirmation">
+        <div class="confirmation-icon">✓</div>
+        <h3>Thanks — this helps a lot.</h3>
+        <p>Your feedback was sent anonymously.</p>
+        <div class="confirmation-links">
+          <a href="index.html" class="button">Back to Home</a>
+        </div>
+      </div>
+    `;
+    message.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}

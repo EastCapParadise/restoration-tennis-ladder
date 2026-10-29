@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- No analytics on this page: feedback is anonymous. -->
+  <title>Season Feedback | Restoration Tennis Ladder</title>
+  <meta name="description" content="Share anonymous feedback on the 2026 Restoration Tennis Ladder season." />
+  <meta name="google-site-verification" content="-WUQhE0nQxDcyfe0bvAdXng_w1UqHmoKCN-p1qYuMEE" />
+  <meta name="robots" content="noindex" />
+  <meta property="og:site_name" content="Restoration Tennis Ladder" />
+  <meta property="og:type" content="website" />
+  <link rel="stylesheet" href="style.css?v=62" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="header-brand">
+        <img src="images/logo.png" alt="Restoration Tennis Ladder logo" class="header-logo">
+        <span class="header-title">Restoration Tennis Ladder</span>
+      </a>
+      <nav class="desktop-nav">
+        <a href="index.html">Home</a>
+        <a href="rules.html">About</a>
+        <a href="join.html">Join</a>
+        <a href="ladder.html">Rankings</a>
+        <a href="tournament.html">Tournament</a>
+        <a href="report.html">Report Match</a>
+        <a href="history.html">Match History</a>
+        <a href="events.html">Events</a>
+        <a href="photos.html">Photos</a>
+        <a href="contacts.html">Directory</a>
+      </nav>
+      <button class="hamburger-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+    </div>
+    <div class="mobile-nav-menu" aria-hidden="true">
+      <a href="index.html">Home</a>
+      <a href="rules.html">About</a>
+      <a href="join.html">Join</a>
+      <a href="ladder.html">Rankings</a>
+      <a href="tournament.html">Tournament</a>
+      <a href="report.html">Report Match</a>
+      <a href="history.html">Match History</a>
+      <a href="events.html">Events</a>
+      <a href="photos.html">Photos</a>
+      <a href="contacts.html">Directory</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card report-card" id="feedback-page">
+      <div class="page-intro">
+        <h2>Season 2026 Feedback</h2>
+        <p class="section-helper">Two quick questions are required; everything else is optional. Takes about two minutes.</p>
+        <p class="feedback-anon-note">🔒 Completely anonymous — no name, email, or anything else that identifies you is collected or stored.</p>
+      </div>
+
+      <p id="feedback-repeat-note" class="feedback-repeat-note" hidden>You've already shared feedback from this device — thank you! You're welcome to send more.</p>
+
+      <form id="feedback-form" class="report-form" novalidate>
+        <fieldset class="form-section feedback-q" id="fq-rating">
+          <legend class="feedback-legend">1. Overall, how would you rate this season? <span class="feedback-req">Required</span></legend>
+          <div class="star-rating" role="radiogroup" aria-label="Season rating, 1 to 5 stars">
+            <label class="star"><input type="radio" name="overall_rating" value="1"><span aria-hidden="true">★</span><span class="sr-only">1 star</span></label>
+            <label class="star"><input type="radio" name="overall_rating" value="2"><span aria-hidden="true">★</span><span class="sr-only">2 stars</span></label>
+            <label class="star"><input type="radio" name="overall_rating" value="3"><span aria-hidden="true">★</span><span class="sr-only">3 stars</span></label>
+            <label class="star"><input type="radio" name="overall_rating" value="4"><span aria-hidden="true">★</span><span class="sr-only">4 stars</span></label>
+            <label class="star"><input type="radio" name="overall_rating" value="5"><span aria-hidden="true">★</span><span class="sr-only">5 stars</span></label>
+            <span class="star-caption" id="star-caption"></span>
+          </div>
+          <p class="feedback-error" id="fq-rating-error" hidden>Please choose a star rating.</p>
+        </fieldset>
+
+        <fieldset class="form-section feedback-q" id="fq-return">
+          <legend class="feedback-legend">2. How likely are you to play again next season? <span class="feedback-req">Required</span></legend>
+          <div class="nps-scale" role="radiogroup" aria-label="Likelihood to play again, 0 to 10">
+            <label><input type="radio" name="likelihood_return" value="0"><span>0</span></label>
+            <label><input type="radio" name="likelihood_return" value="1"><span>1</span></label>
+            <label><input type="radio" name="likelihood_return" value="2"><span>2</span></label>
+            <label><input type="radio" name="likelihood_return" value="3"><span>3</span></label>
+            <label><input type="radio" name="likelihood_return" value="4"><span>4</span></label>
+            <label><input type="radio" name="likelihood_return" value="5"><span>5</span></label>
+            <label><input type="radio" name="likelihood_return" value="6"><span>6</span></label>
+            <label><input type="radio" name="likelihood_return" value="7"><span>7</span></label>
+            <label><input type="radio" name="likelihood_return" value="8"><span>8</span></label>
+            <label><input type="radio" name="likelihood_return" value="9"><span>9</span></label>
+            <label><input type="radio" name="likelihood_return" value="10"><span>10</span></label>
+          </div>
+          <div class="nps-ends"><span>Not likely</span><span>Extremely likely</span></div>
+          <p class="feedback-error" id="fq-return-error" hidden>Please pick a number from 0 to 10.</p>
+        </fieldset>
+
+        <fieldset class="form-section feedback-q">
+          <legend class="feedback-legend">3. What worked well this season? <span class="feedback-opt">Pick any</span></legend>
+          <div class="feedback-chips" data-name="liked_aspects"></div>
+        </fieldset>
+
+        <fieldset class="form-section feedback-q">
+          <legend class="feedback-legend">4. What should we change or improve? <span class="feedback-opt">Pick any</span></legend>
+          <div class="feedback-chips" data-name="change_aspects"></div>
+        </fieldset>
+
+        <div class="form-section feedback-q">
+          <div class="form-group">
+            <label class="feedback-legend" for="fb-one-change">5. If you could change ONE thing about next season, what would it be? <span class="feedback-opt">Optional</span></label>
+            <textarea id="fb-one-change" class="feedback-short" rows="2" maxlength="200"></textarea>
+            <span class="feedback-count" id="fb-one-change-count">0 / 200</span>
+          </div>
+        </div>
+
+        <div class="form-section feedback-q">
+          <div class="form-group">
+            <label class="feedback-legend" for="fb-other">6. Anything else on your mind? <span class="feedback-opt">Optional</span></label>
+            <textarea id="fb-other" rows="5" maxlength="2000"></textarea>
+          </div>
+        </div>
+
+        <div>
+          <button type="submit" id="feedback-submit">Submit Feedback</button>
+          <p class="feedback-error" id="feedback-submit-error" hidden></p>
+        </div>
+      </form>
+
+      <div id="feedback-message"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="feedback-options.js?v=1"></script>
+  <script src="app.js?v=69"></script>
+<script>
+  (function() {
+    var p = location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.desktop-nav a').forEach(function(a) {
+      if (a.getAttribute('href').split('/').pop() === p) a.classList.add('nav-active');
+    });
+  }());
+</script>
+</body>
+</html>

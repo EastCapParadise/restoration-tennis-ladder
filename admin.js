@@ -1575,6 +1575,9 @@ function wireEvents() {
   document.getElementById('tourn-result-form')?.addEventListener('submit', saveTournResult);
   document.getElementById('tr-clear')?.addEventListener('click', () => clearTournResult(document.getElementById('tr-match').value));
 
+  // Season feedback
+  document.getElementById('refresh-feedback-btn')?.addEventListener('click', loadFeedbackAdmin);
+
   // Drop-in log
   document.getElementById('refresh-dropin-btn')?.addEventListener('click', loadDropInLog);
 
@@ -1598,10 +1601,105 @@ function wireEvents() {
   });
 }
 
+// ─── Season Feedback (read-only) ─────────────────────────────────────────────
+// Reads season_feedback, which holds no identifying fields. Shows averages,
+// how often each checklist option was picked, then the written answers.
+
+function feedbackAvg(rows, key) {
+  if (!rows.length) return null;
+  return rows.reduce((sum, r) => sum + Number(r[key] || 0), 0) / rows.length;
+}
+
+// Count of responses that picked each option, most-picked first.
+function feedbackAspectCounts(rows, key) {
+  const counts = Object.fromEntries(FEEDBACK_ASPECTS.map(a => [a.key, 0]));
+  rows.forEach(r => (r[key] || []).forEach(k => { if (k in counts) counts[k]++; }));
+  return FEEDBACK_ASPECTS.map(a => ({ label: a.label, count: counts[a.key] }))
+    .sort((a, b) => b.count - a.count);
+}
+
+function feedbackBars(title, items, total) {
+  const max = Math.max(1, ...items.map(i => i.count));
+  return `
+    <div class="adm-fb-bars">
+      <h4>${esc(title)}</h4>
+      ${items.map(i => `
+        <div class="adm-fb-bar-row">
+          <span class="adm-fb-bar-label" title="${esc(i.label)}">${esc(i.label)}</span>
+          <span class="adm-fb-bar-track"><span class="adm-fb-bar-fill" style="width:${(i.count / max) * 100}%"></span></span>
+          <span class="adm-fb-bar-count">${i.count}${total ? ` <span class="adm-fb-pct">${Math.round((i.count / total) * 100)}%</span>` : ''}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function feedbackStars(n) {
+  return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
+async function loadFeedbackAdmin() {
+  const summaryEl = document.getElementById('feedback-summary');
+  const listEl = document.getElementById('feedback-responses');
+  const countEl = document.getElementById('feedback-written-count');
+  if (!summaryEl || !listEl) return;
+  setStatus('feedback-admin-status', '');
+
+  const { data, error } = await db
+    .from(FEEDBACK_TABLE)
+    .select('id, submitted_at, overall_rating, likelihood_return, liked_aspects, change_aspects, one_change, other_comments')
+    .order('id', { ascending: false });
+
+  if (error) {
+    summaryEl.innerHTML = '';
+    listEl.innerHTML = '';
+    countEl.textContent = '';
+    const missing = /does not exist|schema cache|could not find the table/i.test(error.message || '');
+    setStatus('feedback-admin-status', missing
+      ? "The season_feedback table isn't set up yet — run supabase/season_feedback.sql in the Supabase SQL Editor."
+      : `Couldn't load feedback: ${error.message}`, 'error');
+    return;
+  }
+
+  const rows = data || [];
+  const n = rows.length;
+  const avgRating = feedbackAvg(rows, 'overall_rating');
+  const avgReturn = feedbackAvg(rows, 'likelihood_return');
+  // Net Promoter-style score: % answering 9-10 minus % answering 0-6.
+  const promoters = rows.filter(r => r.likelihood_return >= 9).length;
+  const detractors = rows.filter(r => r.likelihood_return <= 6).length;
+  const nps = n ? Math.round(((promoters - detractors) / n) * 100) : null;
+  const starDist = [5, 4, 3, 2, 1].map(s => ({ label: `${s} ★`, count: rows.filter(r => r.overall_rating === s).length }));
+
+  summaryEl.innerHTML = n ? `
+    <div class="adm-fb-stats">
+      <div class="adm-fb-stat"><div class="adm-fb-stat-value">${n}</div><div class="adm-fb-stat-label">Responses</div></div>
+      <div class="adm-fb-stat"><div class="adm-fb-stat-value">${avgRating.toFixed(2)} <span class="adm-fb-star">★</span></div><div class="adm-fb-stat-label">Avg season rating (of 5)</div></div>
+      <div class="adm-fb-stat"><div class="adm-fb-stat-value">${avgReturn.toFixed(1)}</div><div class="adm-fb-stat-label">Avg likely to return (of 10)</div></div>
+      <div class="adm-fb-stat"><div class="adm-fb-stat-value">${nps > 0 ? '+' : ''}${nps}</div><div class="adm-fb-stat-label">Net score · ${promoters} at 9–10, ${detractors} at 0–6</div></div>
+    </div>
+    <div class="adm-fb-bar-grid">
+      ${feedbackBars('What worked well', feedbackAspectCounts(rows, 'liked_aspects'), n)}
+      ${feedbackBars('What should change', feedbackAspectCounts(rows, 'change_aspects'), n)}
+      ${feedbackBars('Season rating', starDist, n)}
+    </div>` : '<p class="small-text">No feedback yet.</p>';
+
+  const written = rows.filter(r => r.one_change || r.other_comments);
+  countEl.textContent = n ? `(${written.length} of ${n}, newest first)` : '';
+  listEl.innerHTML = written.length ? written.map(r => `
+    <div class="adm-fb-response">
+      <div class="adm-fb-meta">
+        <span class="adm-fb-stars" title="${r.overall_rating} of 5">${feedbackStars(r.overall_rating)}</span>
+        <span>Return: <strong>${r.likelihood_return}</strong>/10</span>
+        ${r.submitted_at ? `<span>${esc(formatTournamentDate(r.submitted_at))}</span>` : ''}
+      </div>
+      ${r.one_change ? `<p><span class="adm-fb-q">One change:</span> ${esc(r.one_change)}</p>` : ''}
+      ${r.other_comments ? `<p><span class="adm-fb-q">Anything else:</span> ${esc(r.other_comments)}</p>` : ''}
+    </div>`).join('') : '';
+}
+
 // ─── Load everything ──────────────────────────────────────────────────────────
 
 async function loadAll() {
-  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary(), loadDropInLog(), loadTournamentAdmin()]);
+  await Promise.all([loadMatches(), loadPlayers(), loadRecentSignups(), loadAdminEvents(), loadPhotoLibrary(), loadDropInLog(), loadTournamentAdmin(), loadFeedbackAdmin()]);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
